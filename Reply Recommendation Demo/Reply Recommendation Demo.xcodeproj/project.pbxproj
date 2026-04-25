@@ -6,6 +6,10 @@
 	objectVersion = 77;
 	objects = {
 
+/* Begin PBXBuildFile section */
+		AFE0CC2B2F7F5F5A004F04AB /* LlamaSwift in Frameworks */ = {isa = PBXBuildFile; productRef = AFE0CC2A2F7F5F5A004F04AB /* LlamaSwift */; };
+/* End PBXBuildFile section */
+
 /* Begin PBXFileReference section */
 		6B9E5B592F7F22DE00E3AEF6 /* Reply Recommendation Demo.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = "Reply Recommendation Demo.app"; sourceTree = BUILT_PRODUCTS_DIR; };
 /* End PBXFileReference section */
@@ -23,6 +27,7 @@
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				AFE0CC2B2F7F5F5A004F04AB /* LlamaSwift in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -65,6 +70,7 @@
 			);
 			name = "Reply Recommendation Demo";
 			packageProductDependencies = (
+				AFE0CC2A2F7F5F5A004F04AB /* LlamaSwift */,
 			);
 			productName = "Reply Recommendation Demo";
 			productReference = 6B9E5B592F7F22DE00E3AEF6 /* Reply Recommendation Demo.app */;
@@ -94,6 +100,9 @@
 			);
 			mainGroup = 6B9E5B502F7F22DE00E3AEF6;
 			minimizedProjectReferenceProxies = 1;
+			packageReferences = (
+				AFE0CC292F7F5F5A004F04AB /* XCRemoteSwiftPackageReference "llama" */,
+			);
 			preferredProjectObjectVersion = 77;
 			productRefGroup = 6B9E5B5A2F7F22DE00E3AEF6 /* Products */;
 			projectDirPath = "";
@@ -253,7 +262,7 @@
 				CODE_SIGN_STYLE = Automatic;
 				COMBINE_HIDPI_IMAGES = YES;
 				CURRENT_PROJECT_VERSION = 1;
-				DEVELOPMENT_TEAM = 586L2Q38YL;
+				DEVELOPMENT_TEAM = HAVU9YLM49;
 				ENABLE_APP_SANDBOX = YES;
 				ENABLE_HARDENED_RUNTIME = YES;
 				ENABLE_PREVIEWS = YES;
@@ -331,6 +340,25 @@
 			defaultConfigurationName = Release;
 		};
 /* End XCConfigurationList section */
+
+/* Begin XCRemoteSwiftPackageReference section */
+		AFE0CC292F7F5F5A004F04AB /* XCRemoteSwiftPackageReference "llama" */ = {
+			isa = XCRemoteSwiftPackageReference;
+			repositoryURL = "https://github.com/mattt/llama.swift";
+			requirement = {
+				kind = upToNextMajorVersion;
+				minimumVersion = 2.8642.0;
+			};
+		};
+/* End XCRemoteSwiftPackageReference section */
+
+/* Begin XCSwiftPackageProductDependency section */
+		AFE0CC2A2F7F5F5A004F04AB /* LlamaSwift */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = AFE0CC292F7F5F5A004F04AB /* XCRemoteSwiftPackageReference "llama" */;
+			productName = LlamaSwift;
+		};
+/* End XCSwiftPackageProductDependency section */
 	};
 	rootObject = 6B9E5B512F7F22DE00E3AEF6 /* Project object */;
 }
