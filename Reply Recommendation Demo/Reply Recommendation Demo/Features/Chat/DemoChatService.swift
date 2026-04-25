@@ -17,6 +17,7 @@ protocol DemoChatServiceProtocol {
     var isConfigured: Bool { get }
 
     func fetchThreadList() async throws -> [DemoThreadListItem]
+    func createThread(_ draft: DemoNewThreadDraft) async throws -> DemoThreadListItem
     func fetchMessages(threadID: UUID) async throws -> [DemoChatMessageRecord]
     func fetchNewMessages(threadID: UUID, since: Date) async throws -> [DemoChatMessageRecord]
     func sendMessage(
@@ -109,6 +110,88 @@ final class DemoChatService: DemoChatServiceProtocol {
                 unreadCount: 0
             )
         }
+    }
+
+    func createThread(_ draft: DemoNewThreadDraft) async throws -> DemoThreadListItem {
+        try requireConfiguration()
+
+        struct DisplayOrderRow: Decodable {
+            let displayOrder: Int
+
+            enum CodingKeys: String, CodingKey {
+                case displayOrder = "display_order"
+            }
+        }
+
+        struct NewThread: Encodable {
+            let scenario_key: String
+            let display_order: Int
+            let title: String
+            let subtitle: String
+            let default_composer_participant_id: String
+            let reply_to_participant_id: String?
+            let profile_tone: String
+            let profile_length: String
+        }
+
+        struct NewParticipant: Encodable {
+            let thread_id: UUID
+            let participant_id: String
+            let display_name: String
+            let relationship: String?
+            let is_self: Bool
+            let sort_order: Int
+        }
+
+        let ordersResponse = try await client
+            .from("demo_chat_threads")
+            .select("display_order")
+            .execute()
+        let existingOrders = try decoder.decode([DisplayOrderRow].self, from: ordersResponse.data)
+        let nextDisplayOrder = (existingOrders.map(\.displayOrder).max() ?? -1) + 1
+
+        let threadPayload = NewThread(
+            scenario_key: "live-\(UUID().uuidString)",
+            display_order: nextDisplayOrder,
+            title: draft.title,
+            subtitle: draft.subtitle,
+            default_composer_participant_id: draft.defaultComposerParticipantID,
+            reply_to_participant_id: draft.replyToParticipantID,
+            profile_tone: "friendly",
+            profile_length: "short"
+        )
+
+        let threadResponse = try await client
+            .from("demo_chat_threads")
+            .insert(threadPayload)
+            .select("id,scenario_key,display_order,title,subtitle,default_composer_participant_id,reply_to_participant_id,initial_draft,profile_tone,profile_length,created_at,updated_at")
+            .single()
+            .execute()
+        let thread = try decoder.decode(DemoChatThreadRecord.self, from: threadResponse.data)
+
+        let participantPayloads = draft.participants.enumerated().map { index, participant in
+            NewParticipant(
+                thread_id: thread.id,
+                participant_id: participant.participantID,
+                display_name: participant.displayName,
+                relationship: participant.relationship,
+                is_self: participant.isSelf,
+                sort_order: index
+            )
+        }
+        let participantsResponse = try await client
+            .from("demo_chat_thread_participants")
+            .insert(participantPayloads)
+            .select("id,thread_id,participant_id,display_name,relationship,is_self,sort_order,created_at")
+            .execute()
+        let participants = try decoder.decode([DemoChatParticipantRecord].self, from: participantsResponse.data)
+
+        return DemoThreadListItem(
+            thread: thread,
+            participants: participants.sorted { $0.sortOrder < $1.sortOrder },
+            messages: [],
+            unreadCount: 0
+        )
     }
 
     func fetchMessages(threadID: UUID) async throws -> [DemoChatMessageRecord] {

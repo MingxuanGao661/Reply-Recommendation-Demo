@@ -190,6 +190,45 @@ private final class MockDemoChatService: DemoChatServiceProtocol {
         items
     }
 
+    func createThread(_ draft: DemoNewThreadDraft) async throws -> DemoThreadListItem {
+        let threadID = UUID()
+        let now = Date()
+        let thread = DemoChatThreadRecord(
+            id: threadID,
+            scenarioKey: "live-\(threadID.uuidString)",
+            displayOrder: items.count,
+            title: draft.title,
+            subtitle: draft.subtitle,
+            defaultComposerParticipantID: draft.defaultComposerParticipantID,
+            replyToParticipantID: draft.replyToParticipantID,
+            initialDraft: nil,
+            profileTone: "friendly",
+            profileLength: "short",
+            createdAt: now,
+            updatedAt: now
+        )
+        let participants = draft.participants.enumerated().map { index, participant in
+            DemoChatParticipantRecord(
+                id: UUID(),
+                threadID: threadID,
+                participantID: participant.participantID,
+                displayName: participant.displayName,
+                relationship: participant.relationship,
+                isSelf: participant.isSelf,
+                sortOrder: index,
+                createdAt: now
+            )
+        }
+        let item = DemoThreadListItem(
+            thread: thread,
+            participants: participants,
+            messages: [],
+            unreadCount: 0
+        )
+        items.append(item)
+        return item
+    }
+
     func fetchMessages(threadID: UUID) async throws -> [DemoChatMessageRecord] {
         items.first { $0.id == threadID }?.messages ?? []
     }

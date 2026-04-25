@@ -6,6 +6,7 @@ final class ThreadListViewModel: ObservableObject {
     @Published private(set) var threads: [DemoThreadListItem] = []
     @Published var selectedThreadID: UUID?
     @Published private(set) var isLoading = false
+    @Published private(set) var isCreatingThread = false
     @Published private(set) var errorMessage: String?
 
     private let service: DemoChatServiceProtocol
@@ -44,6 +45,30 @@ final class ThreadListViewModel: ObservableObject {
     func selectThread(_ threadID: UUID?) {
         selectedThreadID = threadID
         markSelectedThreadRead()
+    }
+
+    func createThread(_ draft: DemoNewThreadDraft) async -> Bool {
+        guard !isCreatingThread else { return false }
+        guard service.isConfigured else {
+            errorMessage = DemoChatServiceError.notConfigured.localizedDescription
+            return false
+        }
+
+        isCreatingThread = true
+        defer { isCreatingThread = false }
+
+        do {
+            let thread = try await service.createThread(draft)
+            threads.append(thread)
+            threads.sort { $0.thread.displayOrder < $1.thread.displayOrder }
+            selectedThreadID = thread.id
+            errorMessage = nil
+            await startRealtimeSubscriptions()
+            return true
+        } catch {
+            errorMessage = error.localizedDescription
+            return false
+        }
     }
 
     func ingest(_ message: DemoChatMessageRecord) {

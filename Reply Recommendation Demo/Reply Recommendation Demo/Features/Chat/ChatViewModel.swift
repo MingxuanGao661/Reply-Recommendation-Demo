@@ -59,7 +59,8 @@ final class ChatViewModel: ObservableObject {
         isSending = false
         errorMessage = nil
         metrics = nil
-        activeComposerParticipantID = resolvedThreadItem.thread.defaultComposerParticipantID
+        activeComposerParticipantID = settingsStore.demoComposerParticipantID(for: resolvedThreadItem.id)
+            ?? resolvedThreadItem.thread.defaultComposerParticipantID
         threadToneOverride = ThreadToneOverride(
             profileTone: resolvedThreadItem.thread.profileTone
         )
@@ -201,6 +202,7 @@ final class ChatViewModel: ObservableObject {
     func setActiveComposerParticipant(_ participantID: String) {
         guard participants.contains(where: { $0.id == participantID }) else { return }
         activeComposerParticipantID = participantID
+        settingsStore.setDemoComposerParticipantID(participantID, for: threadID)
         clearSuggestionState()
     }
 

@@ -3,6 +3,7 @@ import SwiftUI
 struct ChatWorkspaceView: View {
     @StateObject private var threadListViewModel: ThreadListViewModel
     @EnvironmentObject private var settingsStore: AppSettingsStore
+    @State private var isShowingNewChat = false
     private let chatService: DemoChatServiceProtocol
 
     init(
@@ -22,9 +23,13 @@ struct ChatWorkspaceView: View {
                     set: { threadListViewModel.selectThread($0) }
                 ),
                 isLoading: threadListViewModel.isLoading,
+                isCreatingThread: threadListViewModel.isCreatingThread,
                 errorMessage: threadListViewModel.errorMessage,
                 onRefresh: {
                     Task { await threadListViewModel.loadThreads() }
+                },
+                onNewChat: {
+                    isShowingNewChat = true
                 }
             )
             .navigationTitle("Chats")
@@ -53,6 +58,11 @@ struct ChatWorkspaceView: View {
         .task {
             await threadListViewModel.loadThreads()
         }
+        .sheet(isPresented: $isShowingNewChat) {
+            NewChatSheet(isCreating: threadListViewModel.isCreatingThread) { draft in
+                await threadListViewModel.createThread(draft)
+            }
+        }
     }
 }
 
@@ -60,8 +70,10 @@ private struct ThreadSidebar: View {
     let threads: [DemoThreadListItem]
     @Binding var selectedThreadID: UUID?
     let isLoading: Bool
+    let isCreatingThread: Bool
     let errorMessage: String?
     let onRefresh: () -> Void
+    let onNewChat: () -> Void
 
     var body: some View {
         List(selection: $selectedThreadID) {
@@ -98,12 +110,160 @@ private struct ThreadSidebar: View {
         }
         .toolbar {
             ToolbarItem(placement: .topBarTrailing) {
+                Button(action: onNewChat) {
+                    Image(systemName: "square.and.pencil")
+                }
+                .disabled(isCreatingThread)
+                .accessibilityLabel("New Chat")
+            }
+
+            ToolbarItem(placement: .topBarTrailing) {
                 Button(action: onRefresh) {
                     Image(systemName: "arrow.clockwise")
                 }
                 .accessibilityLabel("Refresh Chats")
             }
         }
+    }
+}
+
+private struct NewChatSheet: View {
+    let isCreating: Bool
+    let onCreate: (DemoNewThreadDraft) async -> Bool
+
+    @Environment(\.dismiss) private var dismiss
+    @State private var title = ""
+    @State private var subtitle = ""
+    @State private var currentUserName = "Me"
+    @State private var otherParticipants = ""
+    @State private var validationMessage: String?
+
+    var body: some View {
+        NavigationStack {
+            Form {
+                Section("Chat") {
+                    TextField("Thread name", text: $title)
+                    TextField("Subtitle", text: $subtitle)
+                }
+
+                Section("Participants") {
+                    TextField("Current user", text: $currentUserName)
+                    TextField("Other participants, comma separated", text: $otherParticipants, axis: .vertical)
+                        .lineLimit(2 ... 4)
+
+                    if let validationMessage {
+                        Text(validationMessage)
+                            .font(.footnote)
+                            .foregroundStyle(.red)
+                    }
+                }
+            }
+            .navigationTitle("New Chat")
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbar {
+                ToolbarItem(placement: .cancellationAction) {
+                    Button("Cancel") {
+                        dismiss()
+                    }
+                }
+
+                ToolbarItem(placement: .confirmationAction) {
+                    Button {
+                        create()
+                    } label: {
+                        if isCreating {
+                            ProgressView()
+                        } else {
+                            Text("Create")
+                        }
+                    }
+                    .disabled(isCreating)
+                }
+            }
+        }
+    }
+
+    private func create() {
+        guard let draft = makeDraft() else { return }
+        Task {
+            let didCreate = await onCreate(draft)
+            if didCreate {
+                dismiss()
+            }
+        }
+    }
+
+    private func makeDraft() -> DemoNewThreadDraft? {
+        let cleanTitle = title.trimmingCharacters(in: .whitespacesAndNewlines)
+        let cleanCurrentUser = currentUserName.trimmingCharacters(in: .whitespacesAndNewlines)
+        let others = otherParticipants
+            .split(separator: ",")
+            .map { $0.trimmingCharacters(in: .whitespacesAndNewlines) }
+            .filter { !$0.isEmpty }
+
+        guard !cleanTitle.isEmpty else {
+            validationMessage = "Add a thread name."
+            return nil
+        }
+        guard !cleanCurrentUser.isEmpty else {
+            validationMessage = "Add the current user's name."
+            return nil
+        }
+        guard !others.isEmpty else {
+            validationMessage = "Add at least one other participant."
+            return nil
+        }
+
+        var usedIDs: Set<String> = ["me"]
+        let otherParticipantRecords = others.map { name in
+            let participantID = uniqueParticipantID(for: name, usedIDs: &usedIDs)
+            return DemoNewThreadParticipant(
+                participantID: participantID,
+                displayName: name,
+                relationship: "participant",
+                isSelf: false
+            )
+        }
+
+        validationMessage = nil
+        let trimmedSubtitle = subtitle.trimmingCharacters(in: .whitespacesAndNewlines)
+        return DemoNewThreadDraft(
+            title: cleanTitle,
+            subtitle: trimmedSubtitle.isEmpty ? "Live demo chat" : trimmedSubtitle,
+            defaultComposerParticipantID: "me",
+            replyToParticipantID: otherParticipantRecords.first?.participantID,
+            participants: [
+                DemoNewThreadParticipant(
+                    participantID: "me",
+                    displayName: cleanCurrentUser,
+                    relationship: "self",
+                    isSelf: true
+                ),
+            ] + otherParticipantRecords
+        )
+    }
+
+    private func uniqueParticipantID(for name: String, usedIDs: inout Set<String>) -> String {
+        let normalized = name
+            .lowercased()
+            .map { character -> Character in
+                character.isLetter || character.isNumber ? character : "_"
+            }
+        var base = String(normalized)
+            .split(separator: "_")
+            .joined(separator: "_")
+        if base.isEmpty || base == "me" {
+            base = "participant"
+        }
+
+        var candidate = base
+        var suffix = 2
+        while usedIDs.contains(candidate) {
+            candidate = "\(base)_\(suffix)"
+            suffix += 1
+        }
+        usedIDs.insert(candidate)
+        return candidate
     }
 }
 

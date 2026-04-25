@@ -122,6 +122,21 @@ struct DemoThreadListItem: Identifiable, Equatable {
     }
 }
 
+struct DemoNewThreadParticipant: Equatable {
+    let participantID: String
+    let displayName: String
+    let relationship: String?
+    let isSelf: Bool
+}
+
+struct DemoNewThreadDraft: Equatable {
+    let title: String
+    let subtitle: String
+    let defaultComposerParticipantID: String
+    let replyToParticipantID: String?
+    let participants: [DemoNewThreadParticipant]
+}
+
 extension DemoScenario {
     var offlineThreadID: UUID {
         switch self {

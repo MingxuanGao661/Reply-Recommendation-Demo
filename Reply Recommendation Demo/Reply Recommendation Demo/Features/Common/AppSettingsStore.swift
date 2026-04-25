@@ -175,6 +175,10 @@ final class AppSettingsStore: ObservableObject {
         didSet { persist() }
     }
 
+    @Published private var demoComposerParticipantIDs: [String: String] {
+        didSet { persistDemoComposerParticipantIDs() }
+    }
+
     private let defaults: UserDefaults
     let isRunningInXcodePreview: Bool
     let demoSenderDeviceID: String
@@ -210,6 +214,7 @@ final class AppSettingsStore: ObservableObject {
             rawValue: defaults.string(forKey: Keys.bundledLlamaModel) ?? ""
         ) ?? .instruct3B_Q4
         loraAdapterEnabled = defaults.object(forKey: Keys.loraAdapterEnabled) as? Bool ?? false
+        demoComposerParticipantIDs = Self.loadDemoComposerParticipantIDs(from: defaults)
 
         if isRunningInXcodePreview {
             backendMode = .mock
@@ -225,6 +230,14 @@ final class AppSettingsStore: ObservableObject {
         isRunningInXcodePreview ? [.mock, .cloud] : ReplyBackendMode.allCases
     }
 
+    func demoComposerParticipantID(for threadID: UUID) -> String? {
+        demoComposerParticipantIDs[threadID.uuidString]
+    }
+
+    func setDemoComposerParticipantID(_ participantID: String, for threadID: UUID) {
+        demoComposerParticipantIDs[threadID.uuidString] = participantID
+    }
+
     private func persist() {
         guard !isRunningInXcodePreview else { return }
         defaults.set(backendMode.rawValue, forKey: Keys.backendMode)
@@ -238,6 +251,20 @@ final class AppSettingsStore: ObservableObject {
         defaults.set(loraAdapterEnabled, forKey: Keys.loraAdapterEnabled)
     }
 
+    private func persistDemoComposerParticipantIDs() {
+        guard !isRunningInXcodePreview else { return }
+        guard let data = try? JSONEncoder().encode(demoComposerParticipantIDs) else { return }
+        defaults.set(data, forKey: Keys.demoComposerParticipantIDs)
+    }
+
+    private static func loadDemoComposerParticipantIDs(from defaults: UserDefaults) -> [String: String] {
+        guard let data = defaults.data(forKey: Keys.demoComposerParticipantIDs),
+              let decoded = try? JSONDecoder().decode([String: String].self, from: data) else {
+            return [:]
+        }
+        return decoded
+    }
+
     private enum Keys {
         static let backendMode = "replyDemo.backendMode"
         static let defaultTone = "replyDemo.defaultTone"
@@ -249,5 +276,6 @@ final class AppSettingsStore: ObservableObject {
         static let bundledLlamaModel = "replyDemo.bundledLlamaModel"
         static let loraAdapterEnabled = "replyDemo.loraAdapterEnabled"
         static let demoSenderDeviceID = "replyDemo.demoSenderDeviceID"
+        static let demoComposerParticipantIDs = "replyDemo.demoComposerParticipantIDs"
     }
 }

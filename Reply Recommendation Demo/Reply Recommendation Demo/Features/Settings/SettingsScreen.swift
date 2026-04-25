@@ -93,6 +93,19 @@ struct SettingsScreen: View {
                 }
 
                 Section("Thread") {
+                    Picker(
+                        "Current user",
+                        selection: Binding(
+                            get: { viewModel.activeComposerParticipantID },
+                            set: { viewModel.setActiveComposerParticipant($0) }
+                        )
+                    ) {
+                        ForEach(viewModel.participants, id: \.id) { participant in
+                            Text(viewModel.displayName(for: participant.id))
+                                .tag(participant.id)
+                        }
+                    }
+
                     Picker("Thread tone", selection: $viewModel.threadToneOverride) {
                         ForEach(ThreadToneOverride.allCases) { option in
                             Text(option.displayName).tag(option)
