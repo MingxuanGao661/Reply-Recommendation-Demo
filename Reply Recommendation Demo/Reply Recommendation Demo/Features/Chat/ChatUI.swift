@@ -32,6 +32,8 @@ struct DemoChatMessageRow: View {
     let message: ChatMessageItem
     let showsSenderName: Bool
     let isTrailing: Bool
+    var isSelected: Bool = false
+    var onTap: (() -> Void)? = nil
 
     var body: some View {
         VStack(
@@ -51,12 +53,69 @@ struct DemoChatMessageRow: View {
                     DemoMessageBubble(text: message.text, isTrailing: true)
                 } else {
                     DemoAvatarBadge(name: message.speakerName)
-                    DemoMessageBubble(text: message.text, isTrailing: false)
+                    bubbleWithHighlight
                     Spacer(minLength: 44)
                 }
             }
         }
         .padding(.horizontal, 16)
+        .contentShape(Rectangle())
+        .onTapGesture {
+            guard !isTrailing, let onTap else { return }
+            withAnimation(.easeInOut(duration: 0.15)) { onTap() }
+        }
+    }
+
+    @ViewBuilder
+    private var bubbleWithHighlight: some View {
+        DemoMessageBubble(text: message.text, isTrailing: false)
+            .overlay(
+                RoundedRectangle(cornerRadius: 20, style: .continuous)
+                    .stroke(Color.accentColor, lineWidth: isSelected ? 2 : 0)
+                    .animation(.easeInOut(duration: 0.15), value: isSelected)
+            )
+            .scaleEffect(isSelected ? 1.02 : 1.0)
+            .animation(.spring(response: 0.25, dampingFraction: 0.7), value: isSelected)
+    }
+}
+
+/// Banner shown above the composer when a specific message is pinned as the reply target.
+struct ReplyTargetBanner: View {
+    let speakerName: String
+    let previewText: String
+    let onDismiss: () -> Void
+
+    var body: some View {
+        HStack(spacing: 10) {
+            Image(systemName: "arrowshape.turn.up.left.fill")
+                .font(.caption.weight(.semibold))
+                .foregroundStyle(Color.accentColor)
+
+            VStack(alignment: .leading, spacing: 1) {
+                Text("Replying to \(speakerName)")
+                    .font(.caption.weight(.semibold))
+                    .foregroundStyle(Color.accentColor)
+                Text(previewText)
+                    .font(.caption2)
+                    .foregroundStyle(.secondary)
+                    .lineLimit(1)
+                    .truncationMode(.tail)
+            }
+
+            Spacer()
+
+            Button(action: onDismiss) {
+                Image(systemName: "xmark.circle.fill")
+                    .font(.system(size: 16))
+                    .foregroundStyle(Color(uiColor: .tertiaryLabel))
+            }
+            .buttonStyle(.plain)
+            .accessibilityLabel("Clear reply target")
+        }
+        .padding(.horizontal, 16)
+        .padding(.vertical, 8)
+        .background(Color.accentColor.opacity(0.08))
+        .transition(.move(edge: .bottom).combined(with: .opacity))
     }
 }
 

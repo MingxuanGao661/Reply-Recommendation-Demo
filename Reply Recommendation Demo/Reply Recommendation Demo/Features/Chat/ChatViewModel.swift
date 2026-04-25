@@ -16,6 +16,7 @@ final class ChatViewModel: ObservableObject {
     @Published var threadToneOverride: ThreadToneOverride
     @Published var threadLengthOverride: ThreadLengthOverride
     @Published private(set) var activeComposerParticipantID: String
+    @Published var selectedReplyMessageID: UUID?
 
     private let settingsStore: AppSettingsStore
     private var cachedLocalEngine: LocalReplyEngine?
@@ -203,6 +204,21 @@ final class ChatViewModel: ObservableObject {
         errorMessage = nil
     }
 
+    /// Selects a message as the reply target. Tapping the same message again deselects it.
+    func selectReplyTarget(messageID: UUID) {
+        selectedReplyMessageID = (selectedReplyMessageID == messageID) ? nil : messageID
+    }
+
+    func clearReplyTarget() {
+        selectedReplyMessageID = nil
+    }
+
+    /// The message currently pinned as the reply target (nil if none selected).
+    var selectedReplyMessage: ChatMessageItem? {
+        guard let id = selectedReplyMessageID else { return nil }
+        return messages.first { $0.id == id }
+    }
+
     func sendDraft() {
         let trimmed = draftText.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !trimmed.isEmpty else { return }
@@ -219,6 +235,7 @@ final class ChatViewModel: ObservableObject {
             )
         )
         draftText = ""
+        selectedReplyMessageID = nil
         clearSuggestionState()
     }
 
@@ -351,6 +368,7 @@ final class ChatViewModel: ObservableObject {
         threadLengthOverride = ThreadLengthOverride(
             profileLength: thread.conversationProfile?.length
         )
+        selectedReplyMessageID = nil
         clearSuggestionState()
     }
 
@@ -505,6 +523,10 @@ final class ChatViewModel: ObservableObject {
     }
 
     private var currentReplyTargetID: String? {
+        // A manually-pinned message always wins.
+        if let pinned = selectedReplyMessage {
+            return pinned.speakerId
+        }
         if participants.count == 2 {
             return participants.first(where: { $0.id != activeComposerParticipantID })?.id
         }

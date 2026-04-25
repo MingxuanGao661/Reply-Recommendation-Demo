@@ -23,7 +23,9 @@ struct ChatScreen: View {
                             DemoChatMessageRow(
                                 message: message,
                                 showsSenderName: shouldShowSenderName(at: index),
-                                isTrailing: viewModel.isTrailingMessage(message)
+                                isTrailing: viewModel.isTrailingMessage(message),
+                                isSelected: viewModel.selectedReplyMessageID == message.id,
+                                onTap: { viewModel.selectReplyTarget(messageID: message.id) }
                             )
                             .id(message.id)
                         }
@@ -71,6 +73,14 @@ struct ChatScreen: View {
                         )
 
                         Divider()
+
+                        if let replyMsg = viewModel.selectedReplyMessage {
+                            ReplyTargetBanner(
+                                speakerName: replyMsg.speakerName,
+                                previewText: replyMsg.text,
+                                onDismiss: { viewModel.clearReplyTarget() }
+                            )
+                        }
 
                         if viewModel.shouldShowComposerParticipantPicker {
                             ComposerParticipantPicker(
