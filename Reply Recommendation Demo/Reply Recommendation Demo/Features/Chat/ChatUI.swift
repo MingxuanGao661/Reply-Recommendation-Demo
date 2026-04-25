@@ -237,6 +237,7 @@ struct SuggestionShelf: View {
 }
 
 private struct SuggestionCard: View {
+    private let cardHeight: CGFloat = 110
     let slot: SuggestionSlotItem
 
     var body: some View {
@@ -257,7 +258,8 @@ private struct SuggestionCard: View {
                     .multilineTextAlignment(.leading)
             }
         }
-        .frame(width: 184, alignment: .leading)
+        .frame(width: 184, alignment: .topLeading)
+        .frame(height: cardHeight, alignment: .topLeading)
         .padding(14)
         .background(
             RoundedRectangle(cornerRadius: 18, style: .continuous)
