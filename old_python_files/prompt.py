@@ -68,3 +68,48 @@ def build_messages(conv_input: ConversationInput) -> list[dict]:
         {"role": "system", "content": build_system_prompt(conv_input.profile, has_draft)},
         {"role": "user", "content": build_user_prompt(conv_input)},
     ]
+
+
+def build_messages_qwen(conv_input: ConversationInput) -> list[dict]:
+    """Build messages for Qwen3.5 (and Qwen3) models with thinking mode disabled.
+
+    Qwen3.5 hybrid-thinking checkpoints can prepend a ``<think>...</think>``
+    block to every response.  Appending ``/no_think`` at the end of the user
+    turn is the documented format-level directive that suppresses this prefix
+    (see https://huggingface.co/Qwen/Qwen3.5-docs — "Thinking mode control").
+    It is a safe no-op on older / non-thinking Qwen variants (0.6B, Qwen3-0.6B).
+
+    System prompt content and user content are completely unchanged; only the
+    trailing ``\\n\\n/no_think`` token is appended to the last user message.
+    ``chat_format="chatml"`` is set by LocalEngine when a Qwen model is detected.
+    """
+    messages = build_messages(conv_input)
+    messages[-1]["content"] += "\n\n/no_think"
+    return messages
+
+
+def build_messages_gemma(conv_input: ConversationInput) -> list[dict]:
+    """Build messages for Google Gemma (Gemma 2 / 3 / 4 IT, etc.) with llama.cpp / llama-cpp-python.
+
+    Gemma uses turns: ``<start_of_turn>user`` … ``<end_of_turn>`` then ``<start_of_turn>model`` …
+    (see https://github.com/ggml-org/llama.cpp/wiki/Templates-supported-by-llama_chat_apply_template — template ``gemma``).
+
+    ``llama-cpp-python``'s ``chat_format="gemma"`` does not emit ``role=system`` content (it is dropped).
+    We merge the system instructions into the single user turn so behavior matches Llama-style APIs.
+    """
+    has_draft = bool(conv_input.draft and conv_input.draft.strip())
+    system = build_system_prompt(conv_input.profile, has_draft)
+    user = build_user_prompt(conv_input)
+    merged = f"{system}\n\n---\n\n{user}"
+    return [{"role": "user", "content": merged}]
+
+
+def format_gemma_chat_prompt(merged_user_content: str) -> str:
+    """Exact single-turn string ``chat_format='gemma'`` produces before BOS handling (for debugging).
+
+    The runtime adds the model generation header; this matches ``format_gemma`` in upstream
+    ``llama_chat_format.py`` for one user message and an empty assistant turn.
+    """
+    body = merged_user_content.strip()
+    sep = "<end_of_turn>\n"
+    return f"<start_of_turn>user\n{body}{sep}<start_of_turn>model\n"

@@ -236,6 +236,22 @@ final class LocalReplyEngine: ReplySuggestionEngine {
         modelPathInBundle() != nil
     }
 
+    /// Warms up the local model so the first real generation has no cold-start delay.
+    ///
+    /// Two-phase warm-up:
+    /// 1. `prepareService` loads model weights + allocates KV cache (~1-3 s for 3B).
+    /// 2. A minimal 2-token inference triggers Metal shader JIT compilation (~0.5-1 s).
+    ///    Without step 2, the first real `generate()` call still pays a JIT penalty.
+    func warmUp() {
+        guard service == nil, modelPathInBundle() != nil else { return }
+        inferenceQueue.async { [weak self] in
+            guard let self else { return }
+            guard let svc = try? self.prepareService(defaultProfile: Profile()) else { return }
+            // Minimal decode: just enough to compile Metal shaders. Output is discarded.
+            _ = try? svc.generate(prompt: "<|begin_of_text|>", tokenLimit: 2)
+        }
+    }
+
     func generateSuggestions(
         input: ConversationInput,
         defaultProfile: Profile

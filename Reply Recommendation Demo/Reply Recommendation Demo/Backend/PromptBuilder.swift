@@ -7,20 +7,17 @@ enum PromptBuilder {
     /// Short system prompt aligned with `old_python_files/prompt.py` for small LMs (e.g. Llama 3.2 1B).
     /// `{style_rules_block}` + `{reply_target}` preserve merged profile / reply-target behavior.
     private static let systemPromptWithDraft = """
-    You finish the user's draft into a text they can send. You are Me; answer the OTHER person's last message.
+    Complete "Me (typing)" into 3 send-ready messages for {reply_target}.
 
     {style_rules_block}
     {theme_rules_block}
 
-    MUST follow:
-    1) FACTS: Keep the draft's meaning. Same times, dates, yes/no, promises, reasons. Do not change to a different time or opposite idea.
-    2) DRAFT: Start from the draft — complete or lightly polish it into a full sentence or two. Do not ignore the draft.
-    3) TARGET: Respond to {reply_target}. If they asked a question, answer it; do not only repeat or paraphrase what they said.
-    4) VOICE: Obey the Style rules above (tone, length). Real texting — short and casual when length is short, not robotic. Avoid unnecessary exclamation marks (!).
+    Rules:
+    - "Me (typing)" is YOUR OWN partial text — each output is a polished version of it. Do NOT reply to it; it is not someone else's message.
+    - Keep the core meaning: same yes/no, same times/dates, same intent. Do NOT flip or reverse the draft's answer.
+    - The completed text must fit as a reply to {reply_target}. Real texting — short and casual unless length is long.
 
-    Output format: one JSON object only, no markdown. Key "suggestions" = array of exactly 3 objects. Each object has "label" ({label_list}) and "text" (Me's real reply for THIS chat — must match the draft and {reply_target}).
-
-    Do NOT paste generic filler. Do NOT use "on my way", "omw", "running late", or "running a few min late" unless the user's draft is clearly about leaving, ETA, or traffic.
+    Output format: one JSON object only, no markdown. Key "suggestions" = array of exactly 3 objects. Each has "label" ({label_list}) and "text".
     """
 
     private static let systemPromptNoDraft = """
@@ -60,20 +57,16 @@ enum PromptBuilder {
     // MARK: - Single-tone system prompts
 
     private static let systemPromptSingleWithDraft = """
-    You finish the user's draft into ONE text they can send in the "{tone_label}" style. You are Me; answer the OTHER person's last message.
+    Complete "Me (typing)" into ONE send-ready message in the "{tone_label}" style for {reply_target}.
 
     {style_rules_block}
-    {theme_rules_block}
 
-    MUST follow:
-    1) FACTS: Keep the draft's meaning. Same times, dates, yes/no, promises, reasons. Do not change to a different time or opposite idea.
-    2) DRAFT: Start from the draft — complete or lightly polish it into a full sentence or two.
-    3) TARGET: Respond to {reply_target}. If they asked a question, answer it.
-    4) VOICE: {tone_description}. Real texting — short and casual when length is short, not robotic.
+    Rules:
+    - "Me (typing)" is YOUR OWN partial text — output a polished version of it. Do NOT reply to it; it is not someone else's message.
+    - Keep the core meaning: same yes/no, same times/dates, same intent. Do NOT flip or reverse the draft's answer.
+    - Style for this message: {tone_description}
 
-    Output format: one JSON object only, no markdown. Keys: "label" ("{tone_label}") and "text" (Me's real reply for THIS chat).
-
-    Do NOT paste generic filler. Do NOT use "on my way", "omw", "running late" unless the draft is clearly about leaving or ETA.
+    Output: one JSON object only, no markdown. Keys: "label" ("{tone_label}") and "text".
     """
 
     private static let systemPromptSingleNoDraft = """
@@ -145,21 +138,29 @@ enum PromptBuilder {
             lines.append("  \(name): \(msg.text)")
         }
 
-        if let targetName = input.replyTargetName {
-            lines.append("\nReplying to: \(targetName)")
-        }
-
         if input.hasDraft {
-            lines.append("\nMy draft: \"\(input.resolvedDraft)\"")
-            lines.append(
-                "Keep the draft's facts. Expand into a reply to Other's last line. "
-                    + "Each of the 3 texts must fit THIS draft, not a generic late/omw message."
-            )
+            // Embed the draft as the last line of conversation so the model sees it
+            // as Me's own in-progress reply, not a separate message to respond to.
+            lines.append("  Me (typing): \"\(input.resolvedDraft)\"")
+            lines.append("")
+            if let targetName = input.replyTargetName {
+                lines.append("Complete \"Me (typing)\" into a ready-to-send reply to \(targetName).")
+            } else {
+                lines.append("Complete \"Me (typing)\" into a ready-to-send reply.")
+            }
         } else {
-            lines.append("\n(no draft yet)")
+            // Explicitly pin the reply target message so the model focuses on it,
+            // not on the full conversation history.
+            if let targetMsg = input.replyTargetMessage {
+                let targetName = input.replyTargetName ?? "them"
+                lines.append("\nReply ONLY to this message from \(targetName): \"\(targetMsg.text)\"")
+            } else if let targetName = input.replyTargetName {
+                lines.append("\nReplying to: \(targetName)")
+            }
+            lines.append("(no draft — write a fresh reply)")
         }
 
-        lines.append("\nReply in JSON as instructed (suggestions array with label + text).")
+        lines.append("\nReply in JSON as instructed.")
         return lines.joined(separator: "\n")
     }
 
@@ -268,19 +269,17 @@ enum PromptBuilder {
         switch themeSet {
         case .replyStyles:
             return """
-    - Branch: treat this as a normal reply, not a yes/no decision.
-    - Use these exact labels and intents:
-      • Direct = clear and concise
-      • Friendly = warm and personable
-      • Thoughtful = a bit more considerate or reflective
+    - Three reply styles — all replying to the LAST message only; each must feel NOTICEABLY different:
+      • Direct    = lead with the answer right away; skip warm-ups and filler; shorter is better
+      • Friendly  = add one warm or personal touch to YOUR ANSWER (their name, "haha", "for sure"); don't recap the conversation
+      • Thoughtful = briefly acknowledge the specific question or situation in the last message, then give your reply
     """
         case .decisionReply:
             return """
-    - Branch: treat this as a yes/no decision prompt or request for commitment.
-    - Use these exact labels and intents:
-      • Agree = clear yes / accept
-      • Soft Decline = polite no
-      • Delay = ask for more time or defer the decision
+    - Three decision stances — all replying to the LAST message; each must give a clearly different answer:
+      • Agree       = clear yes / direct acceptance; no hedging
+      • Soft Decline = kind no — warm but firm; don't over-explain
+      • Delay       = defer without committing — ask for more time or say you'll confirm later
     """
         }
     }
@@ -292,17 +291,17 @@ enum PromptBuilder {
     private static func themeDescription(for label: String) -> String {
         switch label.lowercased() {
         case "direct":
-            return "clear, concise, and straightforward"
+            return "lead with the answer, no warm-up or filler — skip pleasantries and get straight to the point; shorter is better"
         case "friendly":
-            return "warm, personable, and easygoing"
+            return "add one warm or personal touch to your answer — use their name, 'haha', or a light affirmation; reply to what they just said, don't recap the conversation"
         case "thoughtful":
-            return "considerate, slightly more reflective, and attentive"
+            return "briefly acknowledge the specific thing they just asked or mentioned, then give your reply — one step more considerate, but still focused on their last message"
         case "agree":
-            return "a clear yes or acceptance"
+            return "clear yes / direct acceptance — no hedging, just commit"
         case "soft decline":
-            return "a polite no that stays kind"
+            return "kind no — warm but firm; one sentence is enough, don't over-explain"
         case "delay":
-            return "a deferment that asks for more time or postpones the answer"
+            return "defer without committing — ask for more time or say you'll confirm later; don't say yes or no"
         default:
             return "natural, conversational"
         }

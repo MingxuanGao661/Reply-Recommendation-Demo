@@ -1,6 +1,6 @@
 from llama_cpp import Llama, LlamaGrammar
 from schemas import ConversationInput, SuggestionOutput, EvalMetrics
-from prompt import build_messages
+from prompt import build_messages, build_messages_gemma, build_messages_qwen
 from evaluator import measure
 
 # GBNF grammar that forces the model to output exactly:
@@ -19,15 +19,40 @@ ws     ::= [ \t\n]*
 # Models with known grammar compatibility issues — use json_object mode instead
 GRAMMAR_SKIP_MODELS = {"gemma"}
 
+# Per-family routing: chat_format passed to Llama(), msg_builder key for generate()
+_MODEL_FAMILIES: dict[str, dict[str, str]] = {
+    "gemma": {"chat_format": "gemma",  "msg_builder": "gemma"},
+    "qwen":  {"chat_format": "chatml", "msg_builder": "qwen"},
+}
+
+
+def _detect_model_family(name: str) -> str | None:
+    """Return the model family key (e.g. 'gemma', 'qwen') or None."""
+    n = name.lower()
+    for family in _MODEL_FAMILIES:
+        if family in n:
+            return family
+    return None
+
 
 class LocalEngine:
-    def __init__(self, model_path: str, n_ctx: int = 2048, n_gpu_layers: int = -1):
+    def __init__(
+        self,
+        model_path: str,
+        n_ctx: int = 2048,
+        n_gpu_layers: int = -1,
+        chat_format: str | None = None,
+    ):
         """Load a GGUF model for local inference.
 
         Args:
             model_path: Path to the .gguf file.
             n_ctx: Context window size.
             n_gpu_layers: Layers to offload to GPU (-1 = all available).
+            chat_format: Optional ``llama-cpp-python`` chat format override (e.g. ``\"gemma\"``, ``\"chatml\"``).
+                If None, model family is auto-detected by filename:
+                  gemma* → chat_format="gemma",  message builder merges system→user
+                  qwen*  → chat_format="chatml", message builder appends /no_think to user turn
         """
         self.model_path = model_path
         self.model_name = model_path.rsplit("/", 1)[-1].replace(".gguf", "")
@@ -35,18 +60,37 @@ class LocalEngine:
         model_lower = self.model_name.lower()
         self.use_grammar = not any(skip in model_lower for skip in GRAMMAR_SKIP_MODELS)
 
-        self.llm = Llama(
+        # Resolve model family (None when chat_format is forced via CLI arg)
+        if chat_format is not None:
+            self.chat_format = chat_format
+            self.model_family: str | None = None
+        else:
+            self.model_family = _detect_model_family(self.model_name)
+            cfg = _MODEL_FAMILIES.get(self.model_family or "", {})
+            self.chat_format = cfg.get("chat_format")
+
+        llama_kwargs = dict(
             model_path=model_path,
             n_ctx=n_ctx,
             n_gpu_layers=n_gpu_layers,
             verbose=False,
         )
+        if self.chat_format:
+            llama_kwargs["chat_format"] = self.chat_format
+
+        self.llm = Llama(**llama_kwargs)
         self.grammar = LlamaGrammar.from_string(SUGGESTIONS_GRAMMAR) if self.use_grammar else None
 
     def generate(
         self, conv_input: ConversationInput, max_tokens: int = 512, temperature: float = 0.7
     ) -> tuple[SuggestionOutput, EvalMetrics]:
-        messages = build_messages(conv_input)
+        builder = _MODEL_FAMILIES.get(self.model_family or "", {}).get("msg_builder", "default")
+        if builder == "gemma":
+            messages = build_messages_gemma(conv_input)
+        elif builder == "qwen":
+            messages = build_messages_qwen(conv_input)
+        else:
+            messages = build_messages(conv_input)
 
         call_kwargs = {
             "messages": messages,

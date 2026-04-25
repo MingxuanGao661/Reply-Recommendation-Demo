@@ -362,6 +362,14 @@ final class ChatViewModel: ObservableObject {
         clearSuggestionState()
     }
 
+    /// Triggers a background model load for the local engine so the first real generation has no cold-start delay.
+    /// No-op when backend is not local, in Xcode Preview, or model is already loaded.
+    func warmUpLocalEngineIfNeeded() {
+        guard settingsStore.backendMode == .local,
+              !settingsStore.isRunningInXcodePreview else { return }
+        localEngineForCurrentSettings().warmUp()
+    }
+
     private func localEngineForCurrentSettings() -> LocalReplyEngine {
         let name = settingsStore.bundledLlamaModel.resourceName
         if cachedLocalModelResource == name, let cached = cachedLocalEngine {

@@ -13,8 +13,9 @@ from schemas import ConversationInput, SuggestionOutput, EvalMetrics
 
 #How you could run the inference locally:
 #python demo.py local 
-#python demo.py local --model Qwen3.5-0.8B-Q4_K_M.gguf
-#python demo.py benchmark --limit 3
+#python demo.py local --model gemma-4-E4B-it-Q4_K_M.gguf
+#python demo.py benchmark --limit 0
+#python demo.py cloud --provider anthropic
 
 
 PROJECT_DIR = os.path.dirname(os.path.abspath(__file__))
@@ -123,13 +124,21 @@ def save_results(model_name: str, sample_results: list[dict], all_metrics: list[
     return reply_file, eval_file
 
 
-def run_local(model_path: str, samples: list[dict], max_tokens: int, temperature: float):
+def run_local(
+    model_path: str,
+    samples: list[dict],
+    max_tokens: int,
+    temperature: float,
+    chat_format: str | None = None,
+):
     from engine_local import LocalEngine
 
     model_name = os.path.basename(model_path).replace(".gguf", "")
     print(f"LOCAL MODE — {model_name}")
+    if chat_format:
+        print(f"  chat_format={chat_format!r} (CLI override)")
 
-    engine = LocalEngine(model_path)
+    engine = LocalEngine(model_path, chat_format=chat_format)
 
     all_metrics = []
     sample_results = []
@@ -309,6 +318,13 @@ def main():
     p_local.add_argument("--limit", type=int, default=3, help="Max samples (0 = entire JSON file)")
     p_local.add_argument("--max-tokens", type=int, default=512)
     p_local.add_argument("--temperature", type=float, default=0.7)
+    p_local.add_argument(
+        "--chat-format",
+        type=str,
+        default=None,
+        metavar="NAME",
+        help="llama-cpp-python chat_format (e.g. gemma). Default: auto — gemma* GGUF uses gemma",
+    )
 
     # --- cloud mode ---
     p_cloud = sub.add_parser("cloud", help="Run with cloud API")
@@ -381,7 +397,13 @@ def main():
             else:
                 print(f"Error: Model file not found: {model_path}")
                 sys.exit(1)
-        run_local(model_path, samples, args.max_tokens, args.temperature)
+        run_local(
+            model_path,
+            samples,
+            args.max_tokens,
+            args.temperature,
+            chat_format=args.chat_format,
+        )
 
     elif args.mode == "cloud":
         run_cloud(args.provider, samples, args.max_tokens, args.temperature, model=args.model)

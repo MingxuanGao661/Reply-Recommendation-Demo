@@ -94,7 +94,10 @@ final class LLMService {
 
     /// Generate from a pre-built raw prompt string.
     /// Used by progressive generation to run one tone at a time.
-    func generate(prompt: String) throws -> (outputJSON: String, metrics: InferenceMetrics) {
+    /// - Parameter tokenLimit: Maximum new tokens to generate. Defaults to 280.
+    ///   Pass a small value (e.g. 2) for warm-up calls to trigger Metal shader compilation
+    ///   without spending time on full generation.
+    func generate(prompt: String, tokenLimit: Int = 280) throws -> (outputJSON: String, metrics: InferenceMetrics) {
         guard model != nil, let context, let vocab, let sampler else {
             throw LLMError.modelNotLoaded
         }
@@ -148,7 +151,7 @@ final class LLMService {
         // Generate tokens using llama.cpp native sampler chain (top_k → top_p → temp → dist).
         // This avoids a per-token Swift loop over the full vocab, which was the main CPU bottleneck.
         let maxNewTokens = min(
-            280,
+            tokenLimit,
             max(0, Int(contextSize) - promptTokens.count)
         )
         var outputTokens: [llama_token] = []

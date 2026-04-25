@@ -1,4 +1,4 @@
-llama-cpp-python==0.3.19
+llama-cpp-python>=0.3.20
 openai==2.30.0
 anthropic>=0.45.0
 psutil==7.2.2

@@ -159,7 +159,11 @@ enum SuggestionThemeSet: Equatable {
     }
 
     static func resolve(for input: ConversationInput) -> SuggestionThemeSet {
-        input.shouldUseDecisionThemes ? .decisionReply : .replyStyles
+        // When a draft is present the user has already indicated their intent.
+        // Decision labels (Agree / Soft Decline / Delay) conflict with draft
+        // continuation and cause the model to ignore the draft entirely.
+        guard !input.hasDraft else { return .replyStyles }
+        return input.shouldUseDecisionThemes ? .decisionReply : .replyStyles
     }
 }
 
@@ -181,6 +185,14 @@ private extension ConversationInput {
             .filter { !$0.isEmpty }
             .joined(separator: " ")
 
+        // Phrases that turn a yes/no-prefix question into an open-ended info request.
+        // e.g. "can you explain", "could you tell me", "can you help" → NOT a decision.
+        let infoRequestVerbs = [
+            "explain", "tell me", "tell us", "describe", "clarify", "help me",
+            "help us", "show me", "show us", "give me", "give us", "let me know",
+            "remind me", "remind us", "suggest", "recommend",
+        ]
+
         let openEndedPrefixes = [
             "what", "when", "where", "why", "how", "which", "who",
         ]
@@ -189,6 +201,7 @@ private extension ConversationInput {
             "should", "have", "has", "had", "may",
         ]
         let decisionPhrases = [
+            // original
             "want to",
             "do you want",
             "would you",
@@ -210,10 +223,38 @@ private extension ConversationInput {
             "is that okay",
             "okay with",
             "good with",
+            // casual / abbreviated forms
+            "wanna",
+            "u down",
+            "u in",
+            "u coming",
+            "you coming",
+            "you in",
+            "you down",
+            "you going",
+            "u going",
+            "tryna",
+            "dtf",          // "down to [hang / go]"
+            "you up",
+            "u up",
+            "coming with",
+            "roll with",
+            "game for",
+            "down for",
+            "in for",
+            "still on",
+            "still good",
+            "cool with",
+            "fine with",
         ]
 
         if decisionPhrases.contains(where: { compact.contains($0) }) {
+            // "X or Y" choice questions are open-ended, not yes/no — unless "or not"
             if compact.contains(" or ") && !compact.contains(" or not") {
+                return false
+            }
+            // "can you explain / tell me / help me …" are info requests, not decisions
+            if infoRequestVerbs.contains(where: { compact.contains($0) }) {
                 return false
             }
             return true
@@ -233,7 +274,16 @@ private extension ConversationInput {
         }
 
         guard compact.contains("?") else { return false }
-        return yesNoPrefixes.contains(firstToken)
+
+        if yesNoPrefixes.contains(firstToken) {
+            // "can you explain / could you tell me …" are info requests even with yes/no prefix
+            if infoRequestVerbs.contains(where: { compact.contains($0) }) {
+                return false
+            }
+            return true
+        }
+
+        return false
     }
 }
 

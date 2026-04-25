@@ -21,6 +21,9 @@ struct AppRootView: View {
                 Color(uiColor: .systemBackground)
                     .ignoresSafeArea()
             }
+            .task {
+                chatViewModel.warmUpLocalEngineIfNeeded()
+            }
     }
 }
 
