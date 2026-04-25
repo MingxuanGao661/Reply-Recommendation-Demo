@@ -1,24 +1,47 @@
 import SwiftUI
 import UIKit
 
+// MARK: - Pastel palette (reference: soft pink / sky blue conversation + mint / butter accents)
+
+enum DemoChatPalette {
+    private static let bubblePink = Color(red: 0.949, green: 0.835, blue: 0.875)
+    private static let bubbleBlue = Color(red: 0.839, green: 0.910, blue: 0.965)
+    private static let mint = Color(red: 0.851, green: 0.922, blue: 0.827)
+    private static let butter = Color(red: 0.996, green: 0.953, blue: 0.824)
+    private static let lilac = Color(red: 0.925, green: 0.910, blue: 0.976)
+    private static let peach = Color(red: 0.99, green: 0.88, blue: 0.82)
+    private static let iceBlue = Color(red: 0.88, green: 0.94, blue: 0.99)
+
+    /// Stable pastel per **speaker** in multi-person threads: Me = blue; others cycle by roster order.
+    static func bubbleFill(speakerId: String, selfId: String, orderedParticipantIds: [String]) -> Color {
+        if speakerId == selfId { return bubbleBlue }
+        let others = orderedParticipantIds.filter { $0 != selfId }
+        let palette: [Color] = [bubblePink, mint, butter, lilac, peach, iceBlue]
+        guard let idx = others.firstIndex(of: speakerId) else {
+            return bubblePink
+        }
+        return palette[idx % palette.count]
+    }
+}
+
 struct DemoMessageBubble: View {
     let text: String
-    let isTrailing: Bool
+    let fill: Color
 
     var body: some View {
         Text(text)
             .font(.body)
-            .foregroundStyle(isTrailing ? .white : .primary)
+            .foregroundStyle(.primary)
             .textSelection(.enabled)
             .padding(.horizontal, 14)
             .padding(.vertical, 10)
             .background(
                 RoundedRectangle(cornerRadius: 20, style: .continuous)
-                    .fill(
-                        isTrailing
-                            ? Color.accentColor
-                            : Color(uiColor: .secondarySystemBackground)
-                    )
+                    .fill(fill)
+            )
+            .overlay(
+                RoundedRectangle(cornerRadius: 20, style: .continuous)
+                    .stroke(Color.primary.opacity(0.06), lineWidth: 1)
             )
             .contextMenu {
                 Button("Copy") {
@@ -32,6 +55,7 @@ struct DemoChatMessageRow: View {
     let message: ChatMessageItem
     let showsSenderName: Bool
     let isTrailing: Bool
+    let bubbleFill: Color
     var isSelected: Bool = false
     var onTap: (() -> Void)? = nil
 
@@ -50,7 +74,7 @@ struct DemoChatMessageRow: View {
             HStack(alignment: .bottom, spacing: 8) {
                 if isTrailing {
                     Spacer(minLength: 44)
-                    DemoMessageBubble(text: message.text, isTrailing: true)
+                    DemoMessageBubble(text: message.text, fill: bubbleFill)
                 } else {
                     DemoAvatarBadge(name: message.speakerName)
                     bubbleWithHighlight
@@ -68,7 +92,7 @@ struct DemoChatMessageRow: View {
 
     @ViewBuilder
     private var bubbleWithHighlight: some View {
-        DemoMessageBubble(text: message.text, isTrailing: false)
+        DemoMessageBubble(text: message.text, fill: bubbleFill)
             .overlay(
                 RoundedRectangle(cornerRadius: 20, style: .continuous)
                     .stroke(Color.accentColor, lineWidth: isSelected ? 2 : 0)
@@ -116,40 +140,6 @@ struct ReplyTargetBanner: View {
         .padding(.vertical, 8)
         .background(Color.accentColor.opacity(0.08))
         .transition(.move(edge: .bottom).combined(with: .opacity))
-    }
-}
-
-struct ComposerParticipantPicker: View {
-    let participants: [Participant]
-    let activeParticipantID: String
-    let onSelectParticipant: (String) -> Void
-
-    var body: some View {
-        VStack(alignment: .leading, spacing: 8) {
-            Text("Send as")
-                .font(.caption.weight(.semibold))
-                .foregroundStyle(.secondary)
-
-            Picker(
-                "Send as",
-                selection: Binding(
-                    get: { activeParticipantID },
-                    set: onSelectParticipant
-                )
-            ) {
-                ForEach(participants, id: \.id) { participant in
-                    Text(displayName(for: participant)).tag(participant.id)
-                }
-            }
-            .pickerStyle(.segmented)
-        }
-        .padding(.horizontal, 16)
-        .padding(.top, 12)
-    }
-
-    private func displayName(for participant: Participant) -> String {
-        let trimmed = participant.name.trimmingCharacters(in: .whitespacesAndNewlines)
-        return trimmed.isEmpty ? participant.id : trimmed
     }
 }
 

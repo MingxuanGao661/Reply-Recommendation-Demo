@@ -24,6 +24,11 @@ struct ChatScreen: View {
                                 message: message,
                                 showsSenderName: shouldShowSenderName(at: index),
                                 isTrailing: viewModel.isTrailingMessage(message),
+                                bubbleFill: DemoChatPalette.bubbleFill(
+                                    speakerId: message.speakerId,
+                                    selfId: viewModel.activeComposerParticipantID,
+                                    orderedParticipantIds: viewModel.participants.map(\.id)
+                                ),
                                 isSelected: viewModel.selectedReplyMessageID == message.id,
                                 onTap: { viewModel.selectReplyTarget(messageID: message.id) }
                             )
@@ -79,16 +84,6 @@ struct ChatScreen: View {
                                 speakerName: replyMsg.speakerName,
                                 previewText: replyMsg.text,
                                 onDismiss: { viewModel.clearReplyTarget() }
-                            )
-                        }
-
-                        if viewModel.shouldShowComposerParticipantPicker {
-                            ComposerParticipantPicker(
-                                participants: viewModel.participants,
-                                activeParticipantID: viewModel.activeComposerParticipantID,
-                                onSelectParticipant: { participantID in
-                                    viewModel.setActiveComposerParticipant(participantID)
-                                }
                             )
                         }
 

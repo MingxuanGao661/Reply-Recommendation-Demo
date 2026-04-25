@@ -24,7 +24,7 @@ final class ChatViewModel: ObservableObject {
     private let mockEngine = MockReplyEngine()
     private var cancellables = Set<AnyCancellable>()
     private var hasBootstrapped = false
-    private let contextWindowSize = 10
+    private let contextWindowSize = 7
 
     private var templateThreadTitle: String
     private var templateThreadSubtitle: String
@@ -119,10 +119,6 @@ final class ChatViewModel: ObservableObject {
 
     var trailingParticipantID: String? {
         participants.last?.id
-    }
-
-    var shouldShowComposerParticipantPicker: Bool {
-        participants.count == 2
     }
 
     var participantSummary: String {
@@ -494,11 +490,17 @@ final class ChatViewModel: ObservableObject {
     }
 
     private func makeConversationInput() -> ConversationInput {
-        let conversation = messages
-            .suffix(contextWindowSize)
-            .map { message in
-                Message(speaker: message.speakerId, text: message.text)
-            }
+        let windowMessages = messagesForSuggestionContext()
+        let conversation = windowMessages.map { message in
+            Message(speaker: message.speakerId, text: message.text)
+        }
+
+        let explicitTarget: Message?
+        if let pinned = selectedReplyMessage {
+            explicitTarget = Message(speaker: pinned.speakerId, text: pinned.text)
+        } else {
+            explicitTarget = nil
+        }
 
         return ConversationInput(
             conversation: Array(conversation),
@@ -518,8 +520,20 @@ final class ChatViewModel: ObservableObject {
                     isSelf: participant.id == activeComposerParticipantID,
                     relationship: participant.relationship
                 )
-            }
+            },
+            explicitReplyTarget: explicitTarget
         )
+    }
+
+    /// Rolling context: last `contextWindowSize` messages by default; if a message is pinned as
+    /// the reply target, use the `contextWindowSize` messages **before** that bubble (exclusive).
+    private func messagesForSuggestionContext() -> [ChatMessageItem] {
+        if let pinned = selectedReplyMessage,
+           let index = messages.firstIndex(where: { $0.id == pinned.id }) {
+            guard index > 0 else { return [] }
+            return Array(messages[..<index].suffix(contextWindowSize))
+        }
+        return Array(messages.suffix(contextWindowSize))
     }
 
     private var currentReplyTargetID: String? {
@@ -529,6 +543,11 @@ final class ChatViewModel: ObservableObject {
         }
         if participants.count == 2 {
             return participants.first(where: { $0.id != activeComposerParticipantID })?.id
+        }
+        // Multi-person: follow the latest **other** speaker, not a frozen template `reply_to`
+        // (templates default to e.g. "mia" forever, which mis-labels prompts after Jake speaks).
+        if let lastOther = messages.last(where: { $0.speakerId != activeComposerParticipantID }) {
+            return lastOther.speakerId
         }
         return templateReplyTargetID
     }

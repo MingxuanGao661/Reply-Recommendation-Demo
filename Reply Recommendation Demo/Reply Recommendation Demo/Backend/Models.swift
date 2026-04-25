@@ -60,12 +60,16 @@ struct ConversationInput: Codable {
     let selfId: String?
     let replyTo: String?
     let participants: [Participant]
+    /// When the UI pins a specific bubble, pass it here so prompts still quote the right text
+    /// even if that message is excluded from the rolling `conversation` window.
+    let explicitReplyTarget: Message?
 
     enum CodingKeys: String, CodingKey {
         case conversation, draft, participants
         case conversationProfile = "conversation_profile"
         case selfId = "self_id"
         case replyTo = "reply_to"
+        case explicitReplyTarget = "explicit_reply_target"
     }
 
     init(
@@ -74,7 +78,8 @@ struct ConversationInput: Codable {
         conversationProfile: Profile? = nil,
         selfId: String? = nil,
         replyTo: String? = nil,
-        participants: [Participant] = []
+        participants: [Participant] = [],
+        explicitReplyTarget: Message? = nil
     ) {
         self.conversation = conversation
         self.draft = draft
@@ -82,6 +87,7 @@ struct ConversationInput: Codable {
         self.selfId = selfId
         self.replyTo = replyTo
         self.participants = participants
+        self.explicitReplyTarget = explicitReplyTarget
     }
 
     // MARK: - Resolved Properties
@@ -123,6 +129,9 @@ struct ConversationInput: Codable {
     }
 
     var replyTargetMessage: Message? {
+        if let explicitReplyTarget {
+            return explicitReplyTarget
+        }
         if let replyTo,
            let matched = conversation.last(where: { $0.speaker == replyTo }) {
             return matched
