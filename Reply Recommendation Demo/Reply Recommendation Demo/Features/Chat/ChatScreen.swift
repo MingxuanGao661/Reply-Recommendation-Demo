@@ -74,6 +74,7 @@ struct ChatScreen: View {
                         DemoMessageComposer(
                             text: $viewModel.draftText,
                             isSendEnabled: viewModel.canSendDraft,
+                            isGenerating: viewModel.isGenerating,
                             onGenerate: {
                                 Task { await viewModel.generateSuggestions() }
                             },

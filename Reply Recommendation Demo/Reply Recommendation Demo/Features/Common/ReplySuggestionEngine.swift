@@ -10,6 +10,29 @@ protocol ReplySuggestionEngine {
         input: ConversationInput,
         defaultProfile: Profile
     ) async throws -> ReplyGenerationResult
+
+    /// Progressive variant: calls `onSuggestionReady` each time one card is ready,
+    /// so the UI can render cards as they arrive instead of waiting for all three.
+    func generateSuggestionsProgressive(
+        input: ConversationInput,
+        defaultProfile: Profile,
+        onSuggestionReady: @escaping (Suggestion) -> Void
+    ) async throws -> InferenceMetrics
+}
+
+extension ReplySuggestionEngine {
+    /// Default: finish all suggestions first, then deliver them in one batch.
+    func generateSuggestionsProgressive(
+        input: ConversationInput,
+        defaultProfile: Profile,
+        onSuggestionReady: @escaping (Suggestion) -> Void
+    ) async throws -> InferenceMetrics {
+        let result = try await generateSuggestions(input: input, defaultProfile: defaultProfile)
+        for suggestion in result.suggestions {
+            onSuggestionReady(suggestion)
+        }
+        return result.metrics
+    }
 }
 
 enum ReplySuggestionEngineError: LocalizedError {
@@ -70,6 +93,48 @@ final class MockReplyEngine: ReplySuggestionEngine {
             ],
             metrics: metrics
         )
+    }
+
+    func generateSuggestionsProgressive(
+        input: ConversationInput,
+        defaultProfile: Profile,
+        onSuggestionReady: @escaping (Suggestion) -> Void
+    ) async throws -> InferenceMetrics {
+        let startTime = Date()
+
+        let effectiveProfile = input.effectiveProfile(userDefault: defaultProfile)
+        let target = input.replyTargetName ?? "them"
+        let topic = input.conversation.last?.text ?? "that"
+        let draft = input.resolvedDraft
+
+        let pairs: [(String, String)]
+        if input.hasDraft {
+            pairs = [
+                ("Natural",  polishDraft(draft, suffix: "That works for me.")),
+                ("Polite",   polishDraft(draft, suffix: "Sounds good, happy to make that work.")),
+                ("Like You", draft.lowercased()),
+            ]
+        } else {
+            pairs = [
+                ("Natural",  "yeah, that sounds good - \(topic.lowercased())"),
+                ("Polite",   "Sounds good, \(target). I'm in."),
+                ("Like You", casualReply(tone: effectiveProfile.resolvedTone)),
+            ]
+        }
+
+        var totalTokens = 0
+        for (label, text) in pairs {
+            try await Task.sleep(nanoseconds: 200_000_000)
+            onSuggestionReady(Suggestion(label: label, text: text))
+            totalTokens += text.count
+        }
+
+        var metrics = InferenceMetrics()
+        metrics.modelName = "mock/safe-demo"
+        metrics.latencyMs = Date().timeIntervalSince(startTime) * 1000
+        metrics.tokensGenerated = totalTokens
+        metrics.totalTokens = totalTokens
+        return metrics
     }
 
     private func polishDraft(_ draft: String, suffix: String) -> String {
@@ -184,6 +249,55 @@ final class LocalReplyEngine: ReplySuggestionEngine {
                         metrics: metrics
                     )
                     continuation.resume(returning: result)
+                } catch {
+                    continuation.resume(throwing: error)
+                }
+            }
+        }
+    }
+
+    /// Progressive: runs three separate single-tone LLM calls in serial.
+    /// Each card is delivered via `onSuggestionReady` as soon as it finishes,
+    /// so the UI can animate cards in one by one.
+    func generateSuggestionsProgressive(
+        input: ConversationInput,
+        defaultProfile: Profile,
+        onSuggestionReady: @escaping (Suggestion) -> Void
+    ) async throws -> InferenceMetrics {
+        try await withCheckedThrowingContinuation { continuation in
+            inferenceQueue.async { [weak self] in
+                guard let self else {
+                    continuation.resume(throwing: CancellationError())
+                    return
+                }
+                do {
+                    let service = try self.prepareService(defaultProfile: defaultProfile)
+                    service.defaultProfile = defaultProfile
+
+                    var combined = InferenceMetrics(modelName: self.modelResourceName)
+
+                    for toneLabel in ["Natural", "Polite", "Like You"] {
+                        let prompt = PromptBuilder.buildLlamaPromptSingle(
+                            input: input,
+                            userDefaultProfile: defaultProfile,
+                            toneLabel: toneLabel
+                        )
+                        let (jsonString, metrics) = try service.generate(prompt: prompt)
+
+                        combined.tokensGenerated += metrics.tokensGenerated
+                        combined.totalTokens    += metrics.totalTokens
+                        combined.latencyMs      += metrics.latencyMs
+                        combined.modelName       = metrics.modelName
+
+                        let output = OutputParser.parse(raw: jsonString)
+                        if let rawText = output.suggestions.first?.text
+                            .trimmingCharacters(in: .whitespacesAndNewlines),
+                           !rawText.isEmpty {
+                            onSuggestionReady(Suggestion(label: toneLabel, text: rawText))
+                        }
+                    }
+
+                    continuation.resume(returning: combined)
                 } catch {
                     continuation.resume(throwing: error)
                 }

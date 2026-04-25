@@ -193,6 +193,7 @@ final class ChatViewModel: ObservableObject {
     func generateSuggestions() async {
         guard !isGenerating else { return }
         isGenerating = true
+        suggestions = []
         errorMessage = nil
         refreshEngineStatus()
         defer {
@@ -202,10 +203,26 @@ final class ChatViewModel: ObservableObject {
 
         let input = makeConversationInput()
 
+        // Called from inferenceQueue (background) — hop to MainActor to mutate published state.
+        let appendSuggestion: (Suggestion) -> Void = { [weak self] suggestion in
+            DispatchQueue.main.async { [weak self] in
+                guard let self else { return }
+                if let item = self.normalizeSingleSuggestion(suggestion) {
+                    self.suggestions.append(item)
+                }
+            }
+        }
+
         do {
-            let result = try await runSelectedEngine(input: input)
-            suggestions = normalizeSuggestions(result.suggestions)
-            metrics = result.metrics
+            let metricsResult = try await resolveEngine().generateSuggestionsProgressive(
+                input: input,
+                defaultProfile: settingsStore.defaultProfile,
+                onSuggestionReady: appendSuggestion
+            )
+            metrics = metricsResult
+            if suggestions.isEmpty {
+                throw ReplySuggestionEngineError.emptySuggestions
+            }
         } catch {
             guard settingsStore.safeDemoModeEnabled,
                   settingsStore.backendMode != .mock else {
@@ -215,13 +232,14 @@ final class ChatViewModel: ObservableObject {
                 return
             }
 
+            suggestions = []
             do {
-                let result = try await mockEngine.generateSuggestions(
+                let metricsResult = try await mockEngine.generateSuggestionsProgressive(
                     input: input,
-                    defaultProfile: settingsStore.defaultProfile
+                    defaultProfile: settingsStore.defaultProfile,
+                    onSuggestionReady: appendSuggestion
                 )
-                suggestions = normalizeSuggestions(result.suggestions)
-                metrics = result.metrics
+                metrics = metricsResult
                 errorMessage = "Fallback to Mock: \(error.localizedDescription)"
             } catch {
                 suggestions = []
@@ -290,37 +308,29 @@ final class ChatViewModel: ObservableObject {
         }
     }
 
-    private func runSelectedEngine(
-        input: ConversationInput
-    ) async throws -> ReplyGenerationResult {
+    private func resolveEngine() -> any ReplySuggestionEngine {
         switch settingsStore.backendMode {
         case .mock:
-            return try await mockEngine.generateSuggestions(
-                input: input,
-                defaultProfile: settingsStore.defaultProfile
-            )
+            return mockEngine
         case .local:
-            if settingsStore.isRunningInXcodePreview {
-                return try await mockEngine.generateSuggestions(
-                    input: input,
-                    defaultProfile: settingsStore.defaultProfile
-                )
-            }
-            return try await localEngineForCurrentSettings().generateSuggestions(
-                input: input,
-                defaultProfile: settingsStore.defaultProfile
-            )
+            if settingsStore.isRunningInXcodePreview { return mockEngine }
+            return localEngineForCurrentSettings()
         case .cloud:
-            let cloudEngine = CloudReplyEngine(
+            return CloudReplyEngine(
                 provider: settingsStore.cloudProvider,
                 modelName: settingsStore.cloudModelName,
                 apiKey: settingsStore.cloudAPIKey
             )
-            return try await cloudEngine.generateSuggestions(
-                input: input,
-                defaultProfile: settingsStore.defaultProfile
-            )
         }
+    }
+
+    private func normalizeSingleSuggestion(_ suggestion: Suggestion) -> ReplySuggestionItem? {
+        let label = normalizeSuggestionLabel(
+            suggestion.label.trimmingCharacters(in: .whitespacesAndNewlines)
+        )
+        let text = suggestion.text.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !text.isEmpty else { return nil }
+        return ReplySuggestionItem(suggestion: Suggestion(label: label, text: text))
     }
 
     private var resolvedBackendMode: ReplyBackendMode {

@@ -87,11 +87,18 @@ final class LLMService {
 
     /// Generate reply suggestions from a ConversationInput.
     func generate(input: ConversationInput) throws -> (outputJSON: String, metrics: InferenceMetrics) {
+        guard model != nil else { throw LLMError.modelNotLoaded }
+        let prompt = PromptBuilder.buildLlamaPrompt(input: input, userDefaultProfile: defaultProfile)
+        return try generate(prompt: prompt)
+    }
+
+    /// Generate from a pre-built raw prompt string.
+    /// Used by progressive generation to run one tone at a time.
+    func generate(prompt: String) throws -> (outputJSON: String, metrics: InferenceMetrics) {
         guard model != nil, let context, let vocab, let sampler else {
             throw LLMError.modelNotLoaded
         }
 
-        let prompt = PromptBuilder.buildLlamaPrompt(input: input, userDefaultProfile: defaultProfile)
         var metrics = InferenceMetrics(modelName: modelName)
 
         resetContextMemory(context)

@@ -61,6 +61,39 @@ enum PromptBuilder {
     """
     }
 
+    // MARK: - Single-tone system prompts
+
+    private static let systemPromptSingleWithDraft = """
+    You finish the user's draft into ONE text they can send in the "{tone_label}" style. You are Me; answer the OTHER person's last message.
+
+    {style_rules_block}
+
+    MUST follow:
+    1) FACTS: Keep the draft's meaning. Same times, dates, yes/no, promises, reasons. Do not change to a different time or opposite idea.
+    2) DRAFT: Start from the draft — complete or lightly polish it into a full sentence or two.
+    3) TARGET: Respond to {reply_target}. If they asked a question, answer it.
+    4) VOICE: {tone_description}. Real texting — short and casual when length is short, not robotic.
+
+    Output format: one JSON object only, no markdown. Keys: "label" ("{tone_label}") and "text" (Me's real reply for THIS chat).
+
+    Do NOT paste generic filler. Do NOT use "on my way", "omw", "running late" unless the draft is clearly about leaving or ETA.
+    """
+
+    private static let systemPromptSingleNoDraft = """
+    Suggest ONE text Me can send in the "{tone_label}" style. Answer the OTHER person's last message.
+
+    {style_rules_block}
+
+    Rules:
+    - Address {reply_target} directly. If they asked a question, answer it; do not only repeat what they said.
+    - Obey the Style rules above. Short, casual, real person texting unless length is long.
+    - Style: {tone_description}
+
+    Output format: one JSON object only, no markdown. Keys: "label" ("{tone_label}") and "text" (Me's real reply for THIS chat).
+
+    Do NOT default to "yeah sounds good" or "down" unless they truly fit the thread.
+    """
+
     // MARK: - Build System Prompt
 
     static func buildSystemPrompt(
@@ -129,6 +162,46 @@ enum PromptBuilder {
         return lines.joined(separator: "\n")
     }
 
+    // MARK: - Single-tone system prompt builder
+
+    static func buildSystemPromptSingle(
+        input: ConversationInput,
+        userDefaultProfile: Profile?,
+        hasDraft: Bool,
+        replyTargetName: String?,
+        toneLabel: String
+    ) -> String {
+        let effective = input.effectiveProfile(userDefault: userDefaultProfile)
+        let template = hasDraft ? systemPromptSingleWithDraft : systemPromptSingleNoDraft
+
+        let target: String
+        if let name = replyTargetName {
+            target = "\(name)'s message"
+        } else {
+            target = "the last message in the conversation"
+        }
+
+        let styleBlock = styleRulesBlock(
+            userDefault: userDefaultProfile,
+            conversation: input.conversationProfile,
+            effective: effective
+        )
+
+        let toneDescription: String
+        switch toneLabel {
+        case "Natural":  toneDescription = "normal, everyday texting"
+        case "Polite":   toneDescription = "softer and kinder tone"
+        case "Like You": toneDescription = "casual and punchy, close to how the draft sounds"
+        default:         toneDescription = "natural, conversational"
+        }
+
+        return template
+            .replacingOccurrences(of: "{style_rules_block}", with: styleBlock)
+            .replacingOccurrences(of: "{reply_target}", with: target)
+            .replacingOccurrences(of: "{tone_label}", with: toneLabel)
+            .replacingOccurrences(of: "{tone_description}", with: toneDescription)
+    }
+
     // MARK: - Build Full Prompt String (for llama.cpp)
     static func buildLlamaPrompt(input: ConversationInput, userDefaultProfile: Profile?) -> String {
         let systemPrompt = buildSystemPrompt(
@@ -148,6 +221,35 @@ enum PromptBuilder {
 
         \(userPrompt)<|eot_id|>\
         <|redacted_start_header_id|>assistant<|redacted_end_header_id|>
+
+        """
+    }
+
+    /// Builds a llama.cpp prompt for a single specific tone label.
+    /// Used by progressive generation to run one card at a time.
+    static func buildLlamaPromptSingle(
+        input: ConversationInput,
+        userDefaultProfile: Profile?,
+        toneLabel: String
+    ) -> String {
+        let systemPrompt = buildSystemPromptSingle(
+            input: input,
+            userDefaultProfile: userDefaultProfile,
+            hasDraft: input.hasDraft,
+            replyTargetName: input.replyTargetName,
+            toneLabel: toneLabel
+        )
+        let userPrompt = buildUserPrompt(input: input)
+
+        return """
+        <|begin_of_text|>\
+        <|start_header_id|>system<|end_header_id|>
+
+        \(systemPrompt)<|eot_id|>\
+        <|start_header_id|>user<|end_header_id|>
+
+        \(userPrompt)<|eot_id|>\
+        <|start_header_id|>assistant<|end_header_id|>
 
         """
     }

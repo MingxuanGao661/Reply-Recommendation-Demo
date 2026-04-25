@@ -62,6 +62,7 @@ struct DemoChatMessageRow: View {
 struct DemoMessageComposer: View {
     @Binding var text: String
     let isSendEnabled: Bool
+    let isGenerating: Bool
     let onGenerate: () -> Void
     let onSend: () -> Void
 
@@ -78,16 +79,24 @@ struct DemoMessageComposer: View {
                 )
 
             Button(action: onGenerate) {
-                Image(systemName: "sparkles")
-                    .font(.system(size: 16, weight: .semibold))
-                    .foregroundStyle(.primary)
-                    .frame(width: 42, height: 42)
-                    .background(
-                        Circle()
-                            .fill(Color.accentColor.opacity(0.18))
-                    )
+                ZStack {
+                    if isGenerating {
+                        ProgressView()
+                            .tint(Color.accentColor)
+                    } else {
+                        Image(systemName: "sparkles")
+                            .font(.system(size: 16, weight: .semibold))
+                            .foregroundStyle(.primary)
+                    }
+                }
+                .frame(width: 42, height: 42)
+                .background(
+                    Circle()
+                        .fill(Color.accentColor.opacity(0.18))
+                )
             }
-            .accessibilityLabel("Generate Suggestions")
+            .disabled(isGenerating)
+            .accessibilityLabel(isGenerating ? "Generating Suggestions" : "Generate Suggestions")
 
             Button(action: onSend) {
                 Image(systemName: "arrow.up")
@@ -151,13 +160,7 @@ struct SuggestionShelf: View {
                 .accessibilityLabel("Regenerate Suggestions")
             }
 
-            if isLoading {
-                HStack(spacing: 10) {
-                    SuggestionSkeletonCard()
-                    SuggestionSkeletonCard()
-                    SuggestionSkeletonCard()
-                }
-            } else if suggestions.isEmpty {
+            if !isLoading && suggestions.isEmpty {
                 Text("Tap the sparkle button or Regenerate to draft contextual replies.")
                     .font(.footnote)
                     .foregroundStyle(.secondary)
@@ -173,9 +176,13 @@ struct SuggestionShelf: View {
                                 SuggestionCard(suggestion: suggestion)
                             }
                             .buttonStyle(.plain)
+                            .transition(.opacity)
                         }
                     }
                     .padding(.vertical, 2)
+                    // Reserve height while cards load so the shelf doesn't collapse
+                    .frame(minHeight: 96)
+                    .animation(.easeInOut(duration: 0.35), value: suggestions.count)
                 }
             }
         }
@@ -199,7 +206,7 @@ private struct SuggestionCard: View {
                 .foregroundStyle(Color.accentColor)
                 .textCase(.uppercase)
 
-            Text(suggestion.text)
+            TypewriterText(fullText: suggestion.text)
                 .font(.subheadline)
                 .foregroundStyle(.primary)
                 .lineLimit(3)
@@ -214,16 +221,43 @@ private struct SuggestionCard: View {
     }
 }
 
-private struct SuggestionSkeletonCard: View {
+/// Reveals text word-by-word on appear, simulating a streaming / typewriter effect.
+private struct TypewriterText: View {
+    let fullText: String
+    var wordsPerSecond: Double = 9
+
+    @State private var visibleWordCount = 0
+
+    private var words: [String] { fullText.components(separatedBy: " ") }
+
     var body: some View {
-        RoundedRectangle(cornerRadius: 18, style: .continuous)
-            .fill(Color(uiColor: .secondarySystemBackground))
-            .frame(width: 104, height: 96)
-            .overlay {
-                ProgressView()
+        Text(visibleWords)
+            .onAppear {
+                visibleWordCount = 0
+                revealNextWord()
+            }
+            // Re-trigger if the card is reused with new text (e.g. regenerate)
+            .onChange(of: fullText) {
+                visibleWordCount = 0
+                revealNextWord()
             }
     }
+
+    private var visibleWords: String {
+        words.prefix(visibleWordCount).joined(separator: " ")
+    }
+
+    private func revealNextWord() {
+        guard visibleWordCount < words.count else { return }
+        visibleWordCount += 1
+        guard visibleWordCount < words.count else { return }
+        let delay = 1.0 / wordsPerSecond
+        DispatchQueue.main.asyncAfter(deadline: .now() + delay) {
+            revealNextWord()
+        }
+    }
 }
+
 
 struct DemoTimestampBanner: View {
     let date: Date
