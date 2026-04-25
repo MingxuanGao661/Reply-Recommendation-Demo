@@ -3,8 +3,27 @@ import Foundation
 // MARK: - Input
 
 struct Message: Codable {
-    let speaker: String  // "me" or "other"
+    let speaker: String   // user ID, e.g. "me", "alice", "bob"
     let text: String
+}
+
+struct Participant: Codable {
+    let id: String
+    let name: String
+    let isSelf: Bool?
+    let relationship: String?
+
+    enum CodingKeys: String, CodingKey {
+        case id, name, relationship
+        case isSelf = "is_self"
+    }
+
+    init(id: String, name: String, isSelf: Bool? = nil, relationship: String? = nil) {
+        self.id = id
+        self.name = name
+        self.isSelf = isSelf
+        self.relationship = relationship
+    }
 }
 
 struct Profile: Codable {
@@ -23,26 +42,72 @@ struct ConversationInput: Codable {
     let conversation: [Message]
     let draft: String?
     let profile: Profile?
+    let selfId: String?
+    let replyTo: String?
+    let participants: [Participant]
+
+    enum CodingKeys: String, CodingKey {
+        case conversation, draft, profile, participants
+        case selfId = "self_id"
+        case replyTo = "reply_to"
+    }
+
+    init(
+        conversation: [Message],
+        draft: String? = nil,
+        profile: Profile? = nil,
+        selfId: String? = nil,
+        replyTo: String? = nil,
+        participants: [Participant] = []
+    ) {
+        self.conversation = conversation
+        self.draft = draft
+        self.profile = profile
+        self.selfId = selfId
+        self.replyTo = replyTo
+        self.participants = participants
+    }
+
+    // MARK: - Resolved Properties
+
+    var resolvedSelfId: String { selfId ?? "me" }
 
     var resolvedDraft: String {
         (draft ?? "").trimmingCharacters(in: .whitespacesAndNewlines)
     }
 
-    var resolvedProfile: Profile {
-        profile ?? Profile()
+    var resolvedProfile: Profile { profile ?? Profile() }
+
+    var hasDraft: Bool { !resolvedDraft.isEmpty }
+
+    var isGroupChat: Bool {
+        let uniqueSpeakers = Set(conversation.map { $0.speaker })
+        return uniqueSpeakers.count > 2
     }
 
-    var hasDraft: Bool {
-        !resolvedDraft.isEmpty
+    /// Get the display name for a speaker ID.
+    /// Priority: participants lookup → speaker ID itself
+    func displayName(for speakerId: String) -> String {
+        if speakerId == resolvedSelfId { return "Me" }
+        if let p = participants.first(where: { $0.id == speakerId }) {
+            return p.name
+        }
+        return speakerId
     }
 
-    /// Parse from JSON string
+    /// The display name of the reply target (nil if not specified)
+    var replyTargetName: String? {
+        guard let replyTo else { return nil }
+        return displayName(for: replyTo)
+    }
+
+    // MARK: - Parsing
+
     static func from(json: String) -> ConversationInput? {
         guard let data = json.data(using: .utf8) else { return nil }
         return try? JSONDecoder().decode(ConversationInput.self, from: data)
     }
 
-    /// Parse from JSON Data
     static func from(data: Data) -> ConversationInput? {
         try? JSONDecoder().decode(ConversationInput.self, from: data)
     }

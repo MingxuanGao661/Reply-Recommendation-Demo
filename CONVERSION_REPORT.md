@@ -4,8 +4,8 @@
 
 This report documents the conversion of the Reply Recommendation Demo backend from Python to Swift for iOS deployment. The Python prototype served as the reference implementation — all logic, prompt templates, and JSON schemas are preserved to ensure identical behavior on both platforms.
 
-**Source**: 4 Python modules (497 lines)  
-**Target**: 4 Swift files (494 lines) in `Reply Recommendation Demo/Backend/`  
+**Source**: 6 Python modules (~750 lines)  
+**Target**: 5 Swift files (~750 lines) in `Reply Recommendation Demo/Backend/` + 1 test UI  
 **Model**: Llama-3.2-1B-Instruct-Q4_K_M.gguf (770 MB, shared across both platforms)
 
 ---
@@ -17,16 +17,16 @@ This report documents the conversion of the Reply Recommendation Demo backend fr
 | `schemas.py` (data structures) | `Models.swift` | 152 → 109 | Input/output data types + metrics |
 | `prompt.py` | `PromptBuilder.swift` | 88 → 125 | System/user prompt construction |
 | `schemas.py` (parsing logic) | `OutputParser.swift` | (included above) → 113 | Tolerant JSON parsing from LLM output |
-| `engine_local.py` | `LLMService.swift` | 78 → 247 | LLM inference via llama.cpp |
+| `engine_local.py` | `LLMService.swift` | 78 → 252 | Local LLM inference via llama.cpp |
+| `engine_cloud.py` | `CloudService.swift` | 170 → 196 | Cloud API inference (OpenAI/Anthropic/Gemini/Groq/OpenRouter) |
+| `demo.py` | `ContentView.swift` | 335 → 254 | Test entry point (CLI → SwiftUI test harness) |
 
-### Not Converted (Not Needed on iOS)
+### Not Converted (Development-Only Tools)
 
 | Python File | Reason |
 |-------------|--------|
-| `engine_cloud.py` (170 lines) | Cloud API fallback — optional for iOS, can be added later |
-| `demo.py` (335 lines) | CLI entry point — iOS has its own UI layer |
-| `evaluator.py` (47 lines) | Performance measurement — absorbed into `LLMService.swift` |
-| `visualize.py` (217 lines) | Chart generation — development-only tool |
+| `evaluator.py` (47 lines) | Performance measurement — absorbed into `LLMService.swift` metrics |
+| `visualize.py` (217 lines) | Chart generation — development-only tool, not needed on device |
 
 ---
 
@@ -197,21 +197,219 @@ Both `draft` and `profile` are optional. When `draft` is empty or absent, the sy
 
 ---
 
+## 5. CloudService.swift ← engine_cloud.py
+
+**What changed:**
+- Python's `openai` SDK + `anthropic` SDK → Swift native `URLSession` HTTP requests
+- Supports the same 5 providers: OpenAI, Anthropic, Gemini, Groq, OpenRouter
+- Anthropic uses its native API format (x-api-key header, separate system message); all others use OpenAI-compatible chat completions endpoint
+- `async/await` pattern matches Swift concurrency model
+
+**Key difference from Python:**
+Python uses third-party SDKs (`openai`, `anthropic` pip packages). Swift uses raw HTTP requests via `URLSession` — no external dependencies needed.
+
+---
+
+## 6. ContentView.swift ← demo.py
+
+**What changed:**
+- Python CLI (`argparse` + terminal output) → SwiftUI test harness UI
+- Mode selection: Segmented picker (Local / Cloud) instead of `python demo.py local|cloud`
+- 5 hardcoded test samples from `test_samples.json` instead of file loading
+- Results display: SwiftUI `Text` views instead of `print()` statements
+
+This is a **temporary test UI** — the frontend team will replace it with the actual app interface. Its sole purpose is to verify that backend inference works correctly on device.
+
+---
+
 ## Integration Guide for iOS Frontend
 
-The frontend team only needs to interact with `LLMService`:
+The frontend team interacts with two services:
 
 ```swift
-// Initialize once (app startup)
-let path = Bundle.main.path(forResource: "Llama-3.2-1B-Instruct-Q4_K_M", ofType: "gguf")!
-let service = try LLMService(modelPath: path)
+// Option A: Cloud inference (needs network + API key)
+let cloud = try CloudService(apiKey: "xxx", provider: "groq")
+let (json, metrics) = try await cloud.generate(input: input)
 
-// Generate (per user request, must be called off main thread)
-Task.detached {
-    let (outputJSON, metrics) = try service.generate(inputJSON: inputJSON)
-    // outputJSON is ready to parse/display
-    // metrics.latencyMs, metrics.tokensPerSec for performance monitoring
+// Option B: Local inference (offline, needs .gguf in bundle)
+let path = Bundle.main.path(forResource: "Llama-3.2-1B-Instruct-Q4_K_M", ofType: "gguf")!
+let local = try LLMService(modelPath: path)
+let (json, metrics) = try local.generate(input: input)
+```
+
+Both return identical JSON output format. No additional configuration is needed. The services handle prompt construction, inference, output parsing, and performance measurement internally.
+
+---
+
+## Fine-Tuning Data Strategy (LoRA)
+
+### Goal
+
+Fine-tune Llama 3.2 1B with LoRA to improve reply quality for both **draft polishing** and **from-scratch suggestion** modes.
+
+### Training Data Format
+
+Each training sample is a complete `system → user → assistant` turn in the standard chat format:
+
+```json
+{
+  "messages": [
+    {"role": "system", "content": "(system prompt — auto-generated by PromptBuilder)"},
+    {"role": "user", "content": "Conversation:\n  Me: ...\n  Other: ...\n\nMy draft: \"...\"\n\nReply with JSON:"},
+    {"role": "assistant", "content": "{\"suggestions\": [{\"label\": \"Natural\", \"text\": \"...\"}, {\"label\": \"Polite\", \"text\": \"...\"}, {\"label\": \"Like You\", \"text\": \"...\"}]}"}
+  ]
 }
 ```
 
-No additional configuration is needed. The service handles prompt construction, inference, output parsing, and performance measurement internally.
+The `system` and `user` content is derived from the existing inference-time input (ConversationInput + PromptBuilder). The `assistant` content is the **ground-truth ideal output** — generated by a large model (Claude Sonnet / GPT-4o) and quality-checked.
+
+### Data Volume Target
+
+| Phase | Volume | Purpose |
+|-------|--------|---------|
+| Phase 1 (MVP) | ~3000 samples | Stable JSON format + clear style differentiation |
+| — with draft | ~1200 (40%) | Draft polishing mode |
+| — without draft | ~1800 (60%) | From-scratch suggestion mode (harder task, needs more data) |
+| Phase 2 (if needed) | +1000 samples | Add `relationship` field (4 types: friend/colleague/partner/family) |
+| Diminishing returns | >10000 | 1B model capacity ceiling — switch to 3B+ for further gains |
+
+### Data Generation Pipeline
+
+1. **Scenario generation**: Use GPT-4o-mini to produce diverse conversation scenarios (~$6 for 3000)
+2. **Ground-truth output**: Use Claude Sonnet to generate high-quality suggestion triples (~$45 for 3000)
+3. **Quality audit**: Manually review 10% + use Claude to flag low-quality outputs
+4. **Format conversion**: Script to assemble into chat-format JSONL using PromptBuilder logic
+5. **Estimated total cost**: $10–50 depending on quality tier
+
+### Topic Coverage (target distribution for 3000 samples)
+
+| Category | % | Examples |
+|----------|---|---------|
+| Casual / Social | 30% | Hanging out, food, weekend plans |
+| Work / Professional | 15% | Meetings, deadlines, project updates |
+| Emotional / Support | 15% | Venting, encouragement, tough situations |
+| Planning / Logistics | 15% | Time, location, coordination |
+| Humor / Banter | 10% | Jokes, teasing, memes |
+| Relationship / Dating | 10% | Flirting, check-ins, date planning |
+| Family | 5% | Parents, siblings, family events |
+
+### Profile Variation
+
+Each sample should have a randomized `profile` to ensure the model learns all combinations:
+- **tone**: warm, neutral, enthusiastic, friendly (4 values)
+- **length**: short, medium, long (3 values)
+- **style**: casual, chill, conversational, relaxed (4 values)
+
+### Context Complexity Guidelines for 1B Model
+
+**Keep for 1B:**
+- `tone` / `length` / `style` (current profile fields) — proven to work
+- Conversation history (up to ~10 turns) — model handles this well
+
+**Consider adding (Phase 2):**
+- `relationship` (4 broad categories only) — moderate complexity increase
+
+**Avoid for 1B (defer to 3B+):**
+- Free-text `history_summary` — exceeds comprehension capacity
+- `mood` — overlaps with `tone`, causes confusion
+- `setting` — too many possible values to generalize
+- Multi-dimensional social context — 1B lacks the capacity to leverage it reliably
+
+## Interface Expansion: Multi-Person Conversations (Implemented)
+
+The `speaker` field has been expanded from `"me"` / `"other"` to support arbitrary user IDs with display names. The interface is **fully backward-compatible** — old 2-person format still works.
+
+**Unified format (2-person and multi-person):**
+
+2-person example:
+```json
+{
+  "conversation": [
+    {"speaker": "alice", "text": "Hey want to grab lunch?"},
+    {"speaker": "me", "text": "How about ramen?"},
+    {"speaker": "alice", "text": "Sure, what time?"}
+  ],
+  "participants": [
+    {"id": "me", "name": "Me", "is_self": true},
+    {"id": "alice", "name": "Alice"}
+  ],
+  "reply_to": "alice",
+  "draft": "12ish"
+}
+```
+
+Multi-person example:
+```json
+{
+  "conversation": [
+    {"speaker": "me", "text": "周六谁有空？"},
+    {"speaker": "alice", "text": "我有空！"},
+    {"speaker": "bob", "text": "下午可以"},
+    {"speaker": "me", "text": "那去吃火锅？"},
+    {"speaker": "bob", "text": "行啊，几点？"}
+  ],
+  "self_id": "me",
+  "reply_to": "bob",
+  "participants": [
+    {"id": "me", "name": "Me", "is_self": true},
+    {"id": "alice", "name": "Alice", "relationship": "friend"},
+    {"id": "bob", "name": "Bob", "relationship": "colleague"}
+  ],
+  "draft": "12点",
+  "profile": {"tone": "friendly", "length": "short", "style": "casual"}
+}
+```
+
+**Fields:**
+
+| Field | Type | Required | Default | Description |
+|-------|------|----------|---------|-------------|
+| `conversation` | [Message] | yes | — | Array of messages |
+| `speaker` | String | yes | — | User ID (e.g. "me", "alice", "bob") |
+| `text` | String | yes | — | Message content |
+| `participants` | [Participant] | no | [] | Maps speaker IDs to display names; used in prompt |
+| `self_id` | String? | no | `"me"` | Which speaker ID represents the current user |
+| `reply_to` | String? | no | nil | Who the user is @replying to (speaker ID) |
+| `draft` | String? | no | nil | User's draft text; nil/empty = suggest-from-scratch mode |
+| `profile` | Profile? | no | warm/short/casual | Style preferences (see design note below) |
+
+**Display name resolution:**
+1. `participants` array lookup by speaker ID
+2. Fallback: raw speaker ID as-is (e.g. "alice" shows as "alice")
+3. Self ID always displays as "Me"
+
+**Multi-person + @mention: why this works for 1B**
+
+In the "assistive @mention" model, the user explicitly selects who to reply to. This means the 1B model doesn't need to figure out conversation dynamics or reply targets — it just needs to:
+1. Read who said what (labeled with display names)
+2. Know it's replying to a specific person (explicit `reply_to`)
+3. Polish/suggest a reply (same core task as 2-person)
+
+The prompt automatically adapts: "Each suggestion MUST directly respond to **Bob's message**" instead of generic "the last message."
+
+**Assessment for 1B model with LoRA:**
+- 3 participants, 5-8 turns, explicit `reply_to`: fully viable
+- 4 participants: viable but quality may dip slightly
+- 5+ participants or no `reply_to`: recommend Cloud API (large model)
+
+---
+
+### Design Decision: Profile Field
+
+`profile` controls the style of generated replies (tone, length, style). Design considerations:
+
+**Where does profile come from?**
+
+| Option | Pros | Cons | Recommendation |
+|--------|------|------|----------------|
+| App settings (persisted) | Set once, consistent UX | User may forget to update | Default approach |
+| Per-request from frontend | Maximum flexibility | Extra UI complexity | For power users |
+| Omitted entirely | Simplest | No personalization | Acceptable for MVP |
+| Learned from user history | Most personalized | Requires data + ML pipeline | Future enhancement |
+
+**Current design:** `profile` is **optional** in the interface with sensible defaults (`warm` / `short` / `casual`). The frontend can:
+1. Not send it at all (uses defaults)
+2. Store user preferences locally and send per-request
+3. Let users adjust in a settings screen
+
+The profile is baked into the system prompt, so adding/removing it requires no model changes — it's purely a prompt-level feature. This means even after LoRA fine-tuning, profile can be adjusted without retraining.

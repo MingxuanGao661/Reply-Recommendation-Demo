@@ -13,7 +13,7 @@ enum PromptBuilder {
     - Write like a REAL PERSON texting — not like an AI assistant
     - Use lowercase, contractions, and natural abbreviations when fitting
     - Do NOT be overly enthusiastic or add unnecessary exclamation marks
-    - Each suggestion MUST directly respond to the last message in the conversation
+    - Each suggestion MUST directly respond to {reply_target}
     - Keep each reply to 1-2 sentences unless length is "long"
     - The 3 suggestions should feel noticeably different from each other:
       "Natural" = how most people would reply
@@ -22,7 +22,7 @@ enum PromptBuilder {
 
     Example:
     Conversation:
-      Other: Hey want to grab lunch?
+      Alice: Hey want to grab lunch?
       Me: (draft: "sure")
     Output: {"suggestions": [{"label": "Natural", "text": "Sure, where were you thinking?"}, {"label": "Polite", "text": "Sounds great! Any place in mind?"}, {"label": "Like You", "text": "down, lmk where"}]}
 
@@ -39,7 +39,7 @@ enum PromptBuilder {
     - Write like a REAL PERSON texting — not like an AI assistant
     - Use lowercase, contractions, and natural abbreviations when fitting
     - Do NOT be overly enthusiastic or add unnecessary exclamation marks
-    - Focus on the LAST message from the other person — your reply should directly address it
+    - Focus on {reply_target} — your reply should directly address them
     - Consider the overall mood and topic of the conversation
     - Keep each reply to 1-2 sentences unless length is "long"
     - The 3 suggestions should offer meaningfully different directions:
@@ -50,7 +50,7 @@ enum PromptBuilder {
     Example:
     Conversation:
       Me: Are you free Saturday?
-      Other: Yeah I think so, why?
+      Bob: Yeah I think so, why?
     Output: {"suggestions": [{"label": "Natural", "text": "Want to check out that new ramen place?"}, {"label": "Polite", "text": "I was hoping we could hang out, maybe grab dinner?"}, {"label": "Like You", "text": "ramen. you in?"}]}
 
     Return ONLY valid JSON (no markdown, no extra text):
@@ -59,21 +59,44 @@ enum PromptBuilder {
 
     // MARK: - Build System Prompt
 
-    static func buildSystemPrompt(profile: Profile, hasDraft: Bool) -> String {
+    static func buildSystemPrompt(profile: Profile, hasDraft: Bool, replyTargetName: String?) -> String {
         let template = hasDraft ? systemPromptWithDraft : systemPromptNoDraft
+
+        let target: String
+        if let name = replyTargetName {
+            target = "\(name)'s message"
+        } else {
+            target = "the last message in the conversation"
+        }
+
         return template
             .replacingOccurrences(of: "{tone}", with: profile.tone)
             .replacingOccurrences(of: "{length}", with: profile.length)
             .replacingOccurrences(of: "{style}", with: profile.style)
+            .replacingOccurrences(of: "{reply_target}", with: target)
     }
 
     // MARK: - Build User Prompt
 
     static func buildUserPrompt(input: ConversationInput) -> String {
-        var lines = ["Conversation:"]
+        var lines: [String] = []
+
+        if input.isGroupChat && !input.participants.isEmpty {
+            let names = input.participants
+                .filter { $0.isSelf != true }
+                .map { $0.name }
+                .joined(separator: ", ")
+            lines.append("Group chat with: \(names)")
+        }
+
+        lines.append("Conversation:")
         for msg in input.conversation {
-            let tag = msg.speaker == "me" ? "Me" : "Other"
-            lines.append("  \(tag): \(msg.text)")
+            let name = input.displayName(for: msg.speaker)
+            lines.append("  \(name): \(msg.text)")
+        }
+
+        if let targetName = input.replyTargetName {
+            lines.append("\nReplying to: \(targetName)")
         }
 
         if input.hasDraft {
@@ -88,11 +111,11 @@ enum PromptBuilder {
 
     // MARK: - Build Full Prompt String (for llama.cpp)
 
-    /// Builds a single prompt string using Llama 3.2 chat template
     static func buildLlamaPrompt(input: ConversationInput) -> String {
         let systemPrompt = buildSystemPrompt(
             profile: input.resolvedProfile,
-            hasDraft: input.hasDraft
+            hasDraft: input.hasDraft,
+            replyTargetName: input.replyTargetName
         )
         let userPrompt = buildUserPrompt(input: input)
 
@@ -113,7 +136,8 @@ enum PromptBuilder {
     static func buildMessages(input: ConversationInput) -> [[String: String]] {
         let systemPrompt = buildSystemPrompt(
             profile: input.resolvedProfile,
-            hasDraft: input.hasDraft
+            hasDraft: input.hasDraft,
+            replyTargetName: input.replyTargetName
         )
         let userPrompt = buildUserPrompt(input: input)
         return [
