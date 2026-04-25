@@ -177,10 +177,19 @@ final class AppSettingsStore: ObservableObject {
 
     private let defaults: UserDefaults
     let isRunningInXcodePreview: Bool
+    let demoSenderDeviceID: String
 
     init(defaults: UserDefaults = .standard) {
         self.defaults = defaults
         isRunningInXcodePreview = ProcessInfo.processInfo.environment["XCODE_RUNNING_FOR_PREVIEWS"] == "1"
+        if let existingID = defaults.string(forKey: Keys.demoSenderDeviceID),
+           !existingID.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+            demoSenderDeviceID = existingID
+        } else {
+            let newID = UUID().uuidString
+            defaults.set(newID, forKey: Keys.demoSenderDeviceID)
+            demoSenderDeviceID = newID
+        }
 
         backendMode = ReplyBackendMode(
             rawValue: defaults.string(forKey: Keys.backendMode) ?? ""
@@ -239,5 +248,6 @@ final class AppSettingsStore: ObservableObject {
         static let safeDemoModeEnabled = "replyDemo.safeDemoModeEnabled"
         static let bundledLlamaModel = "replyDemo.bundledLlamaModel"
         static let loraAdapterEnabled = "replyDemo.loraAdapterEnabled"
+        static let demoSenderDeviceID = "replyDemo.demoSenderDeviceID"
     }
 }

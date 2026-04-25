@@ -13,7 +13,7 @@ struct ChatScreen: View {
     var body: some View {
         NavigationStack {
             ScrollViewReader { proxy in
-                ScrollView {
+                ScrollView(.vertical, showsIndicators: true) {
                     LazyVStack(spacing: 10) {
                         ForEach(Array(viewModel.messages.enumerated()), id: \.element.id) { index, message in
                             if shouldShowTimestamp(at: index) {
@@ -73,7 +73,7 @@ struct ChatScreen: View {
                                 viewModel.insertSuggestion(suggestion)
                             },
                             onRegenerate: {
-                                Task { await viewModel.generateSuggestions() }
+                                Task<Void, Never> { await viewModel.generateSuggestions() }
                             }
                         )
 
@@ -92,12 +92,10 @@ struct ChatScreen: View {
                             isSendEnabled: viewModel.canSendDraft,
                             isGenerating: viewModel.isGenerating,
                             onGenerate: {
-                                Task { await viewModel.generateSuggestions() }
+                                Task<Void, Never> { await viewModel.generateSuggestions() }
                             },
                             onSend: {
-                                withAnimation(.easeOut(duration: 0.2)) {
-                                    viewModel.sendDraft()
-                                }
+                                Task<Void, Never> { await viewModel.sendDraft() }
                             }
                         )
                     }
@@ -107,26 +105,14 @@ struct ChatScreen: View {
                     Color(uiColor: .systemBackground)
                         .ignoresSafeArea()
                 }
+                .navigationTitle(viewModel.threadTitle)
                 .navigationBarTitleDisplayMode(.inline)
-                .toolbar {
-                    ToolbarItem(placement: .principal) {
-                        ChatHeaderView(
-                            title: viewModel.threadTitle,
-                            subtitle: viewModel.threadSubtitle,
-                            badgeText: viewModel.backendBadgeText
-                        )
-                    }
-                    ToolbarItem(placement: .topBarTrailing) {
-                        Button {
-                            isShowingSettings = true
-                        } label: {
-                            Image(systemName: "gearshape")
-                        }
-                        .accessibilityLabel("Open Settings")
-                    }
-                }
+                .navigationBarItems(trailing: settingsButton)
                 .task {
                     await viewModel.bootstrapIfNeeded()
+                }
+                .onDisappear {
+                    viewModel.teardown()
                 }
                 .sheet(isPresented: $isShowingSettings) {
                     SettingsScreen(viewModel: viewModel)
@@ -148,6 +134,15 @@ struct ChatScreen: View {
     }
 
     private let bottomAnchorId = "reply-demo-bottom"
+
+    private var settingsButton: some View {
+        Button {
+            isShowingSettings = true
+        } label: {
+            Image(systemName: "gearshape")
+        }
+        .accessibilityLabel("Open Settings")
+    }
 
     private func scrollToBottom(proxy: ScrollViewProxy, animated: Bool) {
         DispatchQueue.main.async {
@@ -217,7 +212,10 @@ private struct ChatHeaderView: View {
 #Preview {
     let settingsStore = AppSettingsStore()
     return ChatScreen(
-        viewModel: ChatViewModel(settingsStore: settingsStore)
+        viewModel: ChatViewModel(
+            settingsStore: settingsStore,
+            chatService: DemoChatService.shared
+        )
     )
     .environmentObject(settingsStore)
 }

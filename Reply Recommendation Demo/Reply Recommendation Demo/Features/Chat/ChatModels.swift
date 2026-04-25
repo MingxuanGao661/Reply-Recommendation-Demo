@@ -19,6 +19,9 @@ struct ChatMessageItem: Identifiable, Equatable {
     let speakerId: String
     let speakerName: String
     let text: String
+    let senderDeviceID: String?
+    let clientMessageID: UUID?
+    let isSeeded: Bool
     let createdAt: Date
 
     init(
@@ -26,12 +29,18 @@ struct ChatMessageItem: Identifiable, Equatable {
         speakerId: String,
         speakerName: String,
         text: String,
+        senderDeviceID: String? = nil,
+        clientMessageID: UUID? = nil,
+        isSeeded: Bool = true,
         createdAt: Date
     ) {
         self.id = id
         self.speakerId = speakerId
         self.speakerName = speakerName
         self.text = text
+        self.senderDeviceID = senderDeviceID
+        self.clientMessageID = clientMessageID
+        self.isSeeded = isSeeded
         self.createdAt = createdAt
     }
 }

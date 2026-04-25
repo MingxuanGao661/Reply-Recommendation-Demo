@@ -3,13 +3,13 @@ import Foundation
 
 @MainActor
 final class ChatViewModel: ObservableObject {
-    @Published private(set) var conversationMode: ConversationMode
-    @Published private(set) var scenario: DemoScenario
     @Published private(set) var messages: [ChatMessageItem]
     @Published private(set) var participants: [Participant]
     @Published var draftText: String
     @Published private(set) var suggestionSlots: [SuggestionSlotItem]
     @Published private(set) var isGenerating: Bool
+    @Published private(set) var isLoadingMessages: Bool
+    @Published private(set) var isSending: Bool
     @Published private(set) var errorMessage: String?
     @Published private(set) var metrics: InferenceMetrics?
     @Published private(set) var engineStatusText: String
@@ -18,7 +18,15 @@ final class ChatViewModel: ObservableObject {
     @Published private(set) var activeComposerParticipantID: String
     @Published var selectedReplyMessageID: UUID?
 
+    let threadID: UUID
+
+    private let thread: DemoChatThreadRecord
     private let settingsStore: AppSettingsStore
+    private let chatService: DemoChatServiceProtocol
+    private let senderDeviceID: String
+    private let onMessageReceived: ((DemoChatMessageRecord) -> Void)?
+    private var realtimeSubscription: DemoChatRealtimeSubscription?
+    private var pollingTask: Task<Void, Never>?
     private var cachedLocalEngine: LocalReplyEngine?
     private var cachedLocalModelResource: String?
     private var cachedLocalLoraEnabled: Bool?
@@ -27,36 +35,36 @@ final class ChatViewModel: ObservableObject {
     private var hasBootstrapped = false
     private let contextWindowSize = 7
 
-    private var templateThreadTitle: String
-    private var templateThreadSubtitle: String
-    private var templateReplyTargetID: String?
-
     init(
-        scenario: DemoScenario = .weekendPlans,
-        settingsStore: AppSettingsStore
+        threadItem: DemoThreadListItem? = nil,
+        settingsStore: AppSettingsStore,
+        chatService: DemoChatServiceProtocol,
+        senderDeviceID: String? = nil,
+        onMessageReceived: ((DemoChatMessageRecord) -> Void)? = nil
     ) {
+        let resolvedThreadItem = threadItem ?? DemoScenario.weekendPlans.offlineThreadListItem()
+        self.thread = resolvedThreadItem.thread
+        self.threadID = resolvedThreadItem.id
         self.settingsStore = settingsStore
-        self.scenario = scenario
-        conversationMode = .template
-        draftText = ""
+        self.chatService = chatService
+        self.senderDeviceID = senderDeviceID ?? settingsStore.demoSenderDeviceID
+        self.onMessageReceived = onMessageReceived
+
+        messages = resolvedThreadItem.messages.map(\.chatMessageItem)
+        participants = resolvedThreadItem.participants.map(\.participant)
+        draftText = resolvedThreadItem.thread.initialDraft ?? ""
         suggestionSlots = []
         isGenerating = false
+        isLoadingMessages = false
+        isSending = false
         errorMessage = nil
         metrics = nil
-
-        let thread = scenario.makeThread()
-        templateThreadTitle = thread.title
-        templateThreadSubtitle = thread.subtitle
-        templateReplyTargetID = thread.replyTo
-        participants = thread.participants
-        messages = thread.messages
-        activeComposerParticipantID = thread.defaultComposerParticipantID
-        draftText = thread.initialDraft ?? ""
+        activeComposerParticipantID = resolvedThreadItem.thread.defaultComposerParticipantID
         threadToneOverride = ThreadToneOverride(
-            profileTone: thread.conversationProfile?.tone
+            profileTone: resolvedThreadItem.thread.profileTone
         )
         threadLengthOverride = ThreadLengthOverride(
-            profileLength: thread.conversationProfile?.length
+            profileLength: resolvedThreadItem.thread.profileLength
         )
 
         let initialModelName = settingsStore.bundledLlamaModel.resourceName
@@ -92,23 +100,8 @@ final class ChatViewModel: ObservableObject {
             .store(in: &cancellables)
     }
 
-    var threadTitle: String {
-        switch conversationMode {
-        case .template:
-            templateThreadTitle
-        case .simulation:
-            "Two-User Simulation"
-        }
-    }
-
-    var threadSubtitle: String {
-        switch conversationMode {
-        case .template:
-            templateThreadSubtitle
-        case .simulation:
-            participantSummary
-        }
-    }
+    var threadTitle: String { thread.title }
+    var threadSubtitle: String { thread.subtitle }
 
     var backendBadgeText: String {
         resolvedBackendMode.statusBadgeText
@@ -119,7 +112,7 @@ final class ChatViewModel: ObservableObject {
     }
 
     var canSendDraft: Bool {
-        !draftText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+        !draftText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty && !isSending
     }
 
     var metricsSummary: String? {
@@ -149,24 +142,34 @@ final class ChatViewModel: ObservableObject {
         guard !hasBootstrapped else { return }
         hasBootstrapped = true
         engineStatusText = localEngineForCurrentSettings().statusDescription
+        await loadMessages()
+        await subscribeToRealtime()
+        startPollingForNewMessages()
         await generateSuggestions()
     }
 
-    func setConversationMode(_ newMode: ConversationMode) {
-        guard conversationMode != newMode else { return }
-        conversationMode = newMode
-        switch newMode {
-        case .template:
-            applyTemplateScenario(scenario)
-        case .simulation:
-            seedSimulationConversation()
-        }
+    func teardown() {
+        realtimeSubscription?.cancel()
+        realtimeSubscription = nil
+        pollingTask?.cancel()
+        pollingTask = nil
     }
 
-    func applyScenario(_ newScenario: DemoScenario) {
-        scenario = newScenario
-        guard conversationMode == .template else { return }
-        applyTemplateScenario(newScenario)
+    func loadMessages() async {
+        guard chatService.isConfigured else {
+            errorMessage = DemoChatServiceError.notConfigured.localizedDescription
+            return
+        }
+        isLoadingMessages = true
+        defer { isLoadingMessages = false }
+
+        do {
+            let records = try await chatService.fetchMessages(threadID: threadID)
+            messages = records.map(\.chatMessageItem)
+            errorMessage = nil
+        } catch {
+            errorMessage = error.localizedDescription
+        }
     }
 
     func updateParticipantName(_ name: String, for participantID: String) {
@@ -185,6 +188,9 @@ final class ChatViewModel: ObservableObject {
                 speakerId: messages[messageIndex].speakerId,
                 speakerName: displayName(for: participants[index]),
                 text: messages[messageIndex].text,
+                senderDeviceID: messages[messageIndex].senderDeviceID,
+                clientMessageID: messages[messageIndex].clientMessageID,
+                isSeeded: messages[messageIndex].isSeeded,
                 createdAt: messages[messageIndex].createdAt
             )
         }
@@ -195,17 +201,6 @@ final class ChatViewModel: ObservableObject {
     func setActiveComposerParticipant(_ participantID: String) {
         guard participants.contains(where: { $0.id == participantID }) else { return }
         activeComposerParticipantID = participantID
-        clearSuggestionState()
-    }
-
-    func resetSimulationConversation() {
-        guard conversationMode == .simulation else { return }
-        messages = []
-        draftText = ""
-        if !participants.contains(where: { $0.id == activeComposerParticipantID }),
-           let fallback = participants.last?.id {
-            activeComposerParticipantID = fallback
-        }
         clearSuggestionState()
     }
 
@@ -232,24 +227,56 @@ final class ChatViewModel: ObservableObject {
         return messages.first { $0.id == id }
     }
 
-    func sendDraft() {
+    func sendDraft() async {
         let trimmed = draftText.trimmingCharacters(in: .whitespacesAndNewlines)
-        guard !trimmed.isEmpty else { return }
+        guard !trimmed.isEmpty, !isSending else { return }
+        guard chatService.isConfigured else {
+            errorMessage = DemoChatServiceError.notConfigured.localizedDescription
+            return
+        }
         guard let sender = participants.first(where: { $0.id == activeComposerParticipantID }) else {
             return
         }
 
-        messages.append(
-            ChatMessageItem(
-                speakerId: sender.id,
-                speakerName: displayName(for: sender),
-                text: trimmed,
-                createdAt: Date()
-            )
+        let clientMessageID = UUID()
+        let optimistic = DemoChatMessageRecord(
+            id: clientMessageID,
+            threadID: threadID,
+            speakerID: sender.id,
+            speakerName: displayName(for: sender),
+            content: trimmed,
+            senderDeviceID: senderDeviceID,
+            clientMessageID: clientMessageID,
+            isSeeded: false,
+            seedMessageOrder: nil,
+            createdAt: Date()
         )
+
         draftText = ""
         selectedReplyMessageID = nil
         clearSuggestionState()
+        mergeMessageRecord(optimistic)
+        onMessageReceived?(optimistic)
+
+        isSending = true
+        defer { isSending = false }
+
+        do {
+            let saved = try await chatService.sendMessage(
+                threadID: threadID,
+                speakerID: sender.id,
+                speakerName: displayName(for: sender),
+                text: trimmed,
+                senderDeviceID: senderDeviceID,
+                clientMessageID: clientMessageID
+            )
+            mergeMessageRecord(saved)
+            onMessageReceived?(saved)
+        } catch {
+            messages.removeAll { $0.clientMessageID == clientMessageID || $0.id == clientMessageID }
+            draftText = trimmed
+            errorMessage = error.localizedDescription
+        }
     }
 
     func refreshEngineStatus() {
@@ -344,7 +371,13 @@ final class ChatViewModel: ObservableObject {
     }
 
     func isTrailingMessage(_ message: ChatMessageItem) -> Bool {
-        message.speakerId == trailingParticipantID
+        if message.senderDeviceID == senderDeviceID {
+            return true
+        }
+        if message.isSeeded {
+            return message.speakerId == activeComposerParticipantID
+        }
+        return false
     }
 
     func displayName(for participantID: String) -> String {
@@ -358,47 +391,64 @@ final class ChatViewModel: ObservableObject {
         makeConversationInput()
     }
 
-    private var hasReadySuggestion: Bool {
-        suggestionSlots.contains { $0.suggestion != nil }
-    }
-
-    private var currentSuggestionLabels: [String] {
-        makeConversationInput().suggestionThemeSet.labels
-    }
-
-    private func applyTemplateScenario(_ scenario: DemoScenario) {
-        let thread = scenario.makeThread()
-        templateThreadTitle = thread.title
-        templateThreadSubtitle = thread.subtitle
-        templateReplyTargetID = thread.replyTo
-        participants = thread.participants
-        messages = thread.messages
-        activeComposerParticipantID = thread.defaultComposerParticipantID
-        draftText = thread.initialDraft ?? ""
-        threadToneOverride = ThreadToneOverride(
-            profileTone: thread.conversationProfile?.tone
-        )
-        threadLengthOverride = ThreadLengthOverride(
-            profileLength: thread.conversationProfile?.length
-        )
-        selectedReplyMessageID = nil
-        clearSuggestionState()
-    }
-
-    private func seedSimulationConversation() {
-        participants = SimulationConversation.makeParticipants()
-        messages = []
-        draftText = ""
-        activeComposerParticipantID = SimulationConversation.rightParticipantID
-        clearSuggestionState()
-    }
-
     /// Triggers a background model load for the local engine so the first real generation has no cold-start delay.
     /// No-op when backend is not local, in Xcode Preview, or model is already loaded.
     func warmUpLocalEngineIfNeeded() {
         guard settingsStore.backendMode == .local,
               !settingsStore.isRunningInXcodePreview else { return }
         localEngineForCurrentSettings().warmUp()
+    }
+
+    private func subscribeToRealtime() async {
+        realtimeSubscription?.cancel()
+        realtimeSubscription = await chatService.subscribeToMessages(threadID: threadID) { [weak self] message in
+            guard let self else { return }
+            self.mergeMessageRecord(message)
+        }
+    }
+
+    private func startPollingForNewMessages() {
+        pollingTask?.cancel()
+        guard chatService.isConfigured else { return }
+        pollingTask = Task { @MainActor [weak self] in
+            guard let self else { return }
+            while !Task.isCancelled {
+                try? await Task.sleep(nanoseconds: 3_000_000_000)
+                let since = self.messages.last?.createdAt ?? .distantPast
+                do {
+                    let fresh = try await self.chatService.fetchNewMessages(
+                        threadID: self.threadID,
+                        since: since
+                    )
+                    for message in fresh {
+                        self.mergeMessageRecord(message)
+                    }
+                } catch {
+                    continue
+                }
+            }
+        }
+    }
+
+    private func mergeMessageRecord(_ record: DemoChatMessageRecord) {
+        let item = record.chatMessageItem
+        if let index = messages.firstIndex(where: {
+            $0.id == item.id
+                || (item.clientMessageID != nil && $0.clientMessageID == item.clientMessageID)
+        }) {
+            messages[index] = item
+        } else {
+            messages.append(item)
+        }
+        messages.sort { $0.createdAt < $1.createdAt }
+    }
+
+    private var hasReadySuggestion: Bool {
+        suggestionSlots.contains { $0.suggestion != nil }
+    }
+
+    private var currentSuggestionLabels: [String] {
+        makeConversationInput().suggestionThemeSet.labels
     }
 
     private func localEngineForCurrentSettings() -> LocalReplyEngine {
@@ -550,7 +600,7 @@ final class ChatViewModel: ObservableObject {
     }
 
     /// Rolling context: last `contextWindowSize` messages by default; if a message is pinned as
-    /// the reply target, use the `contextWindowSize` messages **before** that bubble (exclusive).
+    /// the reply target, use the `contextWindowSize` messages before that bubble.
     private func messagesForSuggestionContext() -> [ChatMessageItem] {
         if let pinned = selectedReplyMessage,
            let index = messages.firstIndex(where: { $0.id == pinned.id }) {
@@ -561,19 +611,16 @@ final class ChatViewModel: ObservableObject {
     }
 
     private var currentReplyTargetID: String? {
-        // A manually-pinned message always wins.
         if let pinned = selectedReplyMessage {
             return pinned.speakerId
         }
         if participants.count == 2 {
             return participants.first(where: { $0.id != activeComposerParticipantID })?.id
         }
-        // Multi-person: follow the latest **other** speaker, not a frozen template `reply_to`
-        // (templates default to e.g. "mia" forever, which mis-labels prompts after Jake speaks).
         if let lastOther = messages.last(where: { $0.speakerId != activeComposerParticipantID }) {
             return lastOther.speakerId
         }
-        return templateReplyTargetID
+        return thread.replyToParticipantID
     }
 
     private func displayName(for participant: Participant) -> String {

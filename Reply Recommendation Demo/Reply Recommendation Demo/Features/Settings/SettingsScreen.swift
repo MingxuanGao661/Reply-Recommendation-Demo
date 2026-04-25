@@ -92,74 +92,7 @@ struct SettingsScreen: View {
                     }
                 }
 
-                Section("Conversation") {
-                    Picker(
-                        "Conversation mode",
-                        selection: Binding(
-                            get: { viewModel.conversationMode },
-                            set: { viewModel.setConversationMode($0) }
-                        )
-                    ) {
-                        ForEach(ConversationMode.allCases) { mode in
-                            Text(mode.displayName).tag(mode)
-                        }
-                    }
-                    .pickerStyle(.segmented)
-
-                    if viewModel.conversationMode == .template {
-                        Picker(
-                            "Demo scenario",
-                            selection: Binding(
-                                get: { viewModel.scenario },
-                                set: { viewModel.applyScenario($0) }
-                            )
-                        ) {
-                            ForEach(DemoScenario.allCases) { scenario in
-                                Text(scenario.displayName).tag(scenario)
-                            }
-                        }
-                    } else {
-                        TextField(
-                            "Person 1",
-                            text: Binding(
-                                get: {
-                                    viewModel.participants
-                                        .first(where: { $0.id == SimulationConversation.leftParticipantID })?
-                                        .name ?? ""
-                                },
-                                set: {
-                                    viewModel.updateParticipantName(
-                                        $0,
-                                        for: SimulationConversation.leftParticipantID
-                                    )
-                                }
-                            )
-                        )
-                        .textInputAutocapitalization(.words)
-
-                        TextField(
-                            "Person 2",
-                            text: Binding(
-                                get: {
-                                    viewModel.participants
-                                        .first(where: { $0.id == SimulationConversation.rightParticipantID })?
-                                        .name ?? ""
-                                },
-                                set: {
-                                    viewModel.updateParticipantName(
-                                        $0,
-                                        for: SimulationConversation.rightParticipantID
-                                    )
-                                }
-                            )
-                        )
-                        .textInputAutocapitalization(.words)
-
-                        Button("Reset Conversation", role: .destructive) {
-                            viewModel.resetSimulationConversation()
-                        }
-                    }
-
+                Section("Thread") {
                     Picker("Thread tone", selection: $viewModel.threadToneOverride) {
                         ForEach(ThreadToneOverride.allCases) { option in
                             Text(option.displayName).tag(option)
@@ -212,7 +145,10 @@ struct SettingsScreen: View {
 #Preview {
     let settingsStore = AppSettingsStore()
     return SettingsScreen(
-        viewModel: ChatViewModel(settingsStore: settingsStore)
+        viewModel: ChatViewModel(
+            settingsStore: settingsStore,
+            chatService: DemoChatService.shared
+        )
     )
     .environmentObject(settingsStore)
 }

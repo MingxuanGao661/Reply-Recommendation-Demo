@@ -3,114 +3,140 @@ import XCTest
 
 @MainActor
 final class ChatViewModelTests: XCTestCase {
-    func testSimulationModeStartsBlankWithTwoParticipants() {
-        let viewModel = ChatViewModel(settingsStore: makeSettingsStore())
+    func testThreadListMapsSeededScenarioThreads() async {
+        let service = MockDemoChatService(items: DemoScenario.offlineThreadListItems())
+        let viewModel = ThreadListViewModel(service: service)
 
-        viewModel.setConversationMode(.simulation)
+        await viewModel.loadThreads()
 
-        XCTAssertEqual(viewModel.conversationMode, .simulation)
-        XCTAssertEqual(viewModel.messages, [])
-        XCTAssertEqual(
-            viewModel.participants.map(\.id),
-            [
-                SimulationConversation.leftParticipantID,
-                SimulationConversation.rightParticipantID,
-            ]
-        )
-        XCTAssertEqual(
-            viewModel.activeComposerParticipantID,
-            SimulationConversation.rightParticipantID
-        )
+        XCTAssertEqual(viewModel.threads.count, DemoScenario.allCases.count)
+        XCTAssertEqual(viewModel.threads.first?.thread.scenarioKey, DemoScenario.weekendPlans.rawValue)
+        XCTAssertEqual(viewModel.threads.first?.title, "Alice")
+        XCTAssertEqual(viewModel.selectedThreadID, viewModel.threads.first?.id)
     }
 
-    func testTemplateScenariosStillSeedExistingThreads() {
-        let viewModel = ChatViewModel(settingsStore: makeSettingsStore())
+    func testSupabaseDecoderHandlesPlainAndFractionalTimestamps() throws {
+        let threadID = UUID()
+        let firstID = UUID()
+        let secondID = UUID()
+        let json = """
+        [
+          {
+            "id": "\(firstID.uuidString)",
+            "thread_id": "\(threadID.uuidString)",
+            "speaker_id": "alice",
+            "speaker_name": "Alice",
+            "content": "plain timestamp",
+            "sender_device_id": null,
+            "client_message_id": null,
+            "is_seeded": true,
+            "seed_message_order": 0,
+            "created_at": "2026-04-25T00:00:00Z"
+          },
+          {
+            "id": "\(secondID.uuidString)",
+            "thread_id": "\(threadID.uuidString)",
+            "speaker_id": "me",
+            "speaker_name": "Me",
+            "content": "fractional timestamp",
+            "sender_device_id": "device",
+            "client_message_id": null,
+            "is_seeded": false,
+            "seed_message_order": null,
+            "created_at": "2026-04-25T00:00:01.123456Z"
+          }
+        ]
+        """
 
-        XCTAssertEqual(viewModel.conversationMode, .template)
-        XCTAssertEqual(viewModel.scenario, .weekendPlans)
-        XCTAssertEqual(viewModel.messages.count, 3)
-        XCTAssertEqual(viewModel.threadTitle, "Alice")
+        let records = try SupabaseJSONCoders.decoder().decode(
+            [DemoChatMessageRecord].self,
+            from: Data(json.utf8)
+        )
 
-        viewModel.applyScenario(.hackathonTeam)
-
-        XCTAssertEqual(viewModel.scenario, .hackathonTeam)
-        XCTAssertEqual(viewModel.messages.count, 4)
-        XCTAssertEqual(viewModel.threadTitle, "Demo Squad")
-        XCTAssertEqual(viewModel.participants.count, 3)
+        XCTAssertEqual(records.map(\.id), [firstID, secondID])
+        XCTAssertEqual(records[1].content, "fractional timestamp")
     }
 
-    func testSwitchingActiveComposerUpdatesConversationInputAndOutgoingMessages() {
-        let viewModel = ChatViewModel(settingsStore: makeSettingsStore())
-
-        viewModel.setConversationMode(.simulation)
-        viewModel.setActiveComposerParticipant(SimulationConversation.leftParticipantID)
-
-        var input = viewModel.currentConversationInput()
-        XCTAssertEqual(input.selfId, SimulationConversation.leftParticipantID)
-        XCTAssertEqual(input.replyTo, SimulationConversation.rightParticipantID)
-
-        viewModel.draftText = "I'll take the left side."
-        viewModel.sendDraft()
-
-        XCTAssertEqual(
-            viewModel.messages.last?.speakerId,
-            SimulationConversation.leftParticipantID
+    func testSendDraftTrimsOptimisticallyAppendsAndDedupesConfirmedMessage() async throws {
+        let item = DemoScenario.weekendPlans.offlineThreadListItem()
+        let service = MockDemoChatService(items: [item])
+        let viewModel = ChatViewModel(
+            threadItem: item,
+            settingsStore: makeSettingsStore(),
+            chatService: service,
+            senderDeviceID: "test-device"
         )
+        let initialCount = viewModel.messages.count
 
-        viewModel.setActiveComposerParticipant(SimulationConversation.rightParticipantID)
-        input = viewModel.currentConversationInput()
-        XCTAssertEqual(input.selfId, SimulationConversation.rightParticipantID)
-        XCTAssertEqual(input.replyTo, SimulationConversation.leftParticipantID)
+        viewModel.draftText = "  see you at 11  "
+        await viewModel.sendDraft()
+
+        XCTAssertEqual(service.sentTexts, ["see you at 11"])
+        XCTAssertEqual(viewModel.draftText, "")
+        XCTAssertEqual(viewModel.messages.count, initialCount + 1)
+        XCTAssertEqual(viewModel.messages.last?.text, "see you at 11")
+        XCTAssertEqual(viewModel.messages.last?.senderDeviceID, "test-device")
+        XCTAssertNotEqual(viewModel.messages.last?.id, service.lastClientMessageID)
     }
 
-    func testGenerateSuggestionsSeedsPlaceholdersThenResolvesSlots() async {
-        let viewModel = ChatViewModel(settingsStore: makeSettingsStore())
-
-        let generationTask = Task {
-            await viewModel.generateSuggestions()
-        }
-
-        await Task.yield()
-
-        XCTAssertEqual(
-            viewModel.suggestionSlots.map(\.label),
-            SuggestionThemeSet.replyStyleLabels
+    func testRealtimeInsertForActiveThreadAppearsOnce() async {
+        let item = DemoScenario.weekendPlans.offlineThreadListItem()
+        let service = MockDemoChatService(items: [item])
+        let viewModel = ChatViewModel(
+            threadItem: item,
+            settingsStore: makeSettingsStore(),
+            chatService: service,
+            senderDeviceID: "test-device"
         )
-        XCTAssertTrue(viewModel.suggestionSlots.allSatisfy { $0.isPlaceholder })
+        await viewModel.bootstrapIfNeeded()
 
-        await generationTask.value
+        let message = makeMessage(
+            threadID: item.id,
+            speakerID: "alice",
+            speakerName: "Alice",
+            content: "realtime hello"
+        )
+        service.emit(message)
+        service.emit(message)
 
-        XCTAssertEqual(viewModel.suggestionSlots.count, 3)
-        XCTAssertTrue(viewModel.suggestionSlots.allSatisfy { $0.suggestion != nil })
+        XCTAssertEqual(viewModel.messages.filter { $0.id == message.id }.count, 1)
     }
 
-    func testDecisionQuestionsUseAgreeDeclineDelaySlots() async {
-        let viewModel = ChatViewModel(settingsStore: makeSettingsStore())
+    func testRealtimeInsertForInactiveThreadUpdatesThreadListPreview() async {
+        let items = [
+            DemoScenario.weekendPlans.offlineThreadListItem(),
+            DemoScenario.hackathonTeam.offlineThreadListItem(),
+        ]
+        let service = MockDemoChatService(items: items)
+        let viewModel = ThreadListViewModel(service: service)
+        await viewModel.loadThreads()
 
-        viewModel.setConversationMode(.simulation)
-        viewModel.setActiveComposerParticipant(SimulationConversation.leftParticipantID)
-        viewModel.draftText = "are you free for dinner tonight?"
-        viewModel.sendDraft()
-        viewModel.setActiveComposerParticipant(SimulationConversation.rightParticipantID)
+        let inactiveMessage = makeMessage(
+            threadID: items[1].id,
+            speakerID: "maya",
+            speakerName: "Maya",
+            content: "inactive thread ping"
+        )
+        service.emit(inactiveMessage)
 
-        let generationTask = Task {
-            await viewModel.generateSuggestions()
-        }
+        let inactiveThread = viewModel.threads.first { $0.id == items[1].id }
+        XCTAssertEqual(inactiveThread?.lastMessage?.content, "inactive thread ping")
+        XCTAssertEqual(inactiveThread?.unreadCount, 1)
+    }
 
-        await Task.yield()
-
-        XCTAssertEqual(
-            viewModel.suggestionSlots.map(\.label),
-            SuggestionThemeSet.decisionLabels
+    func testSmartReplyContextUsesSelectedThreadMessages() {
+        let item = DemoScenario.groupHike.offlineThreadListItem()
+        let viewModel = ChatViewModel(
+            threadItem: item,
+            settingsStore: makeSettingsStore(),
+            chatService: MockDemoChatService(items: [item])
         )
 
-        await generationTask.value
+        let input = viewModel.currentConversationInput()
 
-        XCTAssertEqual(
-            viewModel.suggestionSlots.map(\.label),
-            SuggestionThemeSet.decisionLabels
-        )
-        XCTAssertTrue(viewModel.suggestionSlots.allSatisfy { $0.suggestion != nil })
+        XCTAssertEqual(input.selfId, "me")
+        XCTAssertEqual(input.replyTo, "mia")
+        XCTAssertTrue(input.conversation.suffix(1).contains { $0.text.contains("drive from your place") })
     }
 
     private func makeSettingsStore() -> AppSettingsStore {
@@ -124,5 +150,91 @@ final class ChatViewModelTests: XCTestCase {
         settingsStore.backendMode = .mock
         settingsStore.safeDemoModeEnabled = true
         return settingsStore
+    }
+
+    private func makeMessage(
+        threadID: UUID,
+        speakerID: String,
+        speakerName: String,
+        content: String
+    ) -> DemoChatMessageRecord {
+        DemoChatMessageRecord(
+            id: UUID(),
+            threadID: threadID,
+            speakerID: speakerID,
+            speakerName: speakerName,
+            content: content,
+            senderDeviceID: nil,
+            clientMessageID: nil,
+            isSeeded: false,
+            seedMessageOrder: nil,
+            createdAt: Date()
+        )
+    }
+}
+
+@MainActor
+private final class MockDemoChatService: DemoChatServiceProtocol {
+    var isConfigured = true
+    var sentTexts: [String] = []
+    var lastClientMessageID: UUID?
+
+    private var items: [DemoThreadListItem]
+    private var subscriptions: [UUID: [(DemoChatMessageRecord) -> Void]] = [:]
+
+    init(items: [DemoThreadListItem]) {
+        self.items = items
+    }
+
+    func fetchThreadList() async throws -> [DemoThreadListItem] {
+        items
+    }
+
+    func fetchMessages(threadID: UUID) async throws -> [DemoChatMessageRecord] {
+        items.first { $0.id == threadID }?.messages ?? []
+    }
+
+    func fetchNewMessages(threadID: UUID, since: Date) async throws -> [DemoChatMessageRecord] {
+        (items.first { $0.id == threadID }?.messages ?? []).filter { $0.createdAt > since }
+    }
+
+    func sendMessage(
+        threadID: UUID,
+        speakerID: String,
+        speakerName: String,
+        text: String,
+        senderDeviceID: String,
+        clientMessageID: UUID
+    ) async throws -> DemoChatMessageRecord {
+        sentTexts.append(text)
+        lastClientMessageID = clientMessageID
+        let saved = DemoChatMessageRecord(
+            id: UUID(),
+            threadID: threadID,
+            speakerID: speakerID,
+            speakerName: speakerName,
+            content: text,
+            senderDeviceID: senderDeviceID,
+            clientMessageID: clientMessageID,
+            isSeeded: false,
+            seedMessageOrder: nil,
+            createdAt: Date().addingTimeInterval(1)
+        )
+        if let index = items.firstIndex(where: { $0.id == threadID }) {
+            items[index].messages.append(saved)
+        }
+        return saved
+    }
+
+    func subscribeToMessages(
+        threadID: UUID,
+        onMessage: @escaping (DemoChatMessageRecord) -> Void
+    ) async -> DemoChatRealtimeSubscription? {
+        subscriptions[threadID, default: []].append(onMessage)
+        return DemoChatRealtimeSubscription { }
+    }
+
+    func emit(_ message: DemoChatMessageRecord) {
+        subscriptions[message.threadID]?.forEach { $0(message) }
     }
 }
