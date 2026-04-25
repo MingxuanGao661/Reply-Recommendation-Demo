@@ -13,6 +13,15 @@ final class CloudService {
         let defaultModel: String
     }
 
+    /// Trims whitespace; for Anthropic, strips accidental `Bearer ` (header pasted into the key field).
+    private static func normalizedAPIKey(_ raw: String, provider: String) -> String {
+        var key = raw.trimmingCharacters(in: .whitespacesAndNewlines)
+        if provider == "anthropic", key.lowercased().hasPrefix("bearer ") {
+            key = String(key.dropFirst(7)).trimmingCharacters(in: .whitespacesAndNewlines)
+        }
+        return key
+    }
+
     static let providers: [String: ProviderPreset] = [
         "openai": ProviderPreset(
             baseURL: "https://api.openai.com/v1",
@@ -65,7 +74,7 @@ final class CloudService {
         guard let preset = Self.providers[provider] else {
             throw CloudError.unknownProvider(provider, Array(Self.providers.keys))
         }
-        self.apiKey = apiKey
+        self.apiKey = Self.normalizedAPIKey(apiKey, provider: provider)
         self.provider = provider
         self.baseURL = preset.baseURL
         self.model = model ?? preset.defaultModel

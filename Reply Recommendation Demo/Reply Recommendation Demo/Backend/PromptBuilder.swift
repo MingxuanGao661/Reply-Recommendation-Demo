@@ -4,57 +4,42 @@ enum PromptBuilder {
 
     // MARK: - System prompt core (instructions + merged targets)
 
+    /// Short system prompt aligned with `old_python_files/prompt.py` for small LMs (e.g. Llama 3.2 1B).
+    /// `{style_rules_block}` + `{reply_target}` preserve merged profile / reply-target behavior.
     private static let systemPromptWithDraft = """
-    You are a text messaging assistant that helps users reply to conversations.
-    The user has typed a rough draft. Generate 3 polished versions that are ready to send.
+    You finish the user's draft into a text they can send. You are Me; answer the OTHER person's last message.
 
-    Rules:
     {style_rules_block}
-    - Write like a REAL PERSON texting — not like an AI assistant
-    - Use lowercase, contractions, and natural abbreviations when fitting
-    - Do NOT be overly enthusiastic or add unnecessary exclamation marks
-    - Each suggestion MUST directly respond to {reply_target}
-    - Keep each reply to 1-2 sentences unless length is "long"
-    - The 3 suggestions should feel noticeably different from each other:
-      "Natural" = how most people would reply
-      "Polite" = slightly more considerate/formal
-      "Like You" = matches the user's personal style from their draft
 
-    Example:
-    Conversation:
-      Alice: Hey want to grab lunch?
-      Me: (draft: "sure")
-    Output: {"suggestions": [{"label": "Natural", "text": "Sure, where were you thinking?"}, {"label": "Polite", "text": "Sounds great! Any place in mind?"}, {"label": "Like You", "text": "down, lmk where"}]}
+    MUST follow:
+    1) FACTS: Keep the draft's meaning. Same times, dates, yes/no, promises, reasons. Do not change to a different time or opposite idea.
+    2) DRAFT: Start from the draft — complete or lightly polish it into a full sentence or two. Do not ignore the draft.
+    3) TARGET: Respond to {reply_target}. If they asked a question, answer it; do not only repeat or paraphrase what they said.
+    4) VOICE: Obey the Style rules above (tone, length). Real texting — short and casual when length is short, not robotic. Avoid unnecessary exclamation marks (!).
 
-    Return ONLY valid JSON (no markdown, no extra text):
-    {"suggestions": [{"label": "Natural", "text": "..."}, {"label": "Polite", "text": "..."}, {"label": "Like You", "text": "..."}]}
+    Three options (different wording):
+    - Natural = normal
+    - Polite = softer/kinder
+    - Like You = closest to how the draft sounds
+
+    Output format: one JSON object only, no markdown. Key "suggestions" = array of exactly 3 objects. Each object has "label" (Natural, Polite, or Like You) and "text" (Me's real reply for THIS chat — must match the draft and {reply_target}).
+
+    Do NOT paste generic filler. Do NOT use "on my way", "omw", "running late", or "running a few min late" unless the user's draft is clearly about leaving, ETA, or traffic.
     """
 
     private static let systemPromptNoDraft = """
-    You are a text messaging assistant that helps users reply to conversations.
-    The user hasn't typed anything yet. Suggest 3 possible replies based on the conversation context.
+    Suggest 3 texts Me can send. Answer the OTHER person's last message.
+
+    {style_rules_block}
 
     Rules:
-    {style_rules_block}
-    - Write like a REAL PERSON texting — not like an AI assistant
-    - Use lowercase, contractions, and natural abbreviations when fitting
-    - Do NOT be overly enthusiastic or add unnecessary exclamation marks
-    - Focus on {reply_target} — your reply should directly address them
-    - Consider the overall mood and topic of the conversation
-    - Keep each reply to 1-2 sentences unless length is "long"
-    - The 3 suggestions should offer meaningfully different directions:
-      "Natural" = the most common/expected reply
-      "Polite" = a more considerate/thoughtful version
-      "Like You" = a casual, personality-driven reply
+    - Address {reply_target} directly. If they asked a question, answer it; do not only repeat what they said.
+    - Obey the Style rules above. Short, casual, real person texting unless length is long. Avoid unnecessary exclamation marks (!).
+    - Natural = normal | Polite = kinder | Like You = casual punchy
 
-    Example:
-    Conversation:
-      Me: Are you free Saturday?
-      Bob: Yeah I think so, why?
-    Output: {"suggestions": [{"label": "Natural", "text": "Want to check out that new ramen place?"}, {"label": "Polite", "text": "I was hoping we could hang out, maybe grab dinner?"}, {"label": "Like You", "text": "ramen. you in?"}]}
+    Output format: one JSON object only, no markdown. Key "suggestions" = array of exactly 3 objects. Each has "label" (Natural | Polite | Like You) and "text" (Me's real reply for THIS chat).
 
-    Return ONLY valid JSON (no markdown, no extra text):
-    {"suggestions": [{"label": "Natural", "text": "..."}, {"label": "Polite", "text": "..."}, {"label": "Like You", "text": "..."}]}
+    Do NOT reuse the same canned line for all three. Do NOT default to "yeah sounds good" or "down" unless they truly fit the thread.
     """
 
     // MARK: - Style rules (system — user + conversation + effective)
@@ -109,11 +94,7 @@ enum PromptBuilder {
 
     /// `conversation` is expected to be a **client-chosen window** (e.g. last N messages), not the full thread history.
     static func buildUserPrompt(input: ConversationInput) -> String {
-        var lines: [String] = [
-            "Below is the recent conversation the client included (a bounded window, not necessarily the full chat).",
-            "Follow the system instructions and output JSON only.",
-            "",
-        ]
+        var lines: [String] = []
 
         if input.isGroupChat && !input.participants.isEmpty {
             let names = input.participants
@@ -121,6 +102,7 @@ enum PromptBuilder {
                 .map { $0.name }
                 .joined(separator: ", ")
             lines.append("Group chat with: \(names)")
+            lines.append("")
         }
 
         lines.append("Conversation:")
@@ -135,11 +117,15 @@ enum PromptBuilder {
 
         if input.hasDraft {
             lines.append("\nMy draft: \"\(input.resolvedDraft)\"")
+            lines.append(
+                "Keep the draft's facts. Expand into a reply to Other's last line. "
+                    + "Each of the 3 texts must fit THIS draft, not a generic late/omw message."
+            )
         } else {
             lines.append("\n(no draft yet)")
         }
 
-        lines.append("\nReply with JSON:")
+        lines.append("\nReply in JSON as instructed (suggestions array with label + text).")
         return lines.joined(separator: "\n")
     }
 

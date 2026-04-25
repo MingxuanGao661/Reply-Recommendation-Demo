@@ -136,7 +136,7 @@ final class LocalReplyEngine: ReplySuggestionEngine {
     private var service: LLMService?
 
     init(
-        modelResourceName: String = "Llama-3.2-1B-Instruct-Q4_K_M",
+        modelResourceName: String = "Llama-3.2-3B-Instruct-Q4_K_M",
         bundle: Bundle = .main
     ) {
         self.modelResourceName = modelResourceName

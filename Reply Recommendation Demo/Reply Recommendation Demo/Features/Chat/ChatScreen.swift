@@ -1,4 +1,5 @@
 import SwiftUI
+import UIKit
 
 struct ChatScreen: View {
     @StateObject private var viewModel: ChatViewModel

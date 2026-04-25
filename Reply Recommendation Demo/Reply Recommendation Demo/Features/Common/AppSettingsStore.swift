@@ -98,6 +98,25 @@ enum CloudProviderOption: String, CaseIterable, Identifiable {
     var displayName: String { rawValue.capitalized }
 }
 
+/// Bundled `.gguf` base names (no extension) — must match files in **Copy Bundle Resources**.
+enum BundledLlamaModelOption: String, CaseIterable, Identifiable {
+    case instruct1B_Q4 = "Llama-3.2-1B-Instruct-Q4_K_M"
+    case instruct1B_Q8 = "Llama-3.2-1B-Instruct-Q8_0"
+    case instruct3B_Q4 = "Llama-3.2-3B-Instruct-Q4_K_M"
+
+    var id: String { rawValue }
+
+    var displayName: String {
+        switch self {
+        case .instruct1B_Q4: return "1B · Q4_K_M (~770 MB)"
+        case .instruct1B_Q8: return "1B · Q8_0 (~1.2 GB)"
+        case .instruct3B_Q4: return "3B · Q4_K_M (~1.9 GB)"
+        }
+    }
+
+    var resourceName: String { rawValue }
+}
+
 @MainActor
 final class AppSettingsStore: ObservableObject {
     @Published var backendMode: ReplyBackendMode {
@@ -128,6 +147,10 @@ final class AppSettingsStore: ObservableObject {
         didSet { persist() }
     }
 
+    @Published var bundledLlamaModel: BundledLlamaModelOption {
+        didSet { persist() }
+    }
+
     private let defaults: UserDefaults
     let isRunningInXcodePreview: Bool
 
@@ -150,6 +173,9 @@ final class AppSettingsStore: ObservableObject {
         cloudModelName = defaults.string(forKey: Keys.cloudModelName) ?? ""
         cloudAPIKey = defaults.string(forKey: Keys.cloudAPIKey) ?? ""
         safeDemoModeEnabled = defaults.object(forKey: Keys.safeDemoModeEnabled) as? Bool ?? true
+        bundledLlamaModel = BundledLlamaModelOption(
+            rawValue: defaults.string(forKey: Keys.bundledLlamaModel) ?? ""
+        ) ?? .instruct3B_Q4
 
         if isRunningInXcodePreview {
             backendMode = .mock
@@ -174,6 +200,7 @@ final class AppSettingsStore: ObservableObject {
         defaults.set(cloudModelName, forKey: Keys.cloudModelName)
         defaults.set(cloudAPIKey, forKey: Keys.cloudAPIKey)
         defaults.set(safeDemoModeEnabled, forKey: Keys.safeDemoModeEnabled)
+        defaults.set(bundledLlamaModel.rawValue, forKey: Keys.bundledLlamaModel)
     }
 
     private enum Keys {
@@ -184,5 +211,6 @@ final class AppSettingsStore: ObservableObject {
         static let cloudModelName = "replyDemo.cloudModelName"
         static let cloudAPIKey = "replyDemo.cloudAPIKey"
         static let safeDemoModeEnabled = "replyDemo.safeDemoModeEnabled"
+        static let bundledLlamaModel = "replyDemo.bundledLlamaModel"
     }
 }

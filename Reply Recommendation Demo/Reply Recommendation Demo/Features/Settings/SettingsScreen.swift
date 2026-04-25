@@ -29,6 +29,19 @@ struct SettingsScreen: View {
                     }
                 }
 
+                if settingsStore.availableBackendModes.contains(.local) {
+                    Section("On-device Llama") {
+                        Picker("Bundled GGUF", selection: $settingsStore.bundledLlamaModel) {
+                            ForEach(BundledLlamaModelOption.allCases) { model in
+                                Text(model.displayName).tag(model)
+                            }
+                        }
+                        Text("Applies when Backend is Local. Switching model unloads the previous one on next generation.")
+                            .font(.footnote)
+                            .foregroundStyle(.secondary)
+                    }
+                }
+
                 Section("Cloud") {
                     Picker("Provider", selection: $settingsStore.cloudProvider) {
                         ForEach(CloudProviderOption.allCases) { provider in

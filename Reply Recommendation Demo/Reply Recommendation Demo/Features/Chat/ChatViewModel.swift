@@ -17,8 +17,10 @@ final class ChatViewModel: ObservableObject {
     @Published var threadLengthOverride: ThreadLengthOverride
 
     private let settingsStore: AppSettingsStore
-    private let localEngine = LocalReplyEngine()
+    private var cachedLocalEngine: LocalReplyEngine?
+    private var cachedLocalModelResource: String?
     private let mockEngine = MockReplyEngine()
+    private var cancellables = Set<AnyCancellable>()
     private var hasBootstrapped = false
     private let contextWindowSize = 10
     private var selfId: String
@@ -50,7 +52,38 @@ final class ChatViewModel: ObservableObject {
         threadLengthOverride = ThreadLengthOverride(
             profileLength: thread.conversationProfile?.length
         )
-        engineStatusText = localEngine.statusDescription
+        // Cannot call instance methods on `self` here — `engineStatusText` is not initialized yet.
+        let initialModelName = settingsStore.bundledLlamaModel.resourceName
+        let initialLocalEngine = LocalReplyEngine(modelResourceName: initialModelName)
+        cachedLocalEngine = initialLocalEngine
+        cachedLocalModelResource = initialModelName
+        engineStatusText = initialLocalEngine.statusDescription
+
+        settingsStore.$bundledLlamaModel
+            .dropFirst()
+            .receive(on: DispatchQueue.main)
+            .sink { [weak self] _ in
+                guard let self else { return }
+                self.invalidateLocalEngineCache()
+                self.refreshEngineStatus()
+            }
+            .store(in: &cancellables)
+    }
+
+    private func localEngineForCurrentSettings() -> LocalReplyEngine {
+        let name = settingsStore.bundledLlamaModel.resourceName
+        if cachedLocalModelResource == name, let cached = cachedLocalEngine {
+            return cached
+        }
+        let engine = LocalReplyEngine(modelResourceName: name)
+        cachedLocalEngine = engine
+        cachedLocalModelResource = name
+        return engine
+    }
+
+    private func invalidateLocalEngineCache() {
+        cachedLocalEngine = nil
+        cachedLocalModelResource = nil
     }
 
     var backendBadgeText: String {
@@ -80,7 +113,7 @@ final class ChatViewModel: ObservableObject {
     func bootstrapIfNeeded() async {
         guard !hasBootstrapped else { return }
         hasBootstrapped = true
-        engineStatusText = localEngine.statusDescription
+        engineStatusText = localEngineForCurrentSettings().statusDescription
         await generateSuggestions()
     }
 
@@ -144,7 +177,7 @@ final class ChatViewModel: ObservableObject {
 
         switch resolvedBackendMode {
         case .local:
-            engineStatusText = localEngine.statusDescription
+            engineStatusText = localEngineForCurrentSettings().statusDescription
         case .cloud:
             let provider = settingsStore.cloudProvider.displayName
             engineStatusText = settingsStore.cloudAPIKey.trimmingCharacters(
@@ -214,7 +247,7 @@ final class ChatViewModel: ObservableObject {
                     defaultProfile: settingsStore.defaultProfile
                 )
             }
-            return try await localEngine.generateSuggestions(
+            return try await localEngineForCurrentSettings().generateSuggestions(
                 input: input,
                 defaultProfile: settingsStore.defaultProfile
             )
