@@ -204,7 +204,7 @@ final class ChatViewModel: ObservableObject {
 
         do {
             let result = try await runSelectedEngine(input: input)
-            suggestions = result.suggestions.map(ReplySuggestionItem.init)
+            suggestions = normalizeSuggestions(result.suggestions)
             metrics = result.metrics
         } catch {
             guard settingsStore.safeDemoModeEnabled,
@@ -220,7 +220,7 @@ final class ChatViewModel: ObservableObject {
                     input: input,
                     defaultProfile: settingsStore.defaultProfile
                 )
-                suggestions = result.suggestions.map(ReplySuggestionItem.init)
+                suggestions = normalizeSuggestions(result.suggestions)
                 metrics = result.metrics
                 errorMessage = "Fallback to Mock: \(error.localizedDescription)"
             } catch {
@@ -228,6 +228,65 @@ final class ChatViewModel: ObservableObject {
                 metrics = nil
                 errorMessage = error.localizedDescription
             }
+        }
+    }
+
+    private func normalizeSuggestions(
+        _ rawSuggestions: [Suggestion]
+    ) -> [ReplySuggestionItem] {
+        let cleaned = rawSuggestions.compactMap { suggestion -> Suggestion? in
+            let label = suggestion.label.trimmingCharacters(
+                in: .whitespacesAndNewlines
+            )
+            let text = suggestion.text.trimmingCharacters(
+                in: .whitespacesAndNewlines
+            )
+            guard !text.isEmpty else { return nil }
+            let normalizedLabel = normalizeSuggestionLabel(label)
+            return Suggestion(label: normalizedLabel, text: text)
+        }
+
+        let preferredOrder = ["Natural", "Polite", "Like You"]
+        var usedLabels = Set<String>()
+        var ordered: [ReplySuggestionItem] = []
+
+        for label in preferredOrder {
+            if let match = cleaned.first(where: { $0.label == label && !usedLabels.contains($0.text) }) {
+                ordered.append(ReplySuggestionItem(suggestion: match))
+                usedLabels.insert(match.text)
+            }
+        }
+
+        for suggestion in cleaned where !usedLabels.contains(suggestion.text) {
+            let fallbackLabel = ordered.count < preferredOrder.count
+                ? preferredOrder[ordered.count]
+                : suggestion.label
+            ordered.append(
+                ReplySuggestionItem(
+                    suggestion: Suggestion(
+                        label: fallbackLabel,
+                        text: suggestion.text
+                    )
+                )
+            )
+            usedLabels.insert(suggestion.text)
+        }
+
+        return Array(ordered.prefix(3))
+    }
+
+    private func normalizeSuggestionLabel(_ label: String) -> String {
+        switch label.lowercased() {
+        case "natural", "normal":
+            return "Natural"
+        case "polite", "kind", "kinder":
+            return "Polite"
+        case "like you", "likeyou", "casual", "casual punchy":
+            return "Like You"
+        case "label", "text", "option":
+            return "Natural"
+        default:
+            return label.isEmpty ? "Natural" : label.capitalized
         }
     }
 

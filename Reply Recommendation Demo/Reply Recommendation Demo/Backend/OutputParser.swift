@@ -52,6 +52,12 @@ enum OutputParser {
 
     /// Handles various model output formats (mirrors Python _parse_suggestions)
     private static func parseSuggestions(from dict: [String: Any]) -> SuggestionOutput? {
+        // Format 0: single object {"label": "Natural", "text": "..."}
+        if let text = dict["text"] as? String {
+            let label = dict["label"] as? String ?? "Option"
+            return SuggestionOutput(suggestions: [Suggestion(label: label, text: text)])
+        }
+
         let raw = dict["suggestions"] ?? dict
 
         // Format A: array of objects
@@ -83,6 +89,11 @@ enum OutputParser {
 
         // Format C: {"Natural": "...", "Polite": "...", "Like You": "..."}
         if let rawDict = raw as? [String: String] {
+            if let text = rawDict["text"] {
+                let label = rawDict["label"] ?? "Option"
+                return SuggestionOutput(suggestions: [Suggestion(label: label, text: text)])
+            }
+
             let suggestions = rawDict.map { Suggestion(label: $0.key, text: $0.value) }
             if !suggestions.isEmpty {
                 return SuggestionOutput(suggestions: suggestions)
