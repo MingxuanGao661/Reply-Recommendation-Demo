@@ -53,8 +53,6 @@ struct SuggestionSlotItem: Identifiable, Equatable {
         case ready(ReplySuggestionItem)
     }
 
-    static let orderedLabels = ["Natural", "Polite", "Like You"]
-
     let label: String
     var state: State
 
@@ -72,8 +70,8 @@ struct SuggestionSlotItem: Identifiable, Equatable {
         return false
     }
 
-    static func placeholderSlots() -> [SuggestionSlotItem] {
-        orderedLabels.map { SuggestionSlotItem(label: $0, state: .placeholder) }
+    static func placeholderSlots(labels: [String]) -> [SuggestionSlotItem] {
+        labels.map { SuggestionSlotItem(label: $0, state: .placeholder) }
     }
 }
 

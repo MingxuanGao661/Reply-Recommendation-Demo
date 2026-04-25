@@ -74,13 +74,42 @@ final class ChatViewModelTests: XCTestCase {
 
         XCTAssertEqual(
             viewModel.suggestionSlots.map(\.label),
-            SuggestionSlotItem.orderedLabels
+            SuggestionThemeSet.replyStyleLabels
         )
         XCTAssertTrue(viewModel.suggestionSlots.allSatisfy { $0.isPlaceholder })
 
         await generationTask.value
 
         XCTAssertEqual(viewModel.suggestionSlots.count, 3)
+        XCTAssertTrue(viewModel.suggestionSlots.allSatisfy { $0.suggestion != nil })
+    }
+
+    func testDecisionQuestionsUseAgreeDeclineDelaySlots() async {
+        let viewModel = ChatViewModel(settingsStore: makeSettingsStore())
+
+        viewModel.setConversationMode(.simulation)
+        viewModel.setActiveComposerParticipant(SimulationConversation.leftParticipantID)
+        viewModel.draftText = "are you free for dinner tonight?"
+        viewModel.sendDraft()
+        viewModel.setActiveComposerParticipant(SimulationConversation.rightParticipantID)
+
+        let generationTask = Task {
+            await viewModel.generateSuggestions()
+        }
+
+        await Task.yield()
+
+        XCTAssertEqual(
+            viewModel.suggestionSlots.map(\.label),
+            SuggestionThemeSet.decisionLabels
+        )
+
+        await generationTask.value
+
+        XCTAssertEqual(
+            viewModel.suggestionSlots.map(\.label),
+            SuggestionThemeSet.decisionLabels
+        )
         XCTAssertTrue(viewModel.suggestionSlots.allSatisfy { $0.suggestion != nil })
     }
 

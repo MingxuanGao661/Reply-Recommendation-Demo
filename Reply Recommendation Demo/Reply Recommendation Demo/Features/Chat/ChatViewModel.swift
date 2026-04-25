@@ -247,7 +247,7 @@ final class ChatViewModel: ObservableObject {
     func generateSuggestions() async {
         guard !isGenerating else { return }
         isGenerating = true
-        suggestionSlots = SuggestionSlotItem.placeholderSlots()
+        suggestionSlots = SuggestionSlotItem.placeholderSlots(labels: currentSuggestionLabels)
         metrics = nil
         errorMessage = nil
         refreshEngineStatus()
@@ -293,7 +293,7 @@ final class ChatViewModel: ObservableObject {
                 return
             }
 
-            suggestionSlots = SuggestionSlotItem.placeholderSlots()
+            suggestionSlots = SuggestionSlotItem.placeholderSlots(labels: currentSuggestionLabels)
             do {
                 let metricsResult = try await mockEngine.generateSuggestionsProgressive(
                     input: input,
@@ -330,6 +330,10 @@ final class ChatViewModel: ObservableObject {
 
     private var hasReadySuggestion: Bool {
         suggestionSlots.contains { $0.suggestion != nil }
+    }
+
+    private var currentSuggestionLabels: [String] {
+        makeConversationInput().suggestionThemeSet.labels
     }
 
     private func applyTemplateScenario(_ scenario: DemoScenario) {
@@ -400,17 +404,38 @@ final class ChatViewModel: ObservableObject {
     }
 
     private func normalizeSuggestionLabel(_ label: String) -> String {
-        switch label.lowercased() {
-        case "natural", "normal":
-            return "Natural"
-        case "polite", "kind", "kinder":
-            return "Polite"
-        case "like you", "likeyou", "casual", "casual punchy":
-            return "Like You"
-        case "label", "text", "option":
-            return "Natural"
-        default:
-            return label.isEmpty ? "Natural" : label.capitalized
+        let normalized = label
+            .trimmingCharacters(in: .whitespacesAndNewlines)
+            .lowercased()
+        let themeSet = makeConversationInput().suggestionThemeSet
+
+        switch themeSet {
+        case .replyStyles:
+            switch normalized {
+            case "direct", "clear", "concise", "natural", "normal":
+                return "Direct"
+            case "friendly", "warm", "kind", "kinder", "polite":
+                return "Friendly"
+            case "thoughtful", "considerate", "reflective", "like you", "likeyou", "casual":
+                return "Thoughtful"
+            case "label", "text", "option":
+                return "Direct"
+            default:
+                return label.isEmpty ? "Direct" : label.capitalized
+            }
+        case .decisionReply:
+            switch normalized {
+            case "agree", "yes", "accept", "accepted":
+                return "Agree"
+            case "soft decline", "decline", "no", "pass":
+                return "Soft Decline"
+            case "delay", "later", "defer", "defer decision", "maybe":
+                return "Delay"
+            case "label", "text", "option":
+                return "Agree"
+            default:
+                return label.isEmpty ? "Agree" : label.capitalized
+            }
         }
     }
 

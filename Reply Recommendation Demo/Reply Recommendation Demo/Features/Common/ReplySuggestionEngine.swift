@@ -60,37 +60,16 @@ final class MockReplyEngine: ReplySuggestionEngine {
         let startTime = Date()
         try await Task.sleep(nanoseconds: 450_000_000)
 
-        let effectiveProfile = input.effectiveProfile(userDefault: defaultProfile)
-        let target = input.replyTargetName ?? "them"
-        let topic = input.conversation.last?.text ?? "that"
-        let draft = input.resolvedDraft
-
-        let natural: String
-        let polite: String
-        let likeYou: String
-
-        if input.hasDraft {
-            natural = polishDraft(draft, suffix: "That works for me.")
-            polite = polishDraft(draft, suffix: "Sounds good, happy to make that work.")
-            likeYou = draft.lowercased()
-        } else {
-            natural = "yeah, that sounds good - \(topic.lowercased())"
-            polite = "Sounds good, \(target). I'm in."
-            likeYou = casualReply(tone: effectiveProfile.resolvedTone)
-        }
+        let pairs = suggestionPairs(input: input, defaultProfile: defaultProfile)
 
         var metrics = InferenceMetrics()
         metrics.modelName = "mock/safe-demo"
         metrics.latencyMs = Date().timeIntervalSince(startTime) * 1000
-        metrics.tokensGenerated = natural.count + polite.count + likeYou.count
+        metrics.tokensGenerated = pairs.reduce(into: 0) { $0 += $1.1.count }
         metrics.totalTokens = metrics.tokensGenerated
 
         return ReplyGenerationResult(
-            suggestions: [
-                Suggestion(label: "Natural", text: natural),
-                Suggestion(label: "Polite", text: polite),
-                Suggestion(label: "Like You", text: likeYou),
-            ],
+            suggestions: pairs.map { Suggestion(label: $0.0, text: $0.1) },
             metrics: metrics
         )
     }
@@ -102,25 +81,7 @@ final class MockReplyEngine: ReplySuggestionEngine {
     ) async throws -> InferenceMetrics {
         let startTime = Date()
 
-        let effectiveProfile = input.effectiveProfile(userDefault: defaultProfile)
-        let target = input.replyTargetName ?? "them"
-        let topic = input.conversation.last?.text ?? "that"
-        let draft = input.resolvedDraft
-
-        let pairs: [(String, String)]
-        if input.hasDraft {
-            pairs = [
-                ("Natural",  polishDraft(draft, suffix: "That works for me.")),
-                ("Polite",   polishDraft(draft, suffix: "Sounds good, happy to make that work.")),
-                ("Like You", draft.lowercased()),
-            ]
-        } else {
-            pairs = [
-                ("Natural",  "yeah, that sounds good - \(topic.lowercased())"),
-                ("Polite",   "Sounds good, \(target). I'm in."),
-                ("Like You", casualReply(tone: effectiveProfile.resolvedTone)),
-            ]
-        }
+        let pairs = suggestionPairs(input: input, defaultProfile: defaultProfile)
 
         var totalTokens = 0
         for (label, text) in pairs {
@@ -137,24 +98,69 @@ final class MockReplyEngine: ReplySuggestionEngine {
         return metrics
     }
 
-    private func polishDraft(_ draft: String, suffix: String) -> String {
+    private func suggestionPairs(
+        input: ConversationInput,
+        defaultProfile: Profile
+    ) -> [(String, String)] {
+        let effectiveProfile = input.effectiveProfile(userDefault: defaultProfile)
+        let target = input.replyTargetName ?? "them"
+        let topic = input.replyTargetMessage?.text ?? input.conversation.last?.text ?? "that"
+        let draft = input.resolvedDraft
+
+        switch input.suggestionThemeSet {
+        case .replyStyles:
+            if input.hasDraft {
+                return [
+                    ("Direct", polishedDraft(draft)),
+                    ("Friendly", rewriteDraft(draft, closing: "Sounds good on my end.")),
+                    ("Thoughtful", rewriteDraft(draft, closing: "Just wanted to make that clear.")),
+                ]
+            }
+            return [
+                ("Direct", "Yes, that works for me."),
+                ("Friendly", "Sounds good, \(target). I'm in."),
+                ("Thoughtful", thoughtfulReply(topic: topic, tone: effectiveProfile.resolvedTone)),
+            ]
+        case .decisionReply:
+            if input.hasDraft {
+                return [
+                    ("Agree", rewriteDraft(draft, closing: "Yes, that works for me.")),
+                    ("Soft Decline", "I don't think I can this time, but thank you for asking."),
+                    ("Delay", "I'm not sure yet. Can I confirm a little later?"),
+                ]
+            }
+            return [
+                ("Agree", "Yes, that works for me."),
+                ("Soft Decline", "I don't think I can this time, but thank you for asking."),
+                ("Delay", "I'm not sure yet. Can I let you know a bit later?"),
+            ]
+        }
+    }
+
+    private func polishedDraft(_ draft: String) -> String {
         let cleaned = draft.trimmingCharacters(in: .whitespacesAndNewlines)
-        guard !cleaned.isEmpty else { return suffix }
+        guard !cleaned.isEmpty else { return "" }
         return cleaned.hasSuffix(".") || cleaned.hasSuffix("!") || cleaned.hasSuffix("?")
             ? cleaned
             : "\(cleaned)."
     }
 
-    private func casualReply(tone: String) -> String {
+    private func rewriteDraft(_ draft: String, closing: String) -> String {
+        let base = polishedDraft(draft)
+        guard !base.isEmpty else { return closing }
+        return "\(base) \(closing)"
+    }
+
+    private func thoughtfulReply(topic: String, tone: String) -> String {
         switch tone {
         case "formal":
-            return "that works for me, thanks"
+            return "That should work for me. Thanks for checking."
         case "neutral":
-            return "sounds good to me"
+            return "That sounds good to me, and \(topic.lowercased()) works."
         case "friendly":
-            return "yep i'm down"
+            return "That sounds good to me. Happy to make that work."
         default:
-            return "aw yeah, i'm in"
+            return "That sounds good to me, and I appreciate you checking."
         }
     }
 }
@@ -276,7 +282,7 @@ final class LocalReplyEngine: ReplySuggestionEngine {
 
                     var combined = InferenceMetrics(modelName: self.modelResourceName)
 
-                    for toneLabel in ["Natural", "Polite", "Like You"] {
+                    for toneLabel in input.suggestionThemeSet.labels {
                         let prompt = PromptBuilder.buildLlamaPromptSingle(
                             input: input,
                             userDefaultProfile: defaultProfile,

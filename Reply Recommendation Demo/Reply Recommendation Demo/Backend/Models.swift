@@ -118,6 +118,18 @@ struct ConversationInput: Codable {
         return displayName(for: replyTo)
     }
 
+    var suggestionThemeSet: SuggestionThemeSet {
+        SuggestionThemeSet.resolve(for: self)
+    }
+
+    var replyTargetMessage: Message? {
+        if let replyTo,
+           let matched = conversation.last(where: { $0.speaker == replyTo }) {
+            return matched
+        }
+        return conversation.last
+    }
+
     // MARK: - Parsing
 
     static func from(json: String) -> ConversationInput? {
@@ -127,6 +139,101 @@ struct ConversationInput: Codable {
 
     static func from(data: Data) -> ConversationInput? {
         try? JSONDecoder().decode(ConversationInput.self, from: data)
+    }
+}
+
+enum SuggestionThemeSet: Equatable {
+    case replyStyles
+    case decisionReply
+
+    static let replyStyleLabels = ["Direct", "Friendly", "Thoughtful"]
+    static let decisionLabels = ["Agree", "Soft Decline", "Delay"]
+
+    var labels: [String] {
+        switch self {
+        case .replyStyles:
+            Self.replyStyleLabels
+        case .decisionReply:
+            Self.decisionLabels
+        }
+    }
+
+    static func resolve(for input: ConversationInput) -> SuggestionThemeSet {
+        input.shouldUseDecisionThemes ? .decisionReply : .replyStyles
+    }
+}
+
+private extension ConversationInput {
+    var shouldUseDecisionThemes: Bool {
+        Self.isBinaryDecisionPrompt(replyTargetMessage?.text ?? "")
+    }
+
+    static func isBinaryDecisionPrompt(_ text: String) -> Bool {
+        let normalized = text
+            .lowercased()
+            .replacingOccurrences(of: "\n", with: " ")
+            .trimmingCharacters(in: .whitespacesAndNewlines)
+
+        guard !normalized.isEmpty else { return false }
+
+        let compact = normalized
+            .components(separatedBy: .whitespacesAndNewlines)
+            .filter { !$0.isEmpty }
+            .joined(separator: " ")
+
+        let openEndedPrefixes = [
+            "what", "when", "where", "why", "how", "which", "who",
+        ]
+        let yesNoPrefixes = [
+            "are", "is", "am", "do", "does", "did", "can", "could", "would", "will",
+            "should", "have", "has", "had", "may",
+        ]
+        let decisionPhrases = [
+            "want to",
+            "do you want",
+            "would you",
+            "could you",
+            "can you",
+            "are you free",
+            "are you available",
+            "are you down",
+            "still coming",
+            "still down",
+            "down to",
+            "up for",
+            "able to",
+            "make it",
+            "join us",
+            "works for you",
+            "does that work",
+            "does that sound good",
+            "is that okay",
+            "okay with",
+            "good with",
+        ]
+
+        if decisionPhrases.contains(where: { compact.contains($0) }) {
+            if compact.contains(" or ") && !compact.contains(" or not") {
+                return false
+            }
+            return true
+        }
+
+        let firstToken = compact
+            .split(separator: " ")
+            .first
+            .map(String.init) ?? ""
+
+        if openEndedPrefixes.contains(firstToken) {
+            return false
+        }
+
+        if compact.contains(" or ") && !compact.contains(" or not") {
+            return false
+        }
+
+        guard compact.contains("?") else { return false }
+        return yesNoPrefixes.contains(firstToken)
     }
 }
 
