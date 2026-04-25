@@ -197,6 +197,7 @@ final class CloudReplyEngine: ReplySuggestionEngine {
 }
 
 final class LocalReplyEngine: ReplySuggestionEngine {
+    private static let inferenceQueueSpecificKey = DispatchSpecificKey<Void>()
     private let modelResourceName: String
     /// Resource name (no extension) of the bundled LoRA adapter GGUF, if any.
     private let loraResourceName: String?
@@ -220,6 +221,19 @@ final class LocalReplyEngine: ReplySuggestionEngine {
         self.loraResourceName = loraResourceName
         self.loraScale = loraScale
         self.bundle = bundle
+        inferenceQueue.setSpecific(key: Self.inferenceQueueSpecificKey, value: ())
+    }
+
+    deinit {
+        // Ensure the service is released on the same serial queue used for inference.
+        // This avoids teardown racing with in-flight decode work.
+        if DispatchQueue.getSpecific(key: Self.inferenceQueueSpecificKey) != nil {
+            service = nil
+        } else {
+            inferenceQueue.sync {
+                service = nil
+            }
+        }
     }
 
     var statusDescription: String {

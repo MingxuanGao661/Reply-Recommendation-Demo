@@ -1,10 +1,17 @@
 import Foundation
-import LlamaSwift
 import QuartzCore
+import llama
 
-/// Local LLM inference service using llama.cpp (via llama.swift SPM).
+/// Local LLM inference service using llama.cpp (`On_Device_Fine_Tuning/llama.xcframework`).
 /// Input/output are JSON strings — same format as the Python demo.
 final class LLMService {
+    private static let backendLifecycleQueue = DispatchQueue(label: "reply-demo.llama-backend-lifecycle")
+    private static var isBackendInitialized = false
+    private static let logCallback: ggml_log_callback = { _, text, _ in
+        guard let text else { return }
+        let message = String(cString: text)
+        print("[llama] \(message)", terminator: "")
+    }
 
     private var model: OpaquePointer?
     private var context: OpaquePointer?
@@ -26,7 +33,7 @@ final class LLMService {
         loraPath: String? = nil,
         loraScale: Float = 1.0,
         contextSize: UInt32 = 2048,
-        gpuLayers: Int32 = -1,
+        gpuLayers: Int32 = 999,
         defaultProfile: Profile? = nil
     ) throws {
         self.defaultProfile = defaultProfile
@@ -39,46 +46,49 @@ final class LLMService {
         }
         self.contextSize = Int32(contextSize)
 
-        llama_backend_init()
+        Self.ensureBackendInitialized()
 
         var modelParams = llama_model_default_params()
-#if targetEnvironment(simulator)
-        // The iOS Simulator Metal device can fail inside ggml-metal residency-set setup.
-        // Keep simulator inference on CPU while preserving GPU offload on physical devices.
-        modelParams.n_gpu_layers = 0
-#else
         modelParams.n_gpu_layers = gpuLayers
-#endif
 
-        guard let loadedModel = llama_model_load_from_file(path, modelParams) else {
+        let loadedModel = llama_model_load_from_file(path, modelParams)
+
+        guard let loadedModel else {
             throw LLMError.modelLoadFailed(path)
         }
-        self.model = loadedModel
-        self.vocab = llama_model_get_vocab(loadedModel)
+        var ownedModel: OpaquePointer? = loadedModel
+        var ownedContext: OpaquePointer?
+        var ownedSampler: UnsafeMutablePointer<llama_sampler>?
 
         var ctxParams = llama_context_default_params()
         ctxParams.n_ctx = contextSize
         ctxParams.n_batch = contextSize
+#if targetEnvironment(simulator) || targetEnvironment(macCatalyst)
+        // Keep batch conservative on Simulator/Catalyst to avoid graph allocation asserts.
+        ctxParams.n_batch = min(contextSize, 512)
+#endif
 
         guard let ctx = llama_init_from_model(loadedModel, ctxParams) else {
-            llama_model_free(loadedModel)
+            if let ownedModel {
+                llama_model_free(ownedModel)
+            }
             throw LLMError.contextCreateFailed
         }
-        self.context = ctx
+        ownedContext = ctx
 
         // Apply LoRA adapter if a path was provided.
         if let loraPath {
             guard let adapter = llama_adapter_lora_init(loadedModel, loraPath) else {
-                llama_free(ctx)
-                llama_model_free(loadedModel)
+                if let ownedContext {
+                    llama_free(ownedContext)
+                }
+                if let ownedModel {
+                    llama_model_free(ownedModel)
+                }
                 throw LLMError.loraLoadFailed(loraPath)
             }
             self.loraAdapter = adapter
-            // llama_set_adapters_lora expects `llama_adapter_lora **` (array of pointers),
-            // so we pass a mutable local OpaquePointer? that Swift bridges to the C double-pointer.
-            var adapterRef: OpaquePointer? = adapter
-            var scale: Float = loraScale
-            _ = llama_set_adapters_lora(ctx, &adapterRef, 1, &scale)
+            _ = llama_set_adapter_lora(ctx, adapter, loraScale)
         }
 
         // Build llama.cpp native sampler chain: top_k → top_p → temperature → dist
@@ -90,15 +100,36 @@ final class LLMService {
         llama_sampler_chain_add(chain, llama_sampler_init_top_p(0.90, 1))
         llama_sampler_chain_add(chain, llama_sampler_init_temp(0.70))
         llama_sampler_chain_add(chain, llama_sampler_init_dist(UInt32.random(in: 0 ..< UInt32.max)))
-        self.sampler = chain
+        ownedSampler = chain
+
+        self.model = ownedModel
+        self.context = ownedContext
+        self.vocab = llama_model_get_vocab(loadedModel)
+        self.sampler = ownedSampler
+        ownedModel = nil
+        ownedContext = nil
+        ownedSampler = nil
     }
 
     deinit {
-        if let sampler { llama_sampler_free(sampler) }
-        if let context { llama_free(context) }
-        if let loraAdapter { llama_adapter_lora_free(loraAdapter) }
-        if let model { llama_model_free(model) }
-        llama_backend_free()
+        if let sampler {
+            llama_sampler_free(sampler)
+            self.sampler = nil
+        }
+        if let context {
+            // Ensure context no longer references adapter state before teardown.
+            llama_clear_adapter_lora(context)
+            llama_free(context)
+            self.context = nil
+        }
+        // Do not free LoRA adapter manually here.
+        // libllama frees loaded adapters with the owning model.
+        if let model {
+            llama_model_free(model)
+            self.model = nil
+        }
+        self.vocab = nil
+        self.loraAdapter = nil
     }
 
     // MARK: - Public API
@@ -268,6 +299,16 @@ final class LLMService {
             }
         }
         return result == KERN_SUCCESS ? Double(info.resident_size) / (1024 * 1024) : 0
+    }
+
+    private static func ensureBackendInitialized() {
+        backendLifecycleQueue.sync {
+            if !isBackendInitialized {
+                llama_log_set(logCallback, nil)
+                llama_backend_init()
+                isBackendInitialized = true
+            }
+        }
     }
 }
 
