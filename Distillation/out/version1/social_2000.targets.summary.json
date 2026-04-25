@@ -1,0 +1,125 @@
+{
+  "plans_total": 2000,
+  "phase1_inputs_generate_ok_count": 2000,
+  "phase2_targets_generate_ok_count": 768,
+  "n_written": 768,
+  "targets_by_input_provenance": {
+    "synthetic_input": 768
+  },
+  "by_task_type": {
+    "from_scratch": 537,
+    "decision": 159,
+    "rewrite": 72
+  },
+  "by_suggestion_theme": {
+    "replyStyles": 570,
+    "decisionReply": 198
+  },
+  "relationship_distribution": {
+    "acquaintance": 109,
+    "romantic_interest": 123,
+    "colleague": 78,
+    "classmate": 157,
+    "friend": 234,
+    "manager": 67
+  },
+  "tone_distribution": {
+    "casual": 241,
+    "warm": 188,
+    "professional": 131,
+    "direct": 208
+  },
+  "length_distribution": {
+    "medium": 192,
+    "short": 558,
+    "long": 18
+  },
+  "average_words_by_label": {
+    "Agree": 6.894,
+    "Delay": 12.551,
+    "Direct": 8.677,
+    "Friendly": 12.386,
+    "Soft Decline": 12.52,
+    "Thoughtful": 11.312
+  },
+  "pct_replystyles_thoughtful_word_count_gt_18": 0.0,
+  "pct_replystyles_friendly_with_any_slang": 73.16,
+  "teacher_target_generation": {
+    "rows_attempted": 2000,
+    "rows_failed_no_valid_target": 1232,
+    "failure_rate": 0.616
+  },
+  "phase1_inputs": {
+    "generate_ok_count": 2000,
+    "plans_total": 2000,
+    "by_input_provenance": {
+      "synthetic_input": 2000
+    }
+  },
+  "top_validation_failure_buckets": [
+    [
+      "phase2:strategy_distinctness",
+      330
+    ],
+    [
+      "phase2:direct_word_cap",
+      250
+    ],
+    [
+      "phase2:decision_word_bounds",
+      185
+    ],
+    [
+      "phase2:format_tokens",
+      154
+    ],
+    [
+      "phase2:overpolite",
+      127
+    ],
+    [
+      "phase2:detail_budget",
+      72
+    ],
+    [
+      "phase2:thoughtful_shape",
+      50
+    ],
+    [
+      "phase2:anti_cliche",
+      25
+    ],
+    [
+      "phase2:friendly_word_cap",
+      15
+    ],
+    [
+      "phase2:decision_symmetry",
+      12
+    ],
+    [
+      "phase2:slang_marker_rules",
+      7
+    ],
+    [
+      "phase2:parse_or_json",
+      5
+    ]
+  ],
+  "cli": {
+    "total": 2000,
+    "limit": null,
+    "teacher_retries": 4,
+    "phase2_message_batch": true,
+    "phase2_batch_rescue": false,
+    "phase2_batch_chunk_size": 200,
+    "phase2_batch_poll_seconds": 30,
+    "phase2_resume": false,
+    "skip_phase_1": true,
+    "input_provenance": "synthetic_input",
+    "human_seeded_inputs": "",
+    "inputs_out": "out/version1/social_2000.inputs.jsonl",
+    "targets_out": "out/version1/social_2000.targets.jsonl",
+    "merged_out": ""
+  }
+}

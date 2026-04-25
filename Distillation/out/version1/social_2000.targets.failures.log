@@ -1,0 +1,1232 @@
+social_000001 phase2_teacher_batch: ValueError: replyStyles first clauses too similar (strategy not distinct)
+social_000000 phase2_teacher_batch: ValueError: dash punctuation not allowed in suggestions
+social_000002 phase2_teacher_batch: ValueError: overly formal phrase found: "genuinely"
+social_000004 phase2_teacher_batch: ValueError: suggestions too similar pairwise (max ratio 0.89)
+social_000005 phase2_teacher_batch: ValueError: Direct too long: 15 words (max 14)
+social_000006 phase2_teacher_batch: ValueError: Direct too long: 19 words (max 14)
+social_000007 phase2_teacher_batch: ValueError: replyStyles first clauses too similar (strategy not distinct)
+social_000009 phase2_teacher_batch: ValueError: replyStyles first clauses too similar (strategy not distinct)
+social_000010 phase2_teacher_batch: ValueError: replyStyles first clauses too similar (strategy not distinct)
+social_000012 phase2_teacher_batch: ValueError: Direct too long: 22 words (max 14)
+social_000015 phase2_teacher_batch: ValueError: Direct too long: 18 words (max 14)
+social_000016 phase2_teacher_batch: ValueError: replyStyles first clauses too similar (strategy not distinct)
+social_000018 phase2_teacher_batch: ValueError: replyStyles first clauses too similar (strategy not distinct)
+social_000019 phase2_teacher_batch: ValueError: Direct too long: 18 words (max 14)
+social_000022 phase2_teacher_batch: ValueError: Direct too long: 20 words (max 14)
+social_000024 phase2_teacher_batch: ValueError: Soft Decline length out of range: 19 words (expected 6-18)
+social_000027 phase2_teacher_batch: ValueError: overly formal phrase found: "genuinely"
+social_000028 phase2_teacher_batch: ValueError: dash punctuation not allowed in suggestions
+social_000029 phase2_teacher_batch: ValueError: Delay length out of range: 21 words (expected 6-16)
+social_000032 phase2_teacher_batch: ValueError: Direct too long: 17 words (max 14)
+social_000031 phase2_teacher_batch: ValueError: replyStyles first clauses too similar (strategy not distinct)
+social_000034 phase2_teacher_batch: ValueError: Direct too long: 16 words (max 14)
+social_000033 phase2_teacher_batch: ValueError: suggestions too similar pairwise (max ratio 0.90)
+social_000039 phase2_teacher_batch: ValueError: dash punctuation not allowed in suggestions
+social_000041 phase2_teacher_batch: ValueError: Direct too long: 17 words (max 14)
+social_000040 phase2_teacher_batch: ValueError: replyStyles first clauses too similar (strategy not distinct)
+social_000045 phase2_teacher_batch: ValueError: replyStyles first clauses too similar (strategy not distinct)
+social_000047 phase2_teacher_batch: ValueError: overly formal phrase found: "genuinely"
+social_000046 phase2_teacher_batch: ValueError: replyStyles first clauses too similar (strategy not distinct)
+social_000048 phase2_teacher_batch: ValueError: replyStyles first clauses too similar (strategy not distinct)
+social_000050 phase2_teacher_batch: ValueError: Soft Decline length out of range: 23 words (expected 6-18)
+social_000049 phase2_teacher_batch: ValueError: dash punctuation not allowed in suggestions
+social_000051 phase2_teacher_batch: ValueError: Soft Decline length out of range: 19 words (expected 6-18)
+social_000052 phase2_teacher_batch: ValueError: Friendly too long: 23 words (max 22)
+social_000053 phase2_teacher_batch: ValueError: Soft Decline length out of range: 20 words (expected 6-18)
+social_000057 phase2_teacher_batch: ValueError: Direct too long: 16 words (max 14)
+social_000055 phase2_teacher_batch: ValueError: dash punctuation not allowed in suggestions
+social_000058 phase2_teacher_batch: ValueError: dash punctuation not allowed in suggestions
+social_000060 phase2_teacher_batch: ValueError: overly formal phrase found: "genuinely"
+social_000062 phase2_teacher_batch: ValueError: Soft Decline length out of range: 26 words (expected 6-18)
+social_000064 phase2_teacher_batch: ValueError: Agree length out of range: 17 words (expected 3-14)
+social_000066 phase2_teacher_batch: ValueError: Delay length out of range: 18 words (expected 6-16)
+social_000067 phase2_teacher_batch: ValueError: replyStyles first clauses too similar (strategy not distinct)
+social_000068 phase2_teacher_batch: ValueError: dash punctuation not allowed in suggestions
+social_000070 phase2_teacher_batch: ValueError: Agree length out of range: 15 words (expected 3-14)
+social_000071 phase2_teacher_batch: ValueError: replyStyles first clauses too similar (strategy not distinct)
+social_000073 phase2_teacher_batch: ValueError: Direct too long: 17 words (max 14)
+social_000072 phase2_teacher_batch: ValueError: replyStyles first clauses too similar (strategy not distinct)
+social_000075 phase2_teacher_batch: ValueError: Direct adds too many ungrounded details for risk=high: ['60', 'tonight'] (budget 0)
+social_000074 phase2_teacher_batch: ValueError: replyStyles first clauses too similar (strategy not distinct)
+social_000076 phase2_teacher_batch: ValueError: overly formal phrase found: "genuinely"
+social_000080 phase2_teacher_batch: ValueError: dash punctuation not allowed in suggestions
+social_000084 phase2_teacher_batch: ValueError: Agree length out of range: 17 words (expected 3-14)
+social_000089 phase2_teacher_batch: ValueError: replyStyles first clauses too similar (strategy not distinct)
+social_000090 phase2_teacher_batch: ValueError: replyStyles first clauses too similar (strategy not distinct)
+social_000091 phase2_teacher_batch: ValueError: Direct too long: 17 words (max 14)
+social_000094 phase2_teacher_batch: ValueError: Direct adds too many ungrounded details for risk=medium: ['afternoon', 'morning'] (budget 1)
+social_000098 phase2_teacher_batch: ValueError: replyStyles first clauses too similar (strategy not distinct)
+social_000100 phase2_teacher_batch: ValueError: replyStyles first clauses too similar (strategy not distinct)
+social_000102 phase2_teacher_batch: ValueError: dash punctuation not allowed in suggestions
+social_000105 phase2_teacher_batch: ValueError: Agree length out of range: 30 words (expected 3-14)
+social_000106 phase2_teacher_batch: JSONDecodeError: Extra data: line 3 column 1 (char 399)
+social_000107 phase2_teacher_batch: ValueError: suggestions too similar pairwise (max ratio 0.89)
+social_000109 phase2_teacher_batch: ValueError: overly formal phrase found: "absolutely"
+social_000111 phase2_teacher_batch: ValueError: dash punctuation not allowed in suggestions
+social_000116 phase2_teacher_batch: ValueError: suggestions too similar pairwise (max ratio 0.87)
+social_000117 phase2_teacher_batch: ValueError: Soft Decline length out of range: 19 words (expected 6-18)
+social_000121 phase2_teacher_batch: ValueError: replyStyles first clauses too similar (strategy not distinct)
+social_000122 phase2_teacher_batch: ValueError: Direct too long: 17 words (max 14)
+social_000124 phase2_teacher_batch: ValueError: Agree length out of range: 15 words (expected 3-14)
+social_000125 phase2_teacher_batch: ValueError: replyStyles first clauses too similar (strategy not distinct)
+social_000127 phase2_teacher_batch: ValueError: anti-cliche blacklist phrase found: "looking forward to it"
+social_000128 phase2_teacher_batch: ValueError: suggestions too similar pairwise (max ratio 0.88)
+social_000130 phase2_teacher_batch: ValueError: Delay adds too many ungrounded details for risk=high: ['20'] (budget 0)
+social_000131 phase2_teacher_batch: ValueError: Direct too long: 15 words (max 14)
+social_000132 phase2_teacher_batch: ValueError: replyStyles first clauses too similar (strategy not distinct)
+social_000133 phase2_teacher_batch: ValueError: overly formal phrase found: "genuinely"
+social_000134 phase2_teacher_batch: ValueError: Direct too long: 25 words (max 14)
+social_000137 phase2_teacher_batch: ValueError: overly formal phrase found: "genuinely"
+social_000138 phase2_teacher_batch: ValueError: replyStyles first clauses too similar (strategy not distinct)
+social_000139 phase2_teacher_batch: ValueError: Direct adds too many ungrounded details for risk=high: ['thursday'] (budget 0)
+social_000140 phase2_teacher_batch: ValueError: suggestions too similar pairwise (max ratio 0.86)
+social_000141 phase2_teacher_batch: ValueError: Agree length out of range: 19 words (expected 3-14)
+social_000144 phase2_teacher_batch: ValueError: replyStyles first clauses too similar (strategy not distinct)
+social_000145 phase2_teacher_batch: ValueError: overly formal phrase found: "genuinely"
+social_000146 phase2_teacher_batch: ValueError: Friendly too long: 28 words (max 22)
+social_000149 phase2_teacher_batch: ValueError: decisionReply outputs too symmetric in length
+social_000148 phase2_teacher_batch: ValueError: suggestions too similar pairwise (max ratio 0.92)
+social_000150 phase2_teacher_batch: ValueError: Friendly too long: 23 words (max 22)
+social_000153 phase2_teacher_batch: ValueError: replyStyles first clauses too similar (strategy not distinct)
+social_000154 phase2_teacher_batch: ValueError: Direct adds too many ungrounded details for risk=high: ['coffee'] (budget 0)
+social_000155 phase2_teacher_batch: ValueError: Direct too long: 15 words (max 14)
+social_000157 phase2_teacher_batch: ValueError: dash punctuation not allowed in suggestions
+social_000159 phase2_teacher_batch: ValueError: Direct too long: 32 words (max 14)
+social_000162 phase2_teacher_batch: ValueError: Direct too long: 25 words (max 14)
+social_000163 phase2_teacher_batch: ValueError: Direct too long: 17 words (max 14)
+social_000164 phase2_teacher_batch: ValueError: dash punctuation not allowed in suggestions
+social_000167 phase2_teacher_batch: ValueError: overly formal phrase found: "genuinely"
+social_000170 phase2_teacher_batch: ValueError: replyStyles first clauses too similar (strategy not distinct)
+social_000171 phase2_teacher_batch: ValueError: replyStyles first clauses too similar (strategy not distinct)
+social_000173 phase2_teacher_batch: ValueError: dash punctuation not allowed in suggestions
+social_000174 phase2_teacher_batch: ValueError: replyStyles first clauses too similar (strategy not distinct)
+social_000175 phase2_teacher_batch: ValueError: Soft Decline length out of range: 28 words (expected 6-18)
+social_000178 phase2_teacher_batch: ValueError: Agree length out of range: 27 words (expected 3-14)
+social_000179 phase2_teacher_batch: ValueError: replyStyles first clauses too similar (strategy not distinct)
+social_000180 phase2_teacher_batch: ValueError: Direct too long: 64 words (max 14)
+social_000182 phase2_teacher_batch: ValueError: Direct too long: 28 words (max 14)
+social_000183 phase2_teacher_batch: ValueError: Direct adds too many ungrounded details for risk=high: ['7'] (budget 0)
+social_000184 phase2_teacher_batch: ValueError: Thoughtful: at most one comma
+social_000186 phase2_teacher_batch: ValueError: Soft Decline length out of range: 19 words (expected 6-18)
+social_000189 phase2_teacher_batch: ValueError: anti-cliche blacklist phrase found: "by end of day"
+social_000188 phase2_teacher_batch: ValueError: dash punctuation not allowed in suggestions
+social_000192 phase2_teacher_batch: ValueError: Direct too long: 22 words (max 14)
+social_000191 phase2_teacher_batch: ValueError: Direct too long: 20 words (max 14)
+social_000196 phase2_teacher_batch: ValueError: overly formal phrase found: "genuinely"
+social_000199 phase2_teacher_batch: ValueError: replyStyles first clauses too similar (strategy not distinct)
+social_000198 phase2_teacher_batch: ValueError: Direct too long: 44 words (max 14)
+social_000201 phase2_teacher_batch: ValueError: Direct too long: 16 words (max 14)
+social_000204 phase2_teacher_batch: ValueError: dash punctuation not allowed in suggestions
+social_000205 phase2_teacher_batch: ValueError: Agree length out of range: 22 words (expected 3-14)
+social_000206 phase2_teacher_batch: ValueError: Direct too long: 31 words (max 14)
+social_000207 phase2_teacher_batch: ValueError: replyStyles first clauses too similar (strategy not distinct)
+social_000208 phase2_teacher_batch: ValueError: Direct too long: 43 words (max 14)
+social_000209 phase2_teacher_batch: ValueError: Friendly too long: 27 words (max 22)
+social_000211 phase2_teacher_batch: ValueError: replyStyles first clauses too similar (strategy not distinct)
+social_000215 phase2_teacher_batch: ValueError: suggestions too similar pairwise (max ratio 0.88)
+social_000219 phase2_teacher_batch: ValueError: Soft Decline adds too many ungrounded details for risk=medium: ['4', '4:30'] (budget 1)
+social_000221 phase2_teacher_batch: ValueError: overly formal phrase found: "genuinely"
+social_000222 phase2_teacher_batch: ValueError: Direct too long: 18 words (max 14)
+social_000223 phase2_teacher_batch: ValueError: dash punctuation not allowed in suggestions
+social_000224 phase2_teacher_batch: ValueError: overly formal phrase found: "genuinely"
+social_000225 phase2_teacher_batch: ValueError: overly formal phrase found: "genuinely"
+social_000226 phase2_teacher_batch: ValueError: dash punctuation not allowed in suggestions
+social_000228 phase2_teacher_batch: ValueError: Direct too long: 27 words (max 14)
+social_000229 phase2_teacher_batch: ValueError: Agree length out of range: 19 words (expected 3-14)
+social_000230 phase2_teacher_batch: ValueError: Direct too long: 19 words (max 14)
+social_000232 phase2_teacher_batch: ValueError: dash punctuation not allowed in suggestions
+social_000233 phase2_teacher_batch: ValueError: Delay length out of range: 22 words (expected 6-16)
+social_000235 phase2_teacher_batch: ValueError: Agree length out of range: 16 words (expected 3-14)
+social_000236 phase2_teacher_batch: ValueError: replyStyles first clauses too similar (strategy not distinct)
+social_000240 phase2_teacher_batch: ValueError: replyStyles first clauses too similar (strategy not distinct)
+social_000242 phase2_teacher_batch: ValueError: Delay length out of range: 20 words (expected 6-16)
+social_000243 phase2_teacher_batch: ValueError: replyStyles first clauses too similar (strategy not distinct)
+social_000248 phase2_teacher_batch: ValueError: replyStyles first clauses too similar (strategy not distinct)
+social_000249 phase2_teacher_batch: ValueError: Direct too long: 19 words (max 14)
+social_000251 phase2_teacher_batch: ValueError: dash punctuation not allowed in suggestions
+social_000253 phase2_teacher_batch: ValueError: Delay adds too many ungrounded details for risk=medium: ['morning', 'tomorrow'] (budget 1)
+social_000252 phase2_teacher_batch: ValueError: replyStyles first clauses too similar (strategy not distinct)
+social_000254 phase2_teacher_batch: ValueError: Direct too long: 29 words (max 14)
+social_000255 phase2_teacher_batch: ValueError: Direct too long: 19 words (max 14)
+social_000256 phase2_teacher_batch: ValueError: replyStyles first clauses too similar (strategy not distinct)
+social_000258 phase2_teacher_batch: ValueError: Direct adds too many ungrounded details for risk=high: ['10'] (budget 0)
+social_000260 phase2_teacher_batch: ValueError: overly formal phrase found: "genuinely"
+social_000261 phase2_teacher_batch: ValueError: Delay length out of range: 18 words (expected 6-16)
+social_000262 phase2_teacher_batch: ValueError: Thoughtful too long: 23 words (max 18)
+social_000263 phase2_teacher_batch: ValueError: Direct adds too many ungrounded details for risk=high: ['20'] (budget 0)
+social_000265 phase2_teacher_batch: ValueError: suggestions too similar pairwise (max ratio 0.87)
+social_000264 phase2_teacher_batch: ValueError: replyStyles first clauses too similar (strategy not distinct)
+social_000266 phase2_teacher_batch: ValueError: replyStyles first clauses too similar (strategy not distinct)
+social_000268 phase2_teacher_batch: ValueError: overly formal phrase found: "genuinely"
+social_000269 phase2_teacher_batch: ValueError: overly formal phrase found: "genuinely"
+social_000270 phase2_teacher_batch: ValueError: dash punctuation not allowed in suggestions
+social_000272 phase2_teacher_batch: ValueError: dash punctuation not allowed in suggestions
+social_000273 phase2_teacher_batch: ValueError: Thoughtful: at most one comma
+social_000274 phase2_teacher_batch: ValueError: overly formal phrase found: "genuinely"
+social_000275 phase2_teacher_batch: ValueError: dash punctuation not allowed in suggestions
+social_000277 phase2_teacher_batch: ValueError: Agree length out of range: 15 words (expected 3-14)
+social_000278 phase2_teacher_batch: ValueError: Direct too long: 17 words (max 14)
+social_000279 phase2_teacher_batch: ValueError: Direct adds too many ungrounded details for risk=high: ['address'] (budget 0)
+social_000280 phase2_teacher_batch: ValueError: Direct too long: 15 words (max 14)
+social_000281 phase2_teacher_batch: ValueError: decisionReply outputs too symmetric in length
+social_000282 phase2_teacher_batch: ValueError: Direct too long: 16 words (max 14)
+social_000283 phase2_teacher_batch: ValueError: Direct too long: 22 words (max 14)
+social_000284 phase2_teacher_batch: ValueError: Thoughtful adds too many ungrounded details for risk=low: ['2', '3', 'afternoon', 'tomorrow'] (budget 2)
+social_000286 phase2_teacher_batch: ValueError: replyStyles first clauses too similar (strategy not distinct)
+social_000288 phase2_teacher_batch: ValueError: Agree length out of range: 15 words (expected 3-14)
+social_000289 phase2_teacher_batch: ValueError: replyStyles first clauses too similar (strategy not distinct)
+social_000291 phase2_teacher_batch: ValueError: replyStyles first clauses too similar (strategy not distinct)
+social_000293 phase2_teacher_batch: ValueError: Direct too long: 28 words (max 14)
+social_000294 phase2_teacher_batch: ValueError: anti-cliche blacklist phrase found: "by end of day"
+social_000267 phase2_teacher_batch: ValueError: Direct too long: 27 words (max 14)
+social_000296 phase2_teacher_batch: ValueError: overly formal phrase found: "absolutely"
+social_000298 phase2_teacher_batch: ValueError: Thoughtful: at most one comma
+social_000301 phase2_teacher_batch: ValueError: Direct adds too many ungrounded details for risk=high: ['tonight'] (budget 0)
+social_000302 phase2_teacher_batch: ValueError: dash punctuation not allowed in suggestions
+social_000303 phase2_teacher_batch: ValueError: Direct too long: 16 words (max 14)
+social_000305 phase2_teacher_batch: ValueError: Direct too long: 15 words (max 14)
+social_000306 phase2_teacher_batch: ValueError: overly formal phrase found: "absolutely"
+social_000309 phase2_teacher_batch: ValueError: Direct too long: 21 words (max 14)
+social_000310 phase2_teacher_batch: ValueError: replyStyles first clauses too similar (strategy not distinct)
+social_000311 phase2_teacher_batch: ValueError: overly formal phrase found: "genuinely"
+social_000314 phase2_teacher_batch: ValueError: Soft Decline length out of range: 22 words (expected 6-18)
+social_000315 phase2_teacher_batch: ValueError: overly formal phrase found: "genuinely"
+social_000318 phase2_teacher_batch: ValueError: Direct too long: 21 words (max 14)
+social_000317 phase2_teacher_batch: ValueError: dash punctuation not allowed in suggestions
+social_000320 phase2_teacher_batch: ValueError: Friendly too long: 24 words (max 22)
+social_000322 phase2_teacher_batch: ValueError: dash punctuation not allowed in suggestions
+social_000323 phase2_teacher_batch: ValueError: replyStyles first clauses too similar (strategy not distinct)
+social_000324 phase2_teacher_batch: ValueError: replyStyles first clauses too similar (strategy not distinct)
+social_000325 phase2_teacher_batch: ValueError: replyStyles first clauses too similar (strategy not distinct)
+social_000326 phase2_teacher_batch: ValueError: overly formal phrase found: "genuinely"
+social_000329 phase2_teacher_batch: ValueError: replyStyles first clauses too similar (strategy not distinct)
+social_000330 phase2_teacher_batch: ValueError: replyStyles first clauses too similar (strategy not distinct)
+social_000331 phase2_teacher_batch: ValueError: dash punctuation not allowed in suggestions
+social_000335 phase2_teacher_batch: ValueError: suggestions too similar pairwise (max ratio 0.92)
+social_000338 phase2_teacher_batch: ValueError: replyStyles first clauses too similar (strategy not distinct)
+social_000341 phase2_teacher_batch: ValueError: replyStyles first clauses too similar (strategy not distinct)
+social_000343 phase2_teacher_batch: ValueError: replyStyles first clauses too similar (strategy not distinct)
+social_000344 phase2_teacher_batch: ValueError: overly formal phrase found: "genuinely"
+social_000345 phase2_teacher_batch: ValueError: dash punctuation not allowed in suggestions
+social_000347 phase2_teacher_batch: ValueError: Direct too long: 16 words (max 14)
+social_000348 phase2_teacher_batch: ValueError: Direct adds too many ungrounded details for risk=high: ['2'] (budget 0)
+social_000349 phase2_teacher_batch: ValueError: Thoughtful too long: 20 words (max 18)
+social_000351 phase2_teacher_batch: ValueError: Agree length out of range: 32 words (expected 3-14)
+social_000353 phase2_teacher_batch: ValueError: Direct too long: 17 words (max 14)
+social_000354 phase2_teacher_batch: ValueError: replyStyles first clauses too similar (strategy not distinct)
+social_000355 phase2_teacher_batch: ValueError: Direct too long: 15 words (max 14)
+social_000357 phase2_teacher_batch: ValueError: replyStyles first clauses too similar (strategy not distinct)
+social_000356 phase2_teacher_batch: ValueError: Thoughtful: single sentence only (no text after a period)
+social_000359 phase2_teacher_batch: ValueError: replyStyles first clauses too similar (strategy not distinct)
+social_000358 phase2_teacher_batch: ValueError: dash punctuation not allowed in suggestions
+social_000360 phase2_teacher_batch: ValueError: Direct too long: 19 words (max 14)
+social_000363 phase2_teacher_batch: ValueError: Direct too long: 16 words (max 14)
+social_000364 phase2_teacher_batch: ValueError: replyStyles first clauses too similar (strategy not distinct)
+social_000365 phase2_teacher_batch: ValueError: overly formal phrase found: "genuinely"
+social_000367 phase2_teacher_batch: ValueError: Thoughtful: at most one comma
+social_000369 phase2_teacher_batch: ValueError: suggestions too similar pairwise (max ratio 0.89)
+social_000370 phase2_teacher_batch: ValueError: Thoughtful: at most one comma
+social_000371 phase2_teacher_batch: ValueError: Direct too long: 16 words (max 14)
+social_000373 phase2_teacher_batch: ValueError: overly formal phrase found: "genuinely"
+social_000374 phase2_teacher_batch: ValueError: dash punctuation not allowed in suggestions
+social_000375 phase2_teacher_batch: ValueError: dash punctuation not allowed in suggestions
+social_000377 phase2_teacher_batch: ValueError: dash punctuation not allowed in suggestions
+social_000378 phase2_teacher_batch: ValueError: dash punctuation not allowed in suggestions
+social_000380 phase2_teacher_batch: ValueError: dash punctuation not allowed in suggestions
+social_000382 phase2_teacher_batch: ValueError: dash punctuation not allowed in suggestions
+social_000384 phase2_teacher_batch: ValueError: Direct too long: 18 words (max 14)
+social_000385 phase2_teacher_batch: ValueError: replyStyles first clauses too similar (strategy not distinct)
+social_000387 phase2_teacher_batch: ValueError: Direct too long: 20 words (max 14)
+social_000392 phase2_teacher_batch: ValueError: Delay length out of range: 17 words (expected 6-16)
+social_000395 phase2_teacher_batch: ValueError: Direct too long: 20 words (max 14)
+social_000394 phase2_teacher_batch: ValueError: anti-cliche blacklist phrase found: "looking forward to it"
+social_000397 phase2_teacher_batch: ValueError: Soft Decline length out of range: 22 words (expected 6-18)
+social_000398 phase2_teacher_batch: ValueError: replyStyles first clauses too similar (strategy not distinct)
+social_000400 phase2_teacher_batch: ValueError: Direct too long: 18 words (max 14)
+social_000401 phase2_teacher_batch: ValueError: replyStyles first clauses too similar (strategy not distinct)
+social_000402 phase2_teacher_batch: ValueError: suggestions too similar pairwise (max ratio 0.90)
+social_000403 phase2_teacher_batch: ValueError: dash punctuation not allowed in suggestions
+social_000406 phase2_teacher_batch: ValueError: overly formal phrase found: "absolutely"
+social_000407 phase2_teacher_batch: ValueError: overly formal phrase found: "genuinely"
+social_000410 phase2_teacher_batch: ValueError: Thoughtful: at most one comma
+social_000411 phase2_teacher_batch: ValueError: Direct too long: 24 words (max 14)
+social_000413 phase2_teacher_batch: ValueError: Direct too long: 23 words (max 14)
+social_000412 phase2_teacher_batch: ValueError: replyStyles first clauses too similar (strategy not distinct)
+social_000414 phase2_teacher_batch: ValueError: Friendly adds too many ungrounded details for risk=medium: ['morning', 'saturday'] (budget 1)
+social_000415 phase2_teacher_batch: ValueError: Direct too long: 16 words (max 14)
+social_000416 phase2_teacher_batch: ValueError: overly formal phrase found: "genuinely"
+social_000417 phase2_teacher_batch: ValueError: anti-cliche blacklist phrase found: "looking forward to it"
+social_000420 phase2_teacher_batch: ValueError: Soft Decline length out of range: 20 words (expected 6-18)
+social_000421 phase2_teacher_batch: ValueError: Soft Decline length out of range: 19 words (expected 6-18)
+social_000422 phase2_teacher_batch: ValueError: Agree length out of range: 30 words (expected 3-14)
+social_000423 phase2_teacher_batch: ValueError: dash punctuation not allowed in suggestions
+social_000424 phase2_teacher_batch: ValueError: replyStyles first clauses too similar (strategy not distinct)
+social_000425 phase2_teacher_batch: ValueError: Direct too long: 16 words (max 14)
+social_000427 phase2_teacher_batch: ValueError: Agree length out of range: 19 words (expected 3-14)
+social_000428 phase2_teacher_batch: ValueError: replyStyles first clauses too similar (strategy not distinct)
+social_000429 phase2_teacher_batch: ValueError: anti-cliche blacklist phrase found: "looking forward to it"
+social_000431 phase2_teacher_batch: ValueError: dash punctuation not allowed in suggestions
+social_000435 phase2_teacher_batch: ValueError: replyStyles first clauses too similar (strategy not distinct)
+social_000436 phase2_teacher_batch: ValueError: Direct too long: 24 words (max 14)
+social_000437 phase2_teacher_batch: ValueError: replyStyles first clauses too similar (strategy not distinct)
+social_000442 phase2_teacher_batch: ValueError: overly formal phrase found: "genuinely"
+social_000443 phase2_teacher_batch: ValueError: Soft Decline length out of range: 28 words (expected 6-18)
+social_000444 phase2_teacher_batch: ValueError: Soft Decline length out of range: 41 words (expected 6-18)
+social_000446 phase2_teacher_batch: ValueError: emoji not allowed in suggestions
+social_000447 phase2_teacher_batch: ValueError: dash punctuation not allowed in suggestions
+social_000448 phase2_teacher_batch: ValueError: Direct too long: 21 words (max 14)
+social_000449 phase2_teacher_batch: ValueError: Direct too long: 20 words (max 14)
+social_000450 phase2_teacher_batch: ValueError: dash punctuation not allowed in suggestions
+social_000451 phase2_teacher_batch: ValueError: overly formal phrase found: "genuinely"
+social_000452 phase2_teacher_batch: ValueError: Agree length out of range: 18 words (expected 3-14)
+social_000453 phase2_teacher_batch: ValueError: dash punctuation not allowed in suggestions
+social_000454 phase2_teacher_batch: ValueError: Direct too long: 22 words (max 14)
+social_000455 phase2_teacher_batch: ValueError: overly formal phrase found: "absolutely"
+social_000457 phase2_teacher_batch: ValueError: overly formal phrase found: "genuinely"
+social_000458 phase2_teacher_batch: ValueError: Direct too long: 16 words (max 14)
+social_000460 phase2_teacher_batch: ValueError: replyStyles first clauses too similar (strategy not distinct)
+social_000461 phase2_teacher_batch: ValueError: dash punctuation not allowed in suggestions
+social_000463 phase2_teacher_batch: ValueError: replyStyles first clauses too similar (strategy not distinct)
+social_000465 phase2_teacher_batch: ValueError: Direct too long: 19 words (max 14)
+social_000467 phase2_teacher_batch: ValueError: Soft Decline length out of range: 19 words (expected 6-18)
+social_000468 phase2_teacher_batch: ValueError: replyStyles first clauses too similar (strategy not distinct)
+social_000471 phase2_teacher_batch: ValueError: Agree length out of range: 15 words (expected 3-14)
+social_000474 phase2_teacher_batch: ValueError: overly formal phrase found: "genuinely"
+social_000475 phase2_teacher_batch: ValueError: Direct too long: 19 words (max 14)
+social_000477 phase2_teacher_batch: ValueError: Direct too long: 26 words (max 14)
+social_000478 phase2_teacher_batch: ValueError: replyStyles first clauses too similar (strategy not distinct)
+social_000479 phase2_teacher_batch: ValueError: replyStyles first clauses too similar (strategy not distinct)
+social_000480 phase2_teacher_batch: ValueError: Direct too long: 15 words (max 14)
+social_000483 phase2_teacher_batch: ValueError: suggestions too similar pairwise (max ratio 0.92)
+social_000485 phase2_teacher_batch: ValueError: Soft Decline length out of range: 21 words (expected 6-18)
+social_000486 phase2_teacher_batch: ValueError: Direct too long: 29 words (max 14)
+social_000488 phase2_teacher_batch: ValueError: Direct too long: 19 words (max 14)
+social_000489 phase2_teacher_batch: ValueError: suggestions too similar pairwise (max ratio 0.91)
+social_000491 phase2_teacher_batch: ValueError: dash punctuation not allowed in suggestions
+social_000492 phase2_teacher_batch: ValueError: suggestions too similar pairwise (max ratio 0.92)
+social_000495 phase2_teacher_batch: ValueError: overly formal phrase found: "genuinely"
+social_000496 phase2_teacher_batch: ValueError: Agree length out of range: 25 words (expected 3-14)
+social_000498 phase2_teacher_batch: ValueError: overly formal phrase found: "genuinely"
+social_000500 phase2_teacher_batch: ValueError: Direct too long: 15 words (max 14)
+social_000502 phase2_teacher_batch: ValueError: dash punctuation not allowed in suggestions
+social_000505 phase2_teacher_batch: ValueError: Direct too long: 27 words (max 14)
+social_000508 phase2_teacher_batch: ValueError: overly formal phrase found: "genuinely"
+social_000511 phase2_teacher_batch: ValueError: suggestions too similar pairwise (max ratio 0.91)
+social_000510 phase2_teacher_batch: ValueError: Soft Decline length out of range: 20 words (expected 6-18)
+social_000513 phase2_teacher_batch: ValueError: replyStyles first clauses too similar (strategy not distinct)
+social_000514 phase2_teacher_batch: ValueError: Direct adds too many ungrounded details for risk=medium: ['7', '8', 'evening'] (budget 1)
+social_000515 phase2_teacher_batch: ValueError: suggestions too similar pairwise (max ratio 0.96)
+social_000517 phase2_teacher_batch: ValueError: dash punctuation not allowed in suggestions
+social_000518 phase2_teacher_batch: ValueError: replyStyles first clauses too similar (strategy not distinct)
+social_000521 phase2_teacher_batch: ValueError: replyStyles first clauses too similar (strategy not distinct)
+social_000522 phase2_teacher_batch: ValueError: Direct too long: 24 words (max 14)
+social_000525 phase2_teacher_batch: ValueError: Direct too long: 15 words (max 14)
+social_000527 phase2_teacher_batch: ValueError: replyStyles first clauses too similar (strategy not distinct)
+social_000528 phase2_teacher_batch: ValueError: replyStyles first clauses too similar (strategy not distinct)
+social_000530 phase2_teacher_batch: ValueError: replyStyles first clauses too similar (strategy not distinct)
+social_000529 phase2_teacher_batch: ValueError: overly formal phrase found: "absolutely"
+social_000531 phase2_teacher_batch: ValueError: Friendly too long: 23 words (max 22)
+social_000533 phase2_teacher_batch: ValueError: overly formal phrase found: "genuinely"
+social_000535 phase2_teacher_batch: ValueError: replyStyles first clauses too similar (strategy not distinct)
+social_000536 phase2_teacher_batch: ValueError: Direct adds too many ungrounded details for risk=high: ['weekend'] (budget 0)
+social_000540 phase2_teacher_batch: ValueError: overly formal phrase found: "absolutely"
+social_000542 phase2_teacher_batch: ValueError: dash punctuation not allowed in suggestions
+social_000543 phase2_teacher_batch: ValueError: Thoughtful therapist-like phrase: "i promise"
+social_000544 phase2_teacher_batch: ValueError: overly formal phrase found: "genuinely"
+social_000546 phase2_teacher_batch: ValueError: Direct too long: 19 words (max 14)
+social_000548 phase2_teacher_batch: ValueError: Direct adds too many ungrounded details for risk=high: ['2'] (budget 0)
+social_000549 phase2_teacher_batch: ValueError: dash punctuation not allowed in suggestions
+social_000551 phase2_teacher_batch: ValueError: Soft Decline adds too many ungrounded details for risk=high: ['sunday'] (budget 0)
+social_000552 phase2_teacher_batch: ValueError: dash punctuation not allowed in suggestions
+social_000553 phase2_teacher_batch: ValueError: suggestions too similar pairwise (max ratio 0.90)
+social_000554 phase2_teacher_batch: ValueError: Direct too long: 15 words (max 14)
+social_000556 phase2_teacher_batch: ValueError: Soft Decline length out of range: 19 words (expected 6-18)
+social_000557 phase2_teacher_batch: ValueError: dash punctuation not allowed in suggestions
+social_000559 phase2_teacher_batch: ValueError: overly formal phrase found: "genuinely"
+social_000560 phase2_teacher_batch: ValueError: replyStyles first clauses too similar (strategy not distinct)
+social_000561 phase2_teacher_batch: ValueError: replyStyles first clauses too similar (strategy not distinct)
+social_000562 phase2_teacher_batch: ValueError: replyStyles first clauses too similar (strategy not distinct)
+social_000563 phase2_teacher_batch: ValueError: replyStyles first clauses too similar (strategy not distinct)
+social_000564 phase2_teacher_batch: ValueError: Agree length out of range: 27 words (expected 3-14)
+social_000565 phase2_teacher_batch: ValueError: dash punctuation not allowed in suggestions
+social_000567 phase2_teacher_batch: ValueError: Direct too long: 22 words (max 14)
+social_000570 phase2_teacher_batch: ValueError: replyStyles first clauses too similar (strategy not distinct)
+social_000572 phase2_teacher_batch: ValueError: replyStyles first clauses too similar (strategy not distinct)
+social_000571 phase2_teacher_batch: ValueError: overly formal phrase found: "genuinely"
+social_000575 phase2_teacher_batch: ValueError: overly formal phrase found: "genuinely"
+social_000577 phase2_teacher_batch: ValueError: replyStyles first clauses too similar (strategy not distinct)
+social_000581 phase2_teacher_batch: ValueError: Thoughtful: single sentence only (no text after a period)
+social_000585 phase2_teacher_batch: ValueError: replyStyles first clauses too similar (strategy not distinct)
+social_000586 phase2_teacher_batch: ValueError: Thoughtful too long: 19 words (max 18)
+social_000588 phase2_teacher_batch: ValueError: Direct too long: 28 words (max 14)
+social_000590 phase2_teacher_batch: ValueError: Friendly adds too many ungrounded details for risk=medium: ['10', 'afternoon'] (budget 1)
+social_000593 phase2_teacher_batch: ValueError: overly formal phrase found: "genuinely"
+social_000596 phase2_teacher_batch: ValueError: replyStyles first clauses too similar (strategy not distinct)
+social_000595 phase2_teacher_batch: ValueError: dash punctuation not allowed in suggestions
+social_000598 phase2_teacher_batch: ValueError: Delay length out of range: 24 words (expected 6-16)
+social_000599 phase2_teacher_batch: ValueError: overly formal phrase found: "genuinely"
+social_000601 phase2_teacher_batch: ValueError: suggestions too similar pairwise (max ratio 1.00)
+social_000605 phase2_teacher_batch: ValueError: dash punctuation not allowed in suggestions
+social_000607 phase2_teacher_batch: ValueError: Direct too long: 19 words (max 14)
+social_000610 phase2_teacher_batch: ValueError: anti-cliche blacklist phrase found: "looking forward to it"
+social_000609 phase2_teacher_batch: ValueError: Friendly too long: 23 words (max 22)
+social_000613 phase2_teacher_batch: ValueError: replyStyles first clauses too similar (strategy not distinct)
+social_000612 phase2_teacher_batch: ValueError: overly formal phrase found: "genuinely"
+social_000614 phase2_teacher_batch: ValueError: Direct too long: 24 words (max 14)
+social_000617 phase2_teacher_batch: ValueError: replyStyles first clauses too similar (strategy not distinct)
+social_000616 phase2_teacher_batch: ValueError: dash punctuation not allowed in suggestions
+social_000619 phase2_teacher_batch: ValueError: dash punctuation not allowed in suggestions
+social_000625 phase2_teacher_batch: ValueError: Thoughtful: at most one comma
+social_000626 phase2_teacher_batch: ValueError: suggestions too similar pairwise (max ratio 0.98)
+social_000629 phase2_teacher_batch: ValueError: Agree length out of range: 19 words (expected 3-14)
+social_000630 phase2_teacher_batch: ValueError: Agree adds too many ungrounded details for risk=high: ['thursday'] (budget 0)
+social_000631 phase2_teacher_batch: ValueError: dash punctuation not allowed in suggestions
+social_000632 phase2_teacher_batch: ValueError: dash punctuation not allowed in suggestions
+social_000635 phase2_teacher_batch: ValueError: replyStyles first clauses too similar (strategy not distinct)
+social_000636 phase2_teacher_batch: ValueError: Agree length out of range: 18 words (expected 3-14)
+social_000637 phase2_teacher_batch: ValueError: Soft Decline length out of range: 26 words (expected 6-18)
+social_000638 phase2_teacher_batch: ValueError: suggestions too similar pairwise (max ratio 0.90)
+social_000641 phase2_teacher_batch: ValueError: Agree length out of range: 46 words (expected 3-14)
+social_000642 phase2_teacher_batch: ValueError: replyStyles first clauses too similar (strategy not distinct)
+social_000643 phase2_teacher_batch: ValueError: Thoughtful: at most one comma
+social_000646 phase2_teacher_batch: ValueError: Direct too long: 17 words (max 14)
+social_000647 phase2_teacher_batch: ValueError: replyStyles first clauses too similar (strategy not distinct)
+social_000648 phase2_teacher_batch: ValueError: Direct too long: 15 words (max 14)
+social_000652 phase2_teacher_batch: ValueError: replyStyles first clauses too similar (strategy not distinct)
+social_000654 phase2_teacher_batch: ValueError: replyStyles first clauses too similar (strategy not distinct)
+social_000655 phase2_teacher_batch: ValueError: replyStyles first clauses too similar (strategy not distinct)
+social_000656 phase2_teacher_batch: ValueError: replyStyles first clauses too similar (strategy not distinct)
+social_000657 phase2_teacher_batch: ValueError: Direct too long: 16 words (max 14)
+social_000659 phase2_teacher_batch: ValueError: dash punctuation not allowed in suggestions
+social_000660 phase2_teacher_batch: ValueError: replyStyles first clauses too similar (strategy not distinct)
+social_000661 phase2_teacher_batch: ValueError: replyStyles first clauses too similar (strategy not distinct)
+social_000662 phase2_teacher_batch: ValueError: replyStyles first clauses too similar (strategy not distinct)
+social_000665 phase2_teacher_batch: ValueError: suggestions too similar pairwise (max ratio 0.91)
+social_000667 phase2_teacher_batch: ValueError: overly formal phrase found: "absolutely"
+social_000669 phase2_teacher_batch: ValueError: overly formal phrase found: "genuinely"
+social_000672 phase2_teacher_batch: ValueError: dash punctuation not allowed in suggestions
+social_000674 phase2_teacher_batch: ValueError: overly formal phrase found: "genuinely"
+social_000675 phase2_teacher_batch: ValueError: overly formal phrase found: "genuinely"
+social_000678 phase2_teacher_batch: ValueError: dash punctuation not allowed in suggestions
+social_000679 phase2_teacher_batch: ValueError: Direct too long: 19 words (max 14)
+social_000680 phase2_teacher_batch: ValueError: dash punctuation not allowed in suggestions
+social_000682 phase2_teacher_batch: ValueError: replyStyles first clauses too similar (strategy not distinct)
+social_000683 phase2_teacher_batch: ValueError: replyStyles first clauses too similar (strategy not distinct)
+social_000685 phase2_teacher_batch: ValueError: replyStyles first clauses too similar (strategy not distinct)
+social_000686 phase2_teacher_batch: ValueError: overly formal phrase found: "absolutely"
+social_000688 phase2_teacher_batch: ValueError: suggestions too similar pairwise (max ratio 0.88)
+social_000693 phase2_teacher_batch: ValueError: Direct too long: 21 words (max 14)
+social_000694 phase2_teacher_batch: ValueError: replyStyles first clauses too similar (strategy not distinct)
+social_000696 phase2_teacher_batch: ValueError: Direct: no style-heavy slang (ngl/fr/lowkey/bet/...)
+social_000697 phase2_teacher_batch: ValueError: replyStyles first clauses too similar (strategy not distinct)
+social_000700 phase2_teacher_batch: ValueError: replyStyles first clauses too similar (strategy not distinct)
+social_000701 phase2_teacher_batch: ValueError: overly formal phrase found: "genuinely"
+social_000703 phase2_teacher_batch: ValueError: Direct too long: 31 words (max 14)
+social_000702 phase2_teacher_batch: ValueError: replyStyles first clauses too similar (strategy not distinct)
+social_000704 phase2_teacher_batch: ValueError: replyStyles first clauses too similar (strategy not distinct)
+social_000708 phase2_teacher_batch: ValueError: Agree length out of range: 53 words (expected 3-14)
+social_000709 phase2_teacher_batch: JSONDecodeError: Extra data: line 3 column 1 (char 650)
+social_000711 phase2_teacher_batch: ValueError: Direct too long: 26 words (max 14)
+social_000712 phase2_teacher_batch: ValueError: overly formal phrase found: "genuinely"
+social_000713 phase2_teacher_batch: ValueError: suggestions too similar pairwise (max ratio 0.88)
+social_000715 phase2_teacher_batch: ValueError: replyStyles first clauses too similar (strategy not distinct)
+social_000720 phase2_teacher_batch: ValueError: dash punctuation not allowed in suggestions
+social_000721 phase2_teacher_batch: ValueError: Agree length out of range: 21 words (expected 3-14)
+social_000724 phase2_teacher_batch: ValueError: Soft Decline length out of range: 19 words (expected 6-18)
+social_000725 phase2_teacher_batch: ValueError: Thoughtful too long: 21 words (max 18)
+social_000728 phase2_teacher_batch: ValueError: replyStyles first clauses too similar (strategy not distinct)
+social_000730 phase2_teacher_batch: ValueError: Thoughtful: at most one comma
+social_000732 phase2_teacher_batch: ValueError: Delay length out of range: 17 words (expected 6-16)
+social_000734 phase2_teacher_batch: ValueError: Agree length out of range: 24 words (expected 3-14)
+social_000736 phase2_teacher_batch: ValueError: replyStyles first clauses too similar (strategy not distinct)
+social_000739 phase2_teacher_batch: ValueError: Delay length out of range: 17 words (expected 6-16)
+social_000738 phase2_teacher_batch: ValueError: dash punctuation not allowed in suggestions
+social_000741 phase2_teacher_batch: ValueError: Soft Decline length out of range: 21 words (expected 6-18)
+social_000740 phase2_teacher_batch: ValueError: emoji not allowed in suggestions
+social_000743 phase2_teacher_batch: ValueError: dash punctuation not allowed in suggestions
+social_000745 phase2_teacher_batch: ValueError: Direct too long: 16 words (max 14)
+social_000749 phase2_teacher_batch: ValueError: Soft Decline adds too many ungrounded details for risk=high: ['tomorrow'] (budget 0)
+social_000750 phase2_teacher_batch: ValueError: Direct too long: 34 words (max 14)
+social_000752 phase2_teacher_batch: ValueError: replyStyles first clauses too similar (strategy not distinct)
+social_000754 phase2_teacher_batch: ValueError: Soft Decline length out of range: 46 words (expected 6-18)
+social_000755 phase2_teacher_batch: ValueError: overly formal phrase found: "genuinely"
+social_000759 phase2_teacher_batch: ValueError: overly formal phrase found: "absolutely"
+social_000760 phase2_teacher_batch: ValueError: dash punctuation not allowed in suggestions
+social_000761 phase2_teacher_batch: ValueError: Soft Decline length out of range: 23 words (expected 6-18)
+social_000762 phase2_teacher_batch: ValueError: replyStyles first clauses too similar (strategy not distinct)
+social_000763 phase2_teacher_batch: ValueError: suggestions too similar pairwise (max ratio 0.94)
+social_000764 phase2_teacher_batch: ValueError: Direct too long: 32 words (max 14)
+social_000765 phase2_teacher_batch: ValueError: dash punctuation not allowed in suggestions
+social_000766 phase2_teacher_batch: ValueError: suggestions too similar pairwise (max ratio 0.86)
+social_000769 phase2_teacher_batch: ValueError: Direct adds too many ungrounded details for risk=high: ['2'] (budget 0)
+social_000771 phase2_teacher_batch: ValueError: Agree adds too many ungrounded details for risk=high: ['5'] (budget 0)
+social_000770 phase2_teacher_batch: ValueError: replyStyles first clauses too similar (strategy not distinct)
+social_000772 phase2_teacher_batch: ValueError: replyStyles first clauses too similar (strategy not distinct)
+social_000775 phase2_teacher_batch: ValueError: Friendly adds too many ungrounded details for risk=high: ['station'] (budget 0)
+social_000774 phase2_teacher_batch: ValueError: Agree length out of range: 27 words (expected 3-14)
+social_000777 phase2_teacher_batch: ValueError: Soft Decline length out of range: 20 words (expected 6-18)
+social_000776 phase2_teacher_batch: ValueError: emoji not allowed in suggestions
+social_000778 phase2_teacher_batch: ValueError: overly formal phrase found: "genuinely"
+social_000781 phase2_teacher_batch: ValueError: overly formal phrase found: "genuinely"
+social_000782 phase2_teacher_batch: ValueError: replyStyles first clauses too similar (strategy not distinct)
+social_000785 phase2_teacher_batch: ValueError: Thoughtful: single sentence only (no text after a period)
+social_000784 phase2_teacher_batch: ValueError: overly formal phrase found: "genuinely"
+social_000786 phase2_teacher_batch: ValueError: dash punctuation not allowed in suggestions
+social_000788 phase2_teacher_batch: ValueError: overly formal phrase found: "genuinely"
+social_000789 phase2_teacher_batch: ValueError: Agree length out of range: 16 words (expected 3-14)
+social_000790 phase2_teacher_batch: ValueError: overly formal phrase found: "genuinely"
+social_000791 phase2_teacher_batch: ValueError: dash punctuation not allowed in suggestions
+social_000792 phase2_teacher_batch: ValueError: Direct too long: 16 words (max 14)
+social_000795 phase2_teacher_batch: ValueError: Direct too long: 19 words (max 14)
+social_000796 phase2_teacher_batch: ValueError: Agree length out of range: 15 words (expected 3-14)
+social_000797 phase2_teacher_batch: ValueError: Direct too long: 29 words (max 14)
+social_000798 phase2_teacher_batch: ValueError: replyStyles first clauses too similar (strategy not distinct)
+social_000799 phase2_teacher_batch: ValueError: replyStyles first clauses too similar (strategy not distinct)
+social_000801 phase2_teacher_batch: ValueError: Soft Decline length out of range: 19 words (expected 6-18)
+social_000803 phase2_teacher_batch: ValueError: Direct adds too many ungrounded details for risk=high: ['saturday'] (budget 0)
+social_000805 phase2_teacher_batch: ValueError: replyStyles first clauses too similar (strategy not distinct)
+social_000807 phase2_teacher_batch: ValueError: Thoughtful: single sentence only (no text after a period)
+social_000808 phase2_teacher_batch: ValueError: replyStyles first clauses too similar (strategy not distinct)
+social_000809 phase2_teacher_batch: ValueError: replyStyles first clauses too similar (strategy not distinct)
+social_000810 phase2_teacher_batch: ValueError: Delay length out of range: 18 words (expected 6-16)
+social_000812 phase2_teacher_batch: ValueError: Delay adds too many ungrounded details for risk=high: ['tomorrow'] (budget 0)
+social_000811 phase2_teacher_batch: ValueError: replyStyles first clauses too similar (strategy not distinct)
+social_000813 phase2_teacher_batch: ValueError: replyStyles first clauses too similar (strategy not distinct)
+social_000817 phase2_teacher_batch: ValueError: dash punctuation not allowed in suggestions
+social_000818 phase2_teacher_batch: ValueError: dash punctuation not allowed in suggestions
+social_000819 phase2_teacher_batch: ValueError: Friendly too long: 25 words (max 22)
+social_000822 phase2_teacher_batch: ValueError: Direct too long: 18 words (max 14)
+social_000823 phase2_teacher_batch: ValueError: Direct adds too many ungrounded details for risk=medium: ['afternoon', 'thursday', 'wednesday'] (budget 1)
+social_000824 phase2_teacher_batch: ValueError: Direct adds too many ungrounded details for risk=high: ['10'] (budget 0)
+social_000825 phase2_teacher_batch: ValueError: Direct too long: 16 words (max 14)
+social_000827 phase2_teacher_batch: ValueError: replyStyles first clauses too similar (strategy not distinct)
+social_000829 phase2_teacher_batch: ValueError: Agree length out of range: 17 words (expected 3-14)
+social_000831 phase2_teacher_batch: ValueError: overly formal phrase found: "genuinely"
+social_000833 phase2_teacher_batch: ValueError: Soft Decline length out of range: 19 words (expected 6-18)
+social_000834 phase2_teacher_batch: ValueError: Agree length out of range: 17 words (expected 3-14)
+social_000835 phase2_teacher_batch: ValueError: Direct too long: 19 words (max 14)
+social_000836 phase2_teacher_batch: ValueError: anti-cliche blacklist phrase found: "looking forward to it"
+social_000838 phase2_teacher_batch: ValueError: Soft Decline length out of range: 20 words (expected 6-18)
+social_000837 phase2_teacher_batch: ValueError: Delay length out of range: 17 words (expected 6-16)
+social_000839 phase2_teacher_batch: ValueError: Direct too long: 18 words (max 14)
+social_000840 phase2_teacher_batch: ValueError: Direct too long: 42 words (max 14)
+social_000841 phase2_teacher_batch: ValueError: Direct too long: 26 words (max 14)
+social_000842 phase2_teacher_batch: ValueError: anti-cliche blacklist phrase found: "looking forward to it"
+social_000843 phase2_teacher_batch: ValueError: Delay length out of range: 18 words (expected 6-16)
+social_000844 phase2_teacher_batch: ValueError: dash punctuation not allowed in suggestions
+social_000845 phase2_teacher_batch: ValueError: dash punctuation not allowed in suggestions
+social_000847 phase2_teacher_batch: ValueError: Soft Decline length out of range: 19 words (expected 6-18)
+social_000849 phase2_teacher_batch: ValueError: Delay adds too many ungrounded details for risk=high: ['wednesday'] (budget 0)
+social_000848 phase2_teacher_batch: ValueError: Soft Decline length out of range: 23 words (expected 6-18)
+social_000850 phase2_teacher_batch: ValueError: Direct too long: 15 words (max 14)
+social_000853 phase2_teacher_batch: ValueError: Direct too long: 18 words (max 14)
+social_000854 phase2_teacher_batch: ValueError: replyStyles first clauses too similar (strategy not distinct)
+social_000856 phase2_teacher_batch: ValueError: Direct too long: 24 words (max 14)
+social_000858 phase2_teacher_batch: ValueError: dash punctuation not allowed in suggestions
+social_000859 phase2_teacher_batch: ValueError: Direct too long: 18 words (max 14)
+social_000860 phase2_teacher_batch: ValueError: replyStyles first clauses too similar (strategy not distinct)
+social_000862 phase2_teacher_batch: ValueError: anti-cliche blacklist phrase found: "looking forward to it"
+social_000863 phase2_teacher_batch: ValueError: replyStyles first clauses too similar (strategy not distinct)
+social_000866 phase2_teacher_batch: ValueError: Agree length out of range: 22 words (expected 3-14)
+social_000868 phase2_teacher_batch: ValueError: replyStyles first clauses too similar (strategy not distinct)
+social_000869 phase2_teacher_batch: ValueError: replyStyles first clauses too similar (strategy not distinct)
+social_000870 phase2_teacher_batch: ValueError: overly formal phrase found: "genuinely"
+social_000871 phase2_teacher_batch: ValueError: replyStyles first clauses too similar (strategy not distinct)
+social_000872 phase2_teacher_batch: ValueError: Soft Decline length out of range: 21 words (expected 6-18)
+social_000873 phase2_teacher_batch: ValueError: Direct too long: 22 words (max 14)
+social_000874 phase2_teacher_batch: ValueError: suggestions too similar pairwise (max ratio 0.87)
+social_000876 phase2_teacher_batch: ValueError: Direct too long: 23 words (max 14)
+social_000879 phase2_teacher_batch: ValueError: replyStyles first clauses too similar (strategy not distinct)
+social_000880 phase2_teacher_batch: ValueError: Soft Decline length out of range: 20 words (expected 6-18)
+social_000883 phase2_teacher_batch: ValueError: Delay length out of range: 21 words (expected 6-16)
+social_000884 phase2_teacher_batch: ValueError: Soft Decline length out of range: 21 words (expected 6-18)
+social_000886 phase2_teacher_batch: ValueError: dash punctuation not allowed in suggestions
+social_000885 phase2_teacher_batch: ValueError: replyStyles first clauses too similar (strategy not distinct)
+social_000889 phase2_teacher_batch: ValueError: replyStyles first clauses too similar (strategy not distinct)
+social_000888 phase2_teacher_batch: ValueError: Thoughtful: no style-heavy slang
+social_000893 phase2_teacher_batch: ValueError: Direct too long: 17 words (max 14)
+social_000896 phase2_teacher_batch: ValueError: replyStyles first clauses too similar (strategy not distinct)
+social_000898 phase2_teacher_batch: ValueError: Direct too long: 15 words (max 14)
+social_000899 phase2_teacher_batch: ValueError: Direct too long: 21 words (max 14)
+social_000900 phase2_teacher_batch: ValueError: Direct adds too many ungrounded details for risk=medium: ['friday', 'saturday'] (budget 1)
+social_000903 phase2_teacher_batch: ValueError: Direct too long: 29 words (max 14)
+social_000904 phase2_teacher_batch: ValueError: replyStyles first clauses too similar (strategy not distinct)
+social_000907 phase2_teacher_batch: ValueError: Friendly too long: 24 words (max 22)
+social_000909 phase2_teacher_batch: ValueError: Direct too long: 19 words (max 14)
+social_000910 phase2_teacher_batch: ValueError: anti-cliche blacklist phrase found: "looking forward to it"
+social_000911 phase2_teacher_batch: ValueError: Soft Decline length out of range: 20 words (expected 6-18)
+social_000912 phase2_teacher_batch: ValueError: replyStyles first clauses too similar (strategy not distinct)
+social_000913 phase2_teacher_batch: ValueError: replyStyles first clauses too similar (strategy not distinct)
+social_000914 phase2_teacher_batch: ValueError: dash punctuation not allowed in suggestions
+social_000915 phase2_teacher_batch: ValueError: overly formal phrase found: "genuinely"
+social_000916 phase2_teacher_batch: ValueError: Soft Decline length out of range: 19 words (expected 6-18)
+social_000917 phase2_teacher_batch: ValueError: replyStyles first clauses too similar (strategy not distinct)
+social_000918 phase2_teacher_batch: ValueError: Direct too long: 27 words (max 14)
+social_000919 phase2_teacher_batch: ValueError: Direct too long: 21 words (max 14)
+social_000920 phase2_teacher_batch: ValueError: Delay adds too many ungrounded details for risk=high: ['20'] (budget 0)
+social_000923 phase2_teacher_batch: ValueError: replyStyles first clauses too similar (strategy not distinct)
+social_000922 phase2_teacher_batch: ValueError: dash punctuation not allowed in suggestions
+social_000927 phase2_teacher_batch: ValueError: replyStyles first clauses too similar (strategy not distinct)
+social_000926 phase2_teacher_batch: ValueError: dash punctuation not allowed in suggestions
+social_000928 phase2_teacher_batch: ValueError: Friendly too long: 26 words (max 22)
+social_000929 phase2_teacher_batch: ValueError: Delay length out of range: 21 words (expected 6-16)
+social_000930 phase2_teacher_batch: ValueError: Direct adds too many ungrounded details for risk=high: ['5'] (budget 0)
+social_000933 phase2_teacher_batch: ValueError: replyStyles first clauses too similar (strategy not distinct)
+social_000934 phase2_teacher_batch: ValueError: Thoughtful: no style-heavy slang
+social_000939 phase2_teacher_batch: ValueError: Direct too long: 19 words (max 14)
+social_000938 phase2_teacher_batch: ValueError: Thoughtful too long: 20 words (max 18)
+social_000941 phase2_teacher_batch: ValueError: Direct too long: 19 words (max 14)
+social_000940 phase2_teacher_batch: ValueError: Direct too long: 26 words (max 14)
+social_000943 phase2_teacher_batch: ValueError: Agree adds too many ungrounded details for risk=high: ['saturday'] (budget 0)
+social_000945 phase2_teacher_batch: ValueError: Delay length out of range: 17 words (expected 6-16)
+social_000944 phase2_teacher_batch: ValueError: Direct too long: 20 words (max 14)
+social_000946 phase2_teacher_batch: ValueError: Direct too long: 15 words (max 14)
+social_000950 phase2_teacher_batch: ValueError: Direct too long: 15 words (max 14)
+social_000952 phase2_teacher_batch: ValueError: replyStyles first clauses too similar (strategy not distinct)
+social_000951 phase2_teacher_batch: ValueError: replyStyles first clauses too similar (strategy not distinct)
+social_000953 phase2_teacher_batch: ValueError: anti-cliche blacklist phrase found: "no pressure at all"
+social_000954 phase2_teacher_batch: ValueError: replyStyles first clauses too similar (strategy not distinct)
+social_000955 phase2_teacher_batch: ValueError: Direct too long: 16 words (max 14)
+social_000956 phase2_teacher_batch: ValueError: Direct too long: 17 words (max 14)
+social_000958 phase2_teacher_batch: ValueError: Agree length out of range: 18 words (expected 3-14)
+social_000957 phase2_teacher_batch: ValueError: Direct too long: 19 words (max 14)
+social_000959 phase2_teacher_batch: ValueError: dash punctuation not allowed in suggestions
+social_000962 phase2_teacher_batch: ValueError: Thoughtful too long: 19 words (max 18)
+social_000964 phase2_teacher_batch: ValueError: replyStyles first clauses too similar (strategy not distinct)
+social_000966 phase2_teacher_batch: ValueError: overly formal phrase found: "genuinely"
+social_000967 phase2_teacher_batch: ValueError: Soft Decline length out of range: 23 words (expected 6-18)
+social_000969 phase2_teacher_batch: ValueError: dash punctuation not allowed in suggestions
+social_000971 phase2_teacher_batch: ValueError: Soft Decline length out of range: 19 words (expected 6-18)
+social_000972 phase2_teacher_batch: ValueError: overly formal phrase found: "genuinely"
+social_000973 phase2_teacher_batch: ValueError: Direct too long: 21 words (max 14)
+social_000974 phase2_teacher_batch: ValueError: Thoughtful: at most one comma
+social_000975 phase2_teacher_batch: ValueError: dash punctuation not allowed in suggestions
+social_000976 phase2_teacher_batch: ValueError: replyStyles first clauses too similar (strategy not distinct)
+social_000977 phase2_teacher_batch: ValueError: dash punctuation not allowed in suggestions
+social_000979 phase2_teacher_batch: ValueError: Direct too long: 17 words (max 14)
+social_000980 phase2_teacher_batch: ValueError: Delay adds too many ungrounded details for risk=high: ['20'] (budget 0)
+social_000981 phase2_teacher_batch: ValueError: overly formal phrase found: "genuinely"
+social_000982 phase2_teacher_batch: ValueError: Agree length out of range: 16 words (expected 3-14)
+social_000984 phase2_teacher_batch: ValueError: Delay adds too many ungrounded details for risk=high: ['9pm'] (budget 0)
+social_000986 phase2_teacher_batch: ValueError: Delay adds too many ungrounded details for risk=high: ['20'] (budget 0)
+social_000989 phase2_teacher_batch: ValueError: Delay adds too many ungrounded details for risk=high: ['20'] (budget 0)
+social_000992 phase2_teacher_batch: ValueError: dash punctuation not allowed in suggestions
+social_000994 phase2_teacher_batch: ValueError: Direct too long: 20 words (max 14)
+social_000993 phase2_teacher_batch: ValueError: Direct too long: 31 words (max 14)
+social_000997 phase2_teacher_batch: ValueError: overly formal phrase found: "genuinely"
+social_000999 phase2_teacher_batch: ValueError: replyStyles first clauses too similar (strategy not distinct)
+social_000998 phase2_teacher_batch: ValueError: Direct too long: 34 words (max 14)
+social_001000 phase2_teacher_batch: ValueError: replyStyles first clauses too similar (strategy not distinct)
+social_001002 phase2_teacher_batch: ValueError: Agree length out of range: 27 words (expected 3-14)
+social_001004 phase2_teacher_batch: ValueError: Agree length out of range: 15 words (expected 3-14)
+social_001005 phase2_teacher_batch: ValueError: replyStyles first clauses too similar (strategy not distinct)
+social_001007 phase2_teacher_batch: ValueError: replyStyles first clauses too similar (strategy not distinct)
+social_001008 phase2_teacher_batch: ValueError: replyStyles first clauses too similar (strategy not distinct)
+social_001009 phase2_teacher_batch: ValueError: replyStyles first clauses too similar (strategy not distinct)
+social_001010 phase2_teacher_batch: ValueError: Agree adds too many ungrounded details for risk=high: ['10'] (budget 0)
+social_001011 phase2_teacher_batch: ValueError: dash punctuation not allowed in suggestions
+social_001013 phase2_teacher_batch: ValueError: replyStyles first clauses too similar (strategy not distinct)
+social_001016 phase2_teacher_batch: ValueError: overly formal phrase found: "genuinely"
+social_001017 phase2_teacher_batch: ValueError: dash punctuation not allowed in suggestions
+social_001018 phase2_teacher_batch: ValueError: replyStyles first clauses too similar (strategy not distinct)
+social_001019 phase2_teacher_batch: ValueError: dash punctuation not allowed in suggestions
+social_001020 phase2_teacher_batch: ValueError: Delay length out of range: 22 words (expected 6-16)
+social_001021 phase2_teacher_batch: ValueError: Thoughtful: at most one comma
+social_001022 phase2_teacher_batch: ValueError: Agree length out of range: 18 words (expected 3-14)
+social_001023 phase2_teacher_batch: ValueError: Direct too long: 22 words (max 14)
+social_001024 phase2_teacher_batch: ValueError: Friendly too long: 30 words (max 22)
+social_001025 phase2_teacher_batch: ValueError: Direct too long: 17 words (max 14)
+social_001028 phase2_teacher_batch: ValueError: Direct too long: 21 words (max 14)
+social_001029 phase2_teacher_batch: ValueError: Direct too long: 21 words (max 14)
+social_001030 phase2_teacher_batch: ValueError: overly formal phrase found: "genuinely"
+social_001033 phase2_teacher_batch: ValueError: overly formal phrase found: "genuinely"
+social_001035 phase2_teacher_batch: ValueError: Delay length out of range: 17 words (expected 6-16)
+social_001034 phase2_teacher_batch: ValueError: Agree length out of range: 19 words (expected 3-14)
+social_001037 phase2_teacher_batch: ValueError: Delay length out of range: 20 words (expected 6-16)
+social_001038 phase2_teacher_batch: ValueError: Delay length out of range: 18 words (expected 6-16)
+social_001040 phase2_teacher_batch: ValueError: replyStyles first clauses too similar (strategy not distinct)
+social_001039 phase2_teacher_batch: ValueError: replyStyles first clauses too similar (strategy not distinct)
+social_001043 phase2_teacher_batch: ValueError: Agree length out of range: 15 words (expected 3-14)
+social_001044 phase2_teacher_batch: ValueError: replyStyles first clauses too similar (strategy not distinct)
+social_001047 phase2_teacher_batch: ValueError: overly formal phrase found: "absolutely"
+social_001051 phase2_teacher_batch: ValueError: Direct too long: 15 words (max 14)
+social_001052 phase2_teacher_batch: ValueError: Soft Decline length out of range: 21 words (expected 6-18)
+social_001053 phase2_teacher_batch: ValueError: replyStyles first clauses too similar (strategy not distinct)
+social_001055 phase2_teacher_batch: ValueError: suggestions too similar pairwise (max ratio 0.88)
+social_001056 phase2_teacher_batch: ValueError: dash punctuation not allowed in suggestions
+social_001057 phase2_teacher_batch: ValueError: Agree length out of range: 21 words (expected 3-14)
+social_001058 phase2_teacher_batch: ValueError: Delay adds too many ungrounded details for risk=high: ['20'] (budget 0)
+social_001060 phase2_teacher_batch: ValueError: Direct too long: 22 words (max 14)
+social_001063 phase2_teacher_batch: ValueError: Delay length out of range: 17 words (expected 6-16)
+social_001064 phase2_teacher_batch: ValueError: Thoughtful: at most one comma
+social_001068 phase2_teacher_batch: ValueError: replyStyles first clauses too similar (strategy not distinct)
+social_001070 phase2_teacher_batch: ValueError: Direct too long: 15 words (max 14)
+social_001069 phase2_teacher_batch: ValueError: Direct adds too many ungrounded details for risk=medium: ['10', '15'] (budget 1)
+social_001071 phase2_teacher_batch: ValueError: Direct adds too many ungrounded details for risk=medium: ['2pm', 'thursday'] (budget 1)
+social_001075 phase2_teacher_batch: ValueError: Direct too long: 21 words (max 14)
+social_001076 phase2_teacher_batch: ValueError: Direct too long: 26 words (max 14)
+social_001079 phase2_teacher_batch: ValueError: overly formal phrase found: "genuinely"
+social_001080 phase2_teacher_batch: ValueError: replyStyles first clauses too similar (strategy not distinct)
+social_001082 phase2_teacher_batch: ValueError: overly formal phrase found: "genuinely"
+social_001083 phase2_teacher_batch: ValueError: Direct too long: 15 words (max 14)
+social_001084 phase2_teacher_batch: ValueError: suggestions too similar pairwise (max ratio 0.90)
+social_001085 phase2_teacher_batch: ValueError: dash punctuation not allowed in suggestions
+social_001086 phase2_teacher_batch: ValueError: Agree length out of range: 27 words (expected 3-14)
+social_001087 phase2_teacher_batch: ValueError: Direct adds too many ungrounded details for risk=high: ['afternoon', 'thursday', 'wednesday'] (budget 0)
+social_001089 phase2_teacher_batch: ValueError: Agree length out of range: 18 words (expected 3-14)
+social_001091 phase2_teacher_batch: ValueError: Thoughtful: at most one comma
+social_001092 phase2_teacher_batch: ValueError: dash punctuation not allowed in suggestions
+social_001094 phase2_teacher_batch: ValueError: decisionReply outputs too symmetric in length
+social_001095 phase2_teacher_batch: ValueError: anti-cliche blacklist phrase found: "looking forward to it"
+social_001096 phase2_teacher_batch: ValueError: overly formal phrase found: "genuinely"
+social_001099 phase2_teacher_batch: ValueError: Delay adds too many ungrounded details for risk=high: ['tomorrow'] (budget 0)
+social_001098 phase2_teacher_batch: ValueError: suggestions too similar pairwise (max ratio 0.86)
+social_001101 phase2_teacher_batch: ValueError: Delay length out of range: 23 words (expected 6-16)
+social_001102 phase2_teacher_batch: ValueError: replyStyles first clauses too similar (strategy not distinct)
+social_001103 phase2_teacher_batch: ValueError: replyStyles first clauses too similar (strategy not distinct)
+social_001105 phase2_teacher_batch: ValueError: replyStyles first clauses too similar (strategy not distinct)
+social_001107 phase2_teacher_batch: ValueError: Direct too long: 24 words (max 14)
+social_001109 phase2_teacher_batch: ValueError: dash punctuation not allowed in suggestions
+social_001110 phase2_teacher_batch: ValueError: dash punctuation not allowed in suggestions
+social_001112 phase2_teacher_batch: ValueError: overly formal phrase found: "absolutely"
+social_001116 phase2_teacher_batch: ValueError: Delay length out of range: 18 words (expected 6-16)
+social_001118 phase2_teacher_batch: ValueError: dash punctuation not allowed in suggestions
+social_001120 phase2_teacher_batch: ValueError: Thoughtful: at most one comma
+social_001119 phase2_teacher_batch: ValueError: Agree length out of range: 28 words (expected 3-14)
+social_001121 phase2_teacher_batch: ValueError: Direct too long: 26 words (max 14)
+social_001122 phase2_teacher_batch: ValueError: Direct too long: 22 words (max 14)
+social_001123 phase2_teacher_batch: ValueError: Soft Decline length out of range: 21 words (expected 6-18)
+social_001125 phase2_teacher_batch: ValueError: dash punctuation not allowed in suggestions
+social_001127 phase2_teacher_batch: ValueError: replyStyles first clauses too similar (strategy not distinct)
+social_001128 phase2_teacher_batch: ValueError: Soft Decline length out of range: 32 words (expected 6-18)
+social_001129 phase2_teacher_batch: ValueError: Thoughtful: at most one comma
+social_001130 phase2_teacher_batch: ValueError: Delay length out of range: 17 words (expected 6-16)
+social_001131 phase2_teacher_batch: ValueError: Direct too long: 17 words (max 14)
+social_001134 phase2_teacher_batch: ValueError: Thoughtful: at most one comma
+social_001143 phase2_teacher_batch: ValueError: Direct too long: 15 words (max 14)
+social_001142 phase2_teacher_batch: ValueError: overly formal phrase found: "genuinely"
+social_001146 phase2_teacher_batch: ValueError: Direct too long: 27 words (max 14)
+social_001148 phase2_teacher_batch: ValueError: Delay length out of range: 20 words (expected 6-16)
+social_001149 phase2_teacher_batch: ValueError: Direct too long: 17 words (max 14)
+social_001151 phase2_teacher_batch: ValueError: overly formal phrase found: "genuinely"
+social_001152 phase2_teacher_batch: ValueError: Direct too long: 17 words (max 14)
+social_001155 phase2_teacher_batch: ValueError: Direct adds too many ungrounded details for risk=low: ['afternoon', 'friday', 'thursday'] (budget 2)
+social_001156 phase2_teacher_batch: ValueError: Thoughtful: at most one comma
+social_001158 phase2_teacher_batch: ValueError: Direct too long: 17 words (max 14)
+social_001159 phase2_teacher_batch: ValueError: Direct too long: 22 words (max 14)
+social_001160 phase2_teacher_batch: ValueError: replyStyles first clauses too similar (strategy not distinct)
+social_001162 phase2_teacher_batch: ValueError: replyStyles first clauses too similar (strategy not distinct)
+social_001163 phase2_teacher_batch: ValueError: overly formal phrase found: "genuinely"
+social_001164 phase2_teacher_batch: ValueError: Delay length out of range: 19 words (expected 6-16)
+social_001167 phase2_teacher_batch: ValueError: Delay length out of range: 19 words (expected 6-16)
+social_001170 phase2_teacher_batch: ValueError: replyStyles first clauses too similar (strategy not distinct)
+social_001171 phase2_teacher_batch: ValueError: replyStyles first clauses too similar (strategy not distinct)
+social_001172 phase2_teacher_batch: ValueError: suggestions too similar pairwise (max ratio 0.96)
+social_001174 phase2_teacher_batch: ValueError: Direct too long: 25 words (max 14)
+social_001175 phase2_teacher_batch: ValueError: Agree length out of range: 21 words (expected 3-14)
+social_001177 phase2_teacher_batch: ValueError: replyStyles first clauses too similar (strategy not distinct)
+social_001180 phase2_teacher_batch: ValueError: dash punctuation not allowed in suggestions
+social_001181 phase2_teacher_batch: ValueError: Agree length out of range: 38 words (expected 3-14)
+social_001183 phase2_teacher_batch: ValueError: anti-cliche blacklist phrase found: "no pressure at all"
+social_001184 phase2_teacher_batch: ValueError: Direct adds too many ungrounded details for risk=low: ['2', 'thursday', 'tuesday'] (budget 2)
+social_001185 phase2_teacher_batch: ValueError: Direct: no style-heavy slang (ngl/fr/lowkey/bet/...)
+social_001186 phase2_teacher_batch: ValueError: replyStyles first clauses too similar (strategy not distinct)
+social_001187 phase2_teacher_batch: ValueError: Agree length out of range: 15 words (expected 3-14)
+social_001188 phase2_teacher_batch: ValueError: replyStyles first clauses too similar (strategy not distinct)
+social_001189 phase2_teacher_batch: ValueError: replyStyles first clauses too similar (strategy not distinct)
+social_001190 phase2_teacher_batch: ValueError: Direct too long: 18 words (max 14)
+social_001192 phase2_teacher_batch: ValueError: dash punctuation not allowed in suggestions
+social_001196 phase2_teacher_batch: ValueError: Direct adds too many ungrounded details for risk=high: ['10'] (budget 0)
+social_001195 phase2_teacher_batch: ValueError: overly formal phrase found: "genuinely"
+social_001198 phase2_teacher_batch: ValueError: Direct too long: 22 words (max 14)
+social_001199 phase2_teacher_batch: ValueError: Direct too long: 22 words (max 14)
+social_001201 phase2_teacher_batch: ValueError: dash punctuation not allowed in suggestions
+social_001202 phase2_teacher_batch: ValueError: dash punctuation not allowed in suggestions
+social_001204 phase2_teacher_batch: ValueError: Soft Decline length out of range: 20 words (expected 6-18)
+social_001205 phase2_teacher_batch: ValueError: replyStyles first clauses too similar (strategy not distinct)
+social_001206 phase2_teacher_batch: ValueError: replyStyles first clauses too similar (strategy not distinct)
+social_001208 phase2_teacher_batch: ValueError: Agree length out of range: 17 words (expected 3-14)
+social_001210 phase2_teacher_batch: ValueError: Agree length out of range: 22 words (expected 3-14)
+social_001209 phase2_teacher_batch: ValueError: replyStyles first clauses too similar (strategy not distinct)
+social_001211 phase2_teacher_batch: ValueError: overly formal phrase found: "absolutely"
+social_001212 phase2_teacher_batch: ValueError: decisionReply outputs too symmetric in length
+social_001213 phase2_teacher_batch: ValueError: replyStyles first clauses too similar (strategy not distinct)
+social_001216 phase2_teacher_batch: ValueError: anti-cliche blacklist phrase found: "no pressure at all"
+social_001215 phase2_teacher_batch: ValueError: replyStyles first clauses too similar (strategy not distinct)
+social_001219 phase2_teacher_batch: ValueError: replyStyles first clauses too similar (strategy not distinct)
+social_001220 phase2_teacher_batch: ValueError: Direct too long: 17 words (max 14)
+social_001222 phase2_teacher_batch: ValueError: Thoughtful adds too many ungrounded details for risk=high: ['10'] (budget 0)
+social_001221 phase2_teacher_batch: ValueError: Direct too long: 31 words (max 14)
+social_001223 phase2_teacher_batch: ValueError: replyStyles first clauses too similar (strategy not distinct)
+social_001224 phase2_teacher_batch: ValueError: overly formal phrase found: "absolutely"
+social_001226 phase2_teacher_batch: ValueError: Direct too long: 23 words (max 14)
+social_001230 phase2_teacher_batch: ValueError: Thoughtful too long: 21 words (max 18)
+social_001231 phase2_teacher_batch: ValueError: Soft Decline length out of range: 19 words (expected 6-18)
+social_001233 phase2_teacher_batch: ValueError: Delay length out of range: 17 words (expected 6-16)
+social_001232 phase2_teacher_batch: ValueError: overly formal phrase found: "absolutely"
+social_001234 phase2_teacher_batch: ValueError: replyStyles first clauses too similar (strategy not distinct)
+social_001235 phase2_teacher_batch: ValueError: dash punctuation not allowed in suggestions
+social_001236 phase2_teacher_batch: ValueError: Thoughtful: at most one comma
+social_001238 phase2_teacher_batch: ValueError: Delay length out of range: 20 words (expected 6-16)
+social_001240 phase2_teacher_batch: ValueError: replyStyles first clauses too similar (strategy not distinct)
+social_001241 phase2_teacher_batch: ValueError: Direct too long: 25 words (max 14)
+social_001242 phase2_teacher_batch: ValueError: dash punctuation not allowed in suggestions
+social_001244 phase2_teacher_batch: ValueError: Thoughtful: no style-heavy slang
+social_001245 phase2_teacher_batch: ValueError: Direct too long: 18 words (max 14)
+social_001246 phase2_teacher_batch: ValueError: dash punctuation not allowed in suggestions
+social_001247 phase2_teacher_batch: ValueError: Direct too long: 15 words (max 14)
+social_001248 phase2_teacher_batch: ValueError: Direct too long: 16 words (max 14)
+social_001249 phase2_teacher_batch: ValueError: Direct too long: 35 words (max 14)
+social_001250 phase2_teacher_batch: ValueError: suggestions too similar pairwise (max ratio 0.87)
+social_001252 phase2_teacher_batch: ValueError: dash punctuation not allowed in suggestions
+social_001255 phase2_teacher_batch: ValueError: replyStyles first clauses too similar (strategy not distinct)
+social_001254 phase2_teacher_batch: ValueError: Thoughtful: no style-heavy slang
+social_001256 phase2_teacher_batch: ValueError: overly formal phrase found: "genuinely"
+social_001258 phase2_teacher_batch: ValueError: overly formal phrase found: "absolutely"
+social_001261 phase2_teacher_batch: JSONDecodeError: Extra data: line 3 column 1 (char 400)
+social_001262 phase2_teacher_batch: ValueError: dash punctuation not allowed in suggestions
+social_001264 phase2_teacher_batch: ValueError: Soft Decline length out of range: 21 words (expected 6-18)
+social_001270 phase2_teacher_batch: ValueError: anti-cliche blacklist phrase found: "looking forward to it"
+social_001271 phase2_teacher_batch: ValueError: replyStyles first clauses too similar (strategy not distinct)
+social_001273 phase2_teacher_batch: ValueError: Direct too long: 17 words (max 14)
+social_001277 phase2_teacher_batch: ValueError: replyStyles first clauses too similar (strategy not distinct)
+social_001280 phase2_teacher_batch: ValueError: Agree length out of range: 18 words (expected 3-14)
+social_001282 phase2_teacher_batch: ValueError: Direct too long: 19 words (max 14)
+social_001283 phase2_teacher_batch: ValueError: Agree length out of range: 21 words (expected 3-14)
+social_001285 phase2_teacher_batch: ValueError: Direct adds too many ungrounded details for risk=high: ['tonight'] (budget 0)
+social_001288 phase2_teacher_batch: ValueError: Agree length out of range: 15 words (expected 3-14)
+social_001289 phase2_teacher_batch: ValueError: overly formal phrase found: "genuinely"
+social_001290 phase2_teacher_batch: ValueError: Delay length out of range: 18 words (expected 6-16)
+social_001291 phase2_teacher_batch: ValueError: Friendly too long: 24 words (max 22)
+social_001292 phase2_teacher_batch: ValueError: replyStyles first clauses too similar (strategy not distinct)
+social_001293 phase2_teacher_batch: ValueError: Agree length out of range: 19 words (expected 3-14)
+social_001297 phase2_teacher_batch: ValueError: Direct too long: 26 words (max 14)
+social_001296 phase2_teacher_batch: ValueError: dash punctuation not allowed in suggestions
+social_001299 phase2_teacher_batch: ValueError: Direct too long: 18 words (max 14)
+social_001303 phase2_teacher_batch: ValueError: Thoughtful: at most one comma
+social_001304 phase2_teacher_batch: ValueError: replyStyles first clauses too similar (strategy not distinct)
+social_001305 phase2_teacher_batch: ValueError: Friendly too long: 23 words (max 22)
+social_001306 phase2_teacher_batch: ValueError: replyStyles first clauses too similar (strategy not distinct)
+social_001307 phase2_teacher_batch: ValueError: anti-cliche blacklist phrase found: "looking forward to it"
+social_001309 phase2_teacher_batch: ValueError: Direct too long: 15 words (max 14)
+social_001312 phase2_teacher_batch: ValueError: replyStyles first clauses too similar (strategy not distinct)
+social_001313 phase2_teacher_batch: ValueError: Direct too long: 21 words (max 14)
+social_001315 phase2_teacher_batch: ValueError: Direct too long: 25 words (max 14)
+social_001317 phase2_teacher_batch: ValueError: overly formal phrase found: "absolutely"
+social_001318 phase2_teacher_batch: ValueError: Direct too long: 18 words (max 14)
+social_001319 phase2_teacher_batch: ValueError: Direct too long: 15 words (max 14)
+social_001320 phase2_teacher_batch: ValueError: overly formal phrase found: "genuinely"
+social_001321 phase2_teacher_batch: ValueError: Direct too long: 20 words (max 14)
+social_001322 phase2_teacher_batch: ValueError: overly formal phrase found: "genuinely"
+social_001324 phase2_teacher_batch: ValueError: Direct too long: 15 words (max 14)
+social_001327 phase2_teacher_batch: ValueError: Agree length out of range: 20 words (expected 3-14)
+social_001326 phase2_teacher_batch: ValueError: Agree length out of range: 40 words (expected 3-14)
+social_001329 phase2_teacher_batch: ValueError: replyStyles first clauses too similar (strategy not distinct)
+social_001332 phase2_teacher_batch: ValueError: decisionReply outputs too symmetric in length
+social_001333 phase2_teacher_batch: ValueError: replyStyles first clauses too similar (strategy not distinct)
+social_001334 phase2_teacher_batch: ValueError: Direct too long: 20 words (max 14)
+social_001337 phase2_teacher_batch: ValueError: Soft Decline length out of range: 19 words (expected 6-18)
+social_001339 phase2_teacher_batch: ValueError: replyStyles first clauses too similar (strategy not distinct)
+social_001341 phase2_teacher_batch: ValueError: Agree length out of range: 20 words (expected 3-14)
+social_001340 phase2_teacher_batch: ValueError: suggestions too similar pairwise (max ratio 0.90)
+social_001342 phase2_teacher_batch: ValueError: replyStyles first clauses too similar (strategy not distinct)
+social_001343 phase2_teacher_batch: ValueError: dash punctuation not allowed in suggestions
+social_001344 phase2_teacher_batch: ValueError: Direct too long: 20 words (max 14)
+social_001345 phase2_teacher_batch: ValueError: Direct too long: 15 words (max 14)
+social_001346 phase2_teacher_batch: ValueError: dash punctuation not allowed in suggestions
+social_001347 phase2_teacher_batch: ValueError: suggestions too similar pairwise (max ratio 1.00)
+social_001349 phase2_teacher_batch: ValueError: Thoughtful too long: 19 words (max 18)
+social_001350 phase2_teacher_batch: ValueError: replyStyles first clauses too similar (strategy not distinct)
+social_001354 phase2_teacher_batch: ValueError: overly formal phrase found: "genuinely"
+social_001353 phase2_teacher_batch: ValueError: Friendly too long: 24 words (max 22)
+social_001355 phase2_teacher_batch: ValueError: replyStyles first clauses too similar (strategy not distinct)
+social_001358 phase2_teacher_batch: ValueError: Direct adds too many ungrounded details for risk=high: ['coffee'] (budget 0)
+social_001359 phase2_teacher_batch: ValueError: replyStyles first clauses too similar (strategy not distinct)
+social_001361 phase2_teacher_batch: ValueError: Direct too long: 23 words (max 14)
+social_001366 phase2_teacher_batch: ValueError: Direct too long: 17 words (max 14)
+social_001365 phase2_teacher_batch: ValueError: dash punctuation not allowed in suggestions
+social_001367 phase2_teacher_batch: ValueError: replyStyles first clauses too similar (strategy not distinct)
+social_001368 phase2_teacher_batch: ValueError: replyStyles first clauses too similar (strategy not distinct)
+social_001370 phase2_teacher_batch: ValueError: overly formal phrase found: "genuinely"
+social_001369 phase2_teacher_batch: ValueError: Direct too long: 22 words (max 14)
+social_001371 phase2_teacher_batch: ValueError: Agree length out of range: 18 words (expected 3-14)
+social_001374 phase2_teacher_batch: ValueError: Direct too long: 16 words (max 14)
+social_001373 phase2_teacher_batch: ValueError: replyStyles first clauses too similar (strategy not distinct)
+social_001378 phase2_teacher_batch: ValueError: replyStyles first clauses too similar (strategy not distinct)
+social_001377 phase2_teacher_batch: ValueError: Delay length out of range: 27 words (expected 6-16)
+social_001381 phase2_teacher_batch: ValueError: replyStyles first clauses too similar (strategy not distinct)
+social_001380 phase2_teacher_batch: ValueError: overly formal phrase found: "genuinely"
+social_001383 phase2_teacher_batch: ValueError: replyStyles first clauses too similar (strategy not distinct)
+social_001384 phase2_teacher_batch: ValueError: dash punctuation not allowed in suggestions
+social_001385 phase2_teacher_batch: ValueError: Direct too long: 35 words (max 14)
+social_001386 phase2_teacher_batch: ValueError: Direct too long: 20 words (max 14)
+social_001388 phase2_teacher_batch: ValueError: overly formal phrase found: "genuinely"
+social_001389 phase2_teacher_batch: ValueError: Thoughtful too long: 19 words (max 18)
+social_001390 phase2_teacher_batch: ValueError: Thoughtful therapist-like phrase: "i hear you"
+social_001392 phase2_teacher_batch: ValueError: replyStyles first clauses too similar (strategy not distinct)
+social_001393 phase2_teacher_batch: ValueError: suggestions too similar pairwise (max ratio 0.88)
+social_001394 phase2_teacher_batch: ValueError: Direct too long: 21 words (max 14)
+social_001396 phase2_teacher_batch: ValueError: dash punctuation not allowed in suggestions
+social_001398 phase2_teacher_batch: ValueError: Soft Decline length out of range: 19 words (expected 6-18)
+social_001401 phase2_teacher_batch: ValueError: dash punctuation not allowed in suggestions
+social_001404 phase2_teacher_batch: ValueError: Direct too long: 16 words (max 14)
+social_001405 phase2_teacher_batch: ValueError: Agree length out of range: 21 words (expected 3-14)
+social_001406 phase2_teacher_batch: ValueError: replyStyles first clauses too similar (strategy not distinct)
+social_001408 phase2_teacher_batch: ValueError: dash punctuation not allowed in suggestions
+social_001409 phase2_teacher_batch: ValueError: replyStyles first clauses too similar (strategy not distinct)
+social_001410 phase2_teacher_batch: JSONDecodeError: Extra data: line 3 column 1 (char 283)
+social_001411 phase2_teacher_batch: ValueError: Direct adds too many ungrounded details for risk=medium: ['afternoon', 'thursday'] (budget 1)
+social_001412 phase2_teacher_batch: ValueError: replyStyles first clauses too similar (strategy not distinct)
+social_001416 phase2_teacher_batch: ValueError: replyStyles first clauses too similar (strategy not distinct)
+social_001415 phase2_teacher_batch: ValueError: dash punctuation not allowed in suggestions
+social_001419 phase2_teacher_batch: ValueError: replyStyles first clauses too similar (strategy not distinct)
+social_001421 phase2_teacher_batch: ValueError: Agree length out of range: 16 words (expected 3-14)
+social_001422 phase2_teacher_batch: ValueError: replyStyles first clauses too similar (strategy not distinct)
+social_001423 phase2_teacher_batch: ValueError: Direct too long: 22 words (max 14)
+social_001424 phase2_teacher_batch: ValueError: replyStyles first clauses too similar (strategy not distinct)
+social_001425 phase2_teacher_batch: ValueError: replyStyles first clauses too similar (strategy not distinct)
+social_001426 phase2_teacher_batch: ValueError: replyStyles first clauses too similar (strategy not distinct)
+social_001429 phase2_teacher_batch: ValueError: overly formal phrase found: "genuinely"
+social_001434 phase2_teacher_batch: ValueError: Direct too long: 15 words (max 14)
+social_001435 phase2_teacher_batch: ValueError: Direct too long: 16 words (max 14)
+social_001437 phase2_teacher_batch: ValueError: Direct too long: 21 words (max 14)
+social_001436 phase2_teacher_batch: ValueError: replyStyles first clauses too similar (strategy not distinct)
+social_001438 phase2_teacher_batch: ValueError: dash punctuation not allowed in suggestions
+social_001441 phase2_teacher_batch: ValueError: replyStyles first clauses too similar (strategy not distinct)
+social_001442 phase2_teacher_batch: ValueError: Soft Decline length out of range: 5 words (expected 6-18)
+social_001443 phase2_teacher_batch: ValueError: overly formal phrase found: "genuinely"
+social_001444 phase2_teacher_batch: ValueError: suggestions too similar pairwise (max ratio 0.94)
+social_001446 phase2_teacher_batch: ValueError: dash punctuation not allowed in suggestions
+social_001447 phase2_teacher_batch: ValueError: Direct too long: 19 words (max 14)
+social_001448 phase2_teacher_batch: ValueError: Agree length out of range: 27 words (expected 3-14)
+social_001449 phase2_teacher_batch: ValueError: overly formal phrase found: "genuinely"
+social_001452 phase2_teacher_batch: ValueError: dash punctuation not allowed in suggestions
+social_001453 phase2_teacher_batch: ValueError: dash punctuation not allowed in suggestions
+social_001454 phase2_teacher_batch: ValueError: suggestions too similar pairwise (max ratio 0.87)
+social_001455 phase2_teacher_batch: ValueError: replyStyles first clauses too similar (strategy not distinct)
+social_001456 phase2_teacher_batch: ValueError: replyStyles first clauses too similar (strategy not distinct)
+social_001461 phase2_teacher_batch: ValueError: Delay length out of range: 21 words (expected 6-16)
+social_001465 phase2_teacher_batch: ValueError: Delay length out of range: 22 words (expected 6-16)
+social_001466 phase2_teacher_batch: ValueError: replyStyles first clauses too similar (strategy not distinct)
+social_001467 phase2_teacher_batch: ValueError: Soft Decline length out of range: 30 words (expected 6-18)
+social_001469 phase2_teacher_batch: JSONDecodeError: Extra data: line 3 column 1 (char 622)
+social_001470 phase2_teacher_batch: ValueError: Direct adds too many ungrounded details for risk=medium: ['afternoon', 'thursday'] (budget 1)
+social_001472 phase2_teacher_batch: ValueError: dash punctuation not allowed in suggestions
+social_001473 phase2_teacher_batch: ValueError: overly formal phrase found: "genuinely"
+social_001474 phase2_teacher_batch: ValueError: dash punctuation not allowed in suggestions
+social_001476 phase2_teacher_batch: ValueError: dash punctuation not allowed in suggestions
+social_001475 phase2_teacher_batch: ValueError: Direct too long: 15 words (max 14)
+social_001477 phase2_teacher_batch: ValueError: dash punctuation not allowed in suggestions
+social_001478 phase2_teacher_batch: ValueError: suggestions too similar pairwise (max ratio 0.89)
+social_001479 phase2_teacher_batch: ValueError: Thoughtful too long: 21 words (max 18)
+social_001481 phase2_teacher_batch: ValueError: overly formal phrase found: "genuinely"
+social_001482 phase2_teacher_batch: ValueError: Agree length out of range: 18 words (expected 3-14)
+social_001484 phase2_teacher_batch: ValueError: Agree length out of range: 22 words (expected 3-14)
+social_001485 phase2_teacher_batch: ValueError: Direct too long: 15 words (max 14)
+social_001487 phase2_teacher_batch: ValueError: Direct too long: 22 words (max 14)
+social_001491 phase2_teacher_batch: ValueError: replyStyles first clauses too similar (strategy not distinct)
+social_001492 phase2_teacher_batch: ValueError: Direct adds too many ungrounded details for risk=high: ['morning', 'today', 'tomorrow'] (budget 0)
+social_001493 phase2_teacher_batch: ValueError: replyStyles first clauses too similar (strategy not distinct)
+social_001496 phase2_teacher_batch: ValueError: Direct too long: 15 words (max 14)
+social_001498 phase2_teacher_batch: ValueError: Direct too long: 17 words (max 14)
+social_001500 phase2_teacher_batch: ValueError: overly formal phrase found: "genuinely"
+social_001501 phase2_teacher_batch: ValueError: Direct too long: 20 words (max 14)
+social_001502 phase2_teacher_batch: ValueError: dash punctuation not allowed in suggestions
+social_001503 phase2_teacher_batch: ValueError: anti-cliche blacklist phrase found: "looking forward to it"
+social_001507 phase2_teacher_batch: ValueError: Thoughtful: at most one comma
+social_001508 phase2_teacher_batch: ValueError: suggestions too similar pairwise (max ratio 0.90)
+social_001511 phase2_teacher_batch: ValueError: Agree length out of range: 23 words (expected 3-14)
+social_001512 phase2_teacher_batch: ValueError: replyStyles first clauses too similar (strategy not distinct)
+social_001513 phase2_teacher_batch: ValueError: replyStyles first clauses too similar (strategy not distinct)
+social_001514 phase2_teacher_batch: ValueError: Direct too long: 24 words (max 14)
+social_001516 phase2_teacher_batch: ValueError: Direct too long: 16 words (max 14)
+social_001517 phase2_teacher_batch: ValueError: replyStyles first clauses too similar (strategy not distinct)
+social_001519 phase2_teacher_batch: ValueError: overly formal phrase found: "genuinely"
+social_001518 phase2_teacher_batch: ValueError: overly formal phrase found: "genuinely"
+social_001521 phase2_teacher_batch: ValueError: decisionReply outputs too symmetric in length
+social_001520 phase2_teacher_batch: ValueError: dash punctuation not allowed in suggestions
+social_001524 phase2_teacher_batch: ValueError: dash punctuation not allowed in suggestions
+social_001525 phase2_teacher_batch: ValueError: suggestions too similar pairwise (max ratio 0.88)
+social_001526 phase2_teacher_batch: ValueError: dash punctuation not allowed in suggestions
+social_001527 phase2_teacher_batch: ValueError: replyStyles first clauses too similar (strategy not distinct)
+social_001531 phase2_teacher_batch: ValueError: Soft Decline length out of range: 20 words (expected 6-18)
+social_001532 phase2_teacher_batch: ValueError: Delay length out of range: 18 words (expected 6-16)
+social_001533 phase2_teacher_batch: ValueError: Direct too long: 22 words (max 14)
+social_001534 phase2_teacher_batch: ValueError: Direct adds too many ungrounded details for risk=medium: ['tomorrow', 'tonight'] (budget 1)
+social_001539 phase2_teacher_batch: ValueError: Direct too long: 15 words (max 14)
+social_001541 phase2_teacher_batch: ValueError: overly formal phrase found: "absolutely"
+social_001542 phase2_teacher_batch: ValueError: dash punctuation not allowed in suggestions
+social_001544 phase2_teacher_batch: ValueError: replyStyles first clauses too similar (strategy not distinct)
+social_001548 phase2_teacher_batch: ValueError: Direct too long: 32 words (max 14)
+social_001551 phase2_teacher_batch: ValueError: Agree length out of range: 15 words (expected 3-14)
+social_001552 phase2_teacher_batch: ValueError: replyStyles first clauses too similar (strategy not distinct)
+social_001555 phase2_teacher_batch: ValueError: replyStyles first clauses too similar (strategy not distinct)
+social_001556 phase2_teacher_batch: ValueError: Agree length out of range: 19 words (expected 3-14)
+social_001557 phase2_teacher_batch: ValueError: overly formal phrase found: "genuinely"
+social_001564 phase2_teacher_batch: ValueError: replyStyles first clauses too similar (strategy not distinct)
+social_001563 phase2_teacher_batch: ValueError: replyStyles first clauses too similar (strategy not distinct)
+social_001565 phase2_teacher_batch: ValueError: Direct too long: 16 words (max 14)
+social_001568 phase2_teacher_batch: ValueError: replyStyles first clauses too similar (strategy not distinct)
+social_001570 phase2_teacher_batch: ValueError: dash punctuation not allowed in suggestions
+social_001571 phase2_teacher_batch: ValueError: replyStyles first clauses too similar (strategy not distinct)
+social_001573 phase2_teacher_batch: ValueError: Direct too long: 16 words (max 14)
+social_001572 phase2_teacher_batch: ValueError: Delay length out of range: 24 words (expected 6-16)
+social_001574 phase2_teacher_batch: ValueError: replyStyles first clauses too similar (strategy not distinct)
+social_001577 phase2_teacher_batch: ValueError: Thoughtful: at most one comma
+social_001578 phase2_teacher_batch: ValueError: Thoughtful: at most one comma
+social_001579 phase2_teacher_batch: ValueError: Direct too long: 20 words (max 14)
+social_001580 phase2_teacher_batch: ValueError: dash punctuation not allowed in suggestions
+social_001581 phase2_teacher_batch: ValueError: suggestions too similar pairwise (max ratio 1.00)
+social_001584 phase2_teacher_batch: ValueError: overly formal phrase found: "genuinely"
+social_001585 phase2_teacher_batch: ValueError: Direct too long: 16 words (max 14)
+social_001586 phase2_teacher_batch: ValueError: Agree length out of range: 15 words (expected 3-14)
+social_001588 phase2_teacher_batch: ValueError: Thoughtful: single sentence only (no text after a period)
+social_001591 phase2_teacher_batch: ValueError: Soft Decline length out of range: 24 words (expected 6-18)
+social_001593 phase2_teacher_batch: ValueError: Delay adds too many ungrounded details for risk=high: ['10'] (budget 0)
+social_001596 phase2_teacher_batch: ValueError: Direct too long: 44 words (max 14)
+social_001595 phase2_teacher_batch: ValueError: Agree length out of range: 25 words (expected 3-14)
+social_001597 phase2_teacher_batch: ValueError: Agree length out of range: 22 words (expected 3-14)
+social_001598 phase2_teacher_batch: ValueError: Agree length out of range: 22 words (expected 3-14)
+social_001599 phase2_teacher_batch: ValueError: Delay length out of range: 17 words (expected 6-16)
+social_001605 phase2_teacher_batch: ValueError: Direct too long: 30 words (max 14)
+social_001608 phase2_teacher_batch: ValueError: Agree length out of range: 15 words (expected 3-14)
+social_001607 phase2_teacher_batch: ValueError: Soft Decline adds too many ungrounded details for risk=medium: ['5', '6'] (budget 1)
+social_001613 phase2_teacher_batch: ValueError: replyStyles first clauses too similar (strategy not distinct)
+social_001616 phase2_teacher_batch: ValueError: Delay adds too many ungrounded details for risk=high: ['tonight'] (budget 0)
+social_001617 phase2_teacher_batch: ValueError: Direct too long: 15 words (max 14)
+social_001618 phase2_teacher_batch: ValueError: Soft Decline length out of range: 26 words (expected 6-18)
+social_001621 phase2_teacher_batch: ValueError: Direct too long: 20 words (max 14)
+social_001624 phase2_teacher_batch: ValueError: replyStyles first clauses too similar (strategy not distinct)
+social_001626 phase2_teacher_batch: ValueError: replyStyles first clauses too similar (strategy not distinct)
+social_001629 phase2_teacher_batch: ValueError: overly formal phrase found: "genuinely"
+social_001630 phase2_teacher_batch: ValueError: dash punctuation not allowed in suggestions
+social_001631 phase2_teacher_batch: ValueError: replyStyles first clauses too similar (strategy not distinct)
+social_001634 phase2_teacher_batch: ValueError: dash punctuation not allowed in suggestions
+social_001637 phase2_teacher_batch: ValueError: replyStyles first clauses too similar (strategy not distinct)
+social_001639 phase2_teacher_batch: ValueError: Delay length out of range: 19 words (expected 6-16)
+social_001641 phase2_teacher_batch: ValueError: dash punctuation not allowed in suggestions
+social_001643 phase2_teacher_batch: ValueError: Delay adds too many ungrounded details for risk=high: ['20'] (budget 0)
+social_001644 phase2_teacher_batch: ValueError: Agree length out of range: 15 words (expected 3-14)
+social_001645 phase2_teacher_batch: ValueError: dash punctuation not allowed in suggestions
+social_001646 phase2_teacher_batch: ValueError: Direct too long: 23 words (max 14)
+social_001648 phase2_teacher_batch: ValueError: overly formal phrase found: "genuinely"
+social_001651 phase2_teacher_batch: ValueError: Delay length out of range: 17 words (expected 6-16)
+social_001652 phase2_teacher_batch: ValueError: Direct too long: 17 words (max 14)
+social_001653 phase2_teacher_batch: ValueError: Direct too long: 24 words (max 14)
+social_001657 phase2_teacher_batch: ValueError: replyStyles first clauses too similar (strategy not distinct)
+social_001658 phase2_teacher_batch: ValueError: decisionReply outputs too symmetric in length
+social_001660 phase2_teacher_batch: ValueError: Delay adds too many ungrounded details for risk=medium: ['morning', 'tomorrow'] (budget 1)
+social_001661 phase2_teacher_batch: ValueError: replyStyles first clauses too similar (strategy not distinct)
+social_001662 phase2_teacher_batch: ValueError: replyStyles first clauses too similar (strategy not distinct)
+social_001663 phase2_teacher_batch: ValueError: suggestions too similar pairwise (max ratio 0.88)
+social_001665 phase2_teacher_batch: ValueError: Thoughtful: at most one comma
+social_001666 phase2_teacher_batch: ValueError: Agree length out of range: 25 words (expected 3-14)
+social_001667 phase2_teacher_batch: ValueError: Direct too long: 25 words (max 14)
+social_001669 phase2_teacher_batch: ValueError: overly formal phrase found: "genuinely"
+social_001668 phase2_teacher_batch: ValueError: overly formal phrase found: "genuinely"
+social_001671 phase2_teacher_batch: ValueError: decisionReply outputs too symmetric in length
+social_001673 phase2_teacher_batch: ValueError: Direct too long: 23 words (max 14)
+social_001675 phase2_teacher_batch: ValueError: Direct too long: 15 words (max 14)
+social_001677 phase2_teacher_batch: ValueError: dash punctuation not allowed in suggestions
+social_001678 phase2_teacher_batch: ValueError: Direct adds too many ungrounded details for risk=high: ['10'] (budget 0)
+social_001680 phase2_teacher_batch: ValueError: Direct too long: 35 words (max 14)
+social_001684 phase2_teacher_batch: ValueError: replyStyles first clauses too similar (strategy not distinct)
+social_001686 phase2_teacher_batch: ValueError: Delay length out of range: 21 words (expected 6-16)
+social_001687 phase2_teacher_batch: ValueError: Thoughtful: at most one comma
+social_001688 phase2_teacher_batch: ValueError: replyStyles first clauses too similar (strategy not distinct)
+social_001689 phase2_teacher_batch: ValueError: suggestions too similar pairwise (max ratio 0.93)
+social_001690 phase2_teacher_batch: ValueError: replyStyles first clauses too similar (strategy not distinct)
+social_001693 phase2_teacher_batch: ValueError: Direct too long: 21 words (max 14)
+social_001694 phase2_teacher_batch: ValueError: Direct too long: 19 words (max 14)
+social_001695 phase2_teacher_batch: ValueError: dash punctuation not allowed in suggestions
+social_001698 phase2_teacher_batch: ValueError: decisionReply outputs too symmetric in length
+social_001697 phase2_teacher_batch: ValueError: replyStyles first clauses too similar (strategy not distinct)
+social_001700 phase2_teacher_batch: ValueError: Direct too long: 17 words (max 14)
+social_001701 phase2_teacher_batch: ValueError: Direct too long: 22 words (max 14)
+social_001703 phase2_teacher_batch: ValueError: Direct too long: 18 words (max 14)
+social_001705 phase2_teacher_batch: ValueError: Direct too long: 16 words (max 14)
+social_001704 phase2_teacher_batch: ValueError: dash punctuation not allowed in suggestions
+social_001706 phase2_teacher_batch: ValueError: overly formal phrase found: "genuinely"
+social_001707 phase2_teacher_batch: ValueError: anti-cliche blacklist phrase found: "no pressure at all"
+social_001709 phase2_teacher_batch: ValueError: decisionReply outputs too symmetric in length
+social_001708 phase2_teacher_batch: ValueError: anti-cliche blacklist phrase found: "looking forward to it"
+social_001710 phase2_teacher_batch: ValueError: overly formal phrase found: "absolutely"
+social_001711 phase2_teacher_batch: ValueError: replyStyles first clauses too similar (strategy not distinct)
+social_001712 phase2_teacher_batch: ValueError: Delay length out of range: 21 words (expected 6-16)
+social_001713 phase2_teacher_batch: ValueError: Agree length out of range: 15 words (expected 3-14)
+social_001715 phase2_teacher_batch: ValueError: Friendly too long: 23 words (max 22)
+social_001716 phase2_teacher_batch: ValueError: Agree length out of range: 16 words (expected 3-14)
+social_001718 phase2_teacher_batch: ValueError: replyStyles first clauses too similar (strategy not distinct)
+social_001722 phase2_teacher_batch: ValueError: dash punctuation not allowed in suggestions
+social_001724 phase2_teacher_batch: ValueError: Delay adds too many ungrounded details for risk=high: ['tomorrow'] (budget 0)
+social_001725 phase2_teacher_batch: ValueError: Direct too long: 21 words (max 14)
+social_001726 phase2_teacher_batch: ValueError: Direct adds too many ungrounded details for risk=high: ['5'] (budget 0)
+social_001728 phase2_teacher_batch: ValueError: Direct too long: 17 words (max 14)
+social_001730 phase2_teacher_batch: ValueError: Direct too long: 24 words (max 14)
+social_001729 phase2_teacher_batch: ValueError: overly formal phrase found: "absolutely"
+social_001731 phase2_teacher_batch: ValueError: replyStyles first clauses too similar (strategy not distinct)
+social_001733 phase2_teacher_batch: ValueError: Direct too long: 19 words (max 14)
+social_001734 phase2_teacher_batch: ValueError: decisionReply outputs too symmetric in length
+social_001735 phase2_teacher_batch: ValueError: dash punctuation not allowed in suggestions
+social_001736 phase2_teacher_batch: ValueError: Direct too long: 26 words (max 14)
+social_001737 phase2_teacher_batch: ValueError: replyStyles first clauses too similar (strategy not distinct)
+social_001738 phase2_teacher_batch: ValueError: replyStyles first clauses too similar (strategy not distinct)
+social_001739 phase2_teacher_batch: ValueError: overly formal phrase found: "absolutely"
+social_001741 phase2_teacher_batch: ValueError: Thoughtful: single sentence only (no text after a period)
+social_001742 phase2_teacher_batch: ValueError: Direct too long: 17 words (max 14)
+social_001743 phase2_teacher_batch: ValueError: replyStyles first clauses too similar (strategy not distinct)
+social_001744 phase2_teacher_batch: ValueError: Soft Decline length out of range: 21 words (expected 6-18)
+social_001745 phase2_teacher_batch: ValueError: Direct too long: 21 words (max 14)
+social_001749 phase2_teacher_batch: ValueError: dash punctuation not allowed in suggestions
+social_001750 phase2_teacher_batch: ValueError: replyStyles first clauses too similar (strategy not distinct)
+social_001752 phase2_teacher_batch: ValueError: overly formal phrase found: "genuinely"
+social_001753 phase2_teacher_batch: ValueError: Agree length out of range: 30 words (expected 3-14)
+social_001756 phase2_teacher_batch: ValueError: replyStyles first clauses too similar (strategy not distinct)
+social_001755 phase2_teacher_batch: ValueError: overly formal phrase found: "genuinely"
+social_001758 phase2_teacher_batch: ValueError: replyStyles first clauses too similar (strategy not distinct)
+social_001759 phase2_teacher_batch: ValueError: replyStyles first clauses too similar (strategy not distinct)
+social_001760 phase2_teacher_batch: ValueError: Soft Decline length out of range: 19 words (expected 6-18)
+social_001762 phase2_teacher_batch: ValueError: Agree length out of range: 22 words (expected 3-14)
+social_001765 phase2_teacher_batch: ValueError: replyStyles first clauses too similar (strategy not distinct)
+social_001766 phase2_teacher_batch: ValueError: Direct too long: 33 words (max 14)
+social_001767 phase2_teacher_batch: ValueError: Soft Decline length out of range: 20 words (expected 6-18)
+social_001769 phase2_teacher_batch: ValueError: dash punctuation not allowed in suggestions
+social_001768 phase2_teacher_batch: ValueError: Agree length out of range: 16 words (expected 3-14)
+social_001771 phase2_teacher_batch: ValueError: Direct too long: 19 words (max 14)
+social_001772 phase2_teacher_batch: ValueError: anti-cliche blacklist phrase found: "looking forward to it"
+social_001773 phase2_teacher_batch: ValueError: dash punctuation not allowed in suggestions
+social_001774 phase2_teacher_batch: ValueError: Direct too long: 16 words (max 14)
+social_001777 phase2_teacher_batch: ValueError: dash punctuation not allowed in suggestions
+social_001778 phase2_teacher_batch: ValueError: Direct too long: 18 words (max 14)
+social_001779 phase2_teacher_batch: ValueError: replyStyles first clauses too similar (strategy not distinct)
+social_001781 phase2_teacher_batch: ValueError: dash punctuation not allowed in suggestions
+social_001780 phase2_teacher_batch: ValueError: dash punctuation not allowed in suggestions
+social_001782 phase2_teacher_batch: ValueError: replyStyles first clauses too similar (strategy not distinct)
+social_001784 phase2_teacher_batch: ValueError: Direct adds too many ungrounded details for risk=high: ['coffee'] (budget 0)
+social_001786 phase2_teacher_batch: ValueError: Direct too long: 20 words (max 14)
+social_001787 phase2_teacher_batch: ValueError: anti-cliche blacklist phrase found: "looking forward to it"
+social_001788 phase2_teacher_batch: ValueError: Soft Decline length out of range: 25 words (expected 6-18)
+social_001793 phase2_teacher_batch: ValueError: Thoughtful: at most one comma
+social_001794 phase2_teacher_batch: ValueError: suggestions too similar pairwise (max ratio 0.87)
+social_001795 phase2_teacher_batch: ValueError: dash punctuation not allowed in suggestions
+social_001796 phase2_teacher_batch: ValueError: replyStyles first clauses too similar (strategy not distinct)
+social_001801 phase2_teacher_batch: ValueError: Thoughtful adds too many ungrounded details for risk=medium: ['friday', 'thursday'] (budget 1)
+social_001800 phase2_teacher_batch: ValueError: Direct adds too many ungrounded details for risk=medium: ['thursday', 'tuesday'] (budget 1)
+social_001803 phase2_teacher_batch: ValueError: replyStyles first clauses too similar (strategy not distinct)
+social_001802 phase2_teacher_batch: ValueError: Direct too long: 17 words (max 14)
+social_001804 phase2_teacher_batch: ValueError: overly formal phrase found: "genuinely"
+social_001805 phase2_teacher_batch: ValueError: Thoughtful too long: 21 words (max 18)
+social_001806 phase2_teacher_batch: ValueError: Direct too long: 22 words (max 14)
+social_001807 phase2_teacher_batch: ValueError: replyStyles first clauses too similar (strategy not distinct)
+social_001809 phase2_teacher_batch: ValueError: Direct too long: 31 words (max 14)
+social_001810 phase2_teacher_batch: ValueError: overly formal phrase found: "absolutely"
+social_001811 phase2_teacher_batch: ValueError: replyStyles first clauses too similar (strategy not distinct)
+social_001812 phase2_teacher_batch: ValueError: Direct too long: 15 words (max 14)
+social_001813 phase2_teacher_batch: ValueError: Agree length out of range: 21 words (expected 3-14)
+social_001814 phase2_teacher_batch: ValueError: Direct too long: 20 words (max 14)
+social_001817 phase2_teacher_batch: ValueError: Direct: no style-heavy slang (ngl/fr/lowkey/bet/...)
+social_001819 phase2_teacher_batch: ValueError: Direct too long: 23 words (max 14)
+social_001820 phase2_teacher_batch: ValueError: Direct too long: 17 words (max 14)
+social_001821 phase2_teacher_batch: ValueError: replyStyles first clauses too similar (strategy not distinct)
+social_001822 phase2_teacher_batch: ValueError: Delay length out of range: 18 words (expected 6-16)
+social_001824 phase2_teacher_batch: ValueError: dash punctuation not allowed in suggestions
+social_001825 phase2_teacher_batch: ValueError: replyStyles first clauses too similar (strategy not distinct)
+social_001827 phase2_teacher_batch: ValueError: Agree length out of range: 20 words (expected 3-14)
+social_001832 phase2_teacher_batch: ValueError: Agree length out of range: 17 words (expected 3-14)
+social_001833 phase2_teacher_batch: ValueError: suggestions too similar pairwise (max ratio 0.86)
+social_001834 phase2_teacher_batch: ValueError: Agree length out of range: 30 words (expected 3-14)
+social_001837 phase2_teacher_batch: ValueError: Soft Decline length out of range: 21 words (expected 6-18)
+social_001838 phase2_teacher_batch: ValueError: replyStyles first clauses too similar (strategy not distinct)
+social_001840 phase2_teacher_batch: ValueError: Direct adds too many ungrounded details for risk=medium: ['friday', 'thursday'] (budget 1)
+social_001842 phase2_teacher_batch: ValueError: anti-cliche blacklist phrase found: "looking forward to it"
+social_001845 phase2_teacher_batch: ValueError: suggestions too similar pairwise (max ratio 0.90)
+social_001847 phase2_teacher_batch: ValueError: Direct too long: 30 words (max 14)
+social_001848 phase2_teacher_batch: ValueError: Direct too long: 16 words (max 14)
+social_001849 phase2_teacher_batch: ValueError: replyStyles first clauses too similar (strategy not distinct)
+social_001850 phase2_teacher_batch: ValueError: overly formal phrase found: "genuinely"
+social_001851 phase2_teacher_batch: ValueError: replyStyles first clauses too similar (strategy not distinct)
+social_001852 phase2_teacher_batch: ValueError: Thoughtful: single sentence only (no text after a period)
+social_001856 phase2_teacher_batch: ValueError: suggestions too similar pairwise (max ratio 0.88)
+social_001858 phase2_teacher_batch: ValueError: dash punctuation not allowed in suggestions
+social_001862 phase2_teacher_batch: ValueError: replyStyles first clauses too similar (strategy not distinct)
+social_001863 phase2_teacher_batch: ValueError: Direct too long: 24 words (max 14)
+social_001864 phase2_teacher_batch: ValueError: Direct adds too many ungrounded details for risk=medium: ['afternoon', 'friday', 'thursday'] (budget 1)
+social_001865 phase2_teacher_batch: ValueError: Agree length out of range: 20 words (expected 3-14)
+social_001868 phase2_teacher_batch: ValueError: dash punctuation not allowed in suggestions
+social_001870 phase2_teacher_batch: ValueError: overly formal phrase found: "genuinely"
+social_001871 phase2_teacher_batch: ValueError: Direct adds too many ungrounded details for risk=medium: ['afternoon', 'friday', 'morning', 'thursday'] (budget 1)
+social_001872 phase2_teacher_batch: ValueError: replyStyles first clauses too similar (strategy not distinct)
+social_001874 phase2_teacher_batch: ValueError: Agree length out of range: 41 words (expected 3-14)
+social_001875 phase2_teacher_batch: ValueError: Direct adds too many ungrounded details for risk=high: ['3'] (budget 0)
+social_001876 phase2_teacher_batch: ValueError: anti-cliche blacklist phrase found: "no pressure at all"
+social_001878 phase2_teacher_batch: ValueError: Direct too long: 40 words (max 14)
+social_001879 phase2_teacher_batch: ValueError: dash punctuation not allowed in suggestions
+social_001880 phase2_teacher_batch: ValueError: Soft Decline length out of range: 22 words (expected 6-18)
+social_001881 phase2_teacher_batch: ValueError: Direct too long: 17 words (max 14)
+social_001882 phase2_teacher_batch: ValueError: replyStyles first clauses too similar (strategy not distinct)
+social_001886 phase2_teacher_batch: ValueError: Direct too long: 15 words (max 14)
+social_001888 phase2_teacher_batch: ValueError: replyStyles first clauses too similar (strategy not distinct)
+social_001889 phase2_teacher_batch: ValueError: replyStyles first clauses too similar (strategy not distinct)
+social_001890 phase2_teacher_batch: ValueError: overly formal phrase found: "genuinely"
+social_001897 phase2_teacher_batch: ValueError: overly formal phrase found: "genuinely"
+social_001898 phase2_teacher_batch: ValueError: Thoughtful: single sentence only (no text after a period)
+social_001900 phase2_teacher_batch: ValueError: Agree length out of range: 17 words (expected 3-14)
+social_001902 phase2_teacher_batch: ValueError: Direct too long: 16 words (max 14)
+social_001905 phase2_teacher_batch: ValueError: replyStyles first clauses too similar (strategy not distinct)
+social_001904 phase2_teacher_batch: ValueError: Direct too long: 26 words (max 14)
+social_001907 phase2_teacher_batch: ValueError: overly formal phrase found: "genuinely"
+social_001908 phase2_teacher_batch: ValueError: dash punctuation not allowed in suggestions
+social_001909 phase2_teacher_batch: ValueError: replyStyles first clauses too similar (strategy not distinct)
+social_001911 phase2_teacher_batch: ValueError: replyStyles first clauses too similar (strategy not distinct)
+social_001913 phase2_teacher_batch: ValueError: replyStyles first clauses too similar (strategy not distinct)
+social_001916 phase2_teacher_batch: ValueError: Thoughtful therapist-like phrase: "i promise"
+social_001917 phase2_teacher_batch: ValueError: Soft Decline length out of range: 21 words (expected 6-18)
+social_001919 phase2_teacher_batch: ValueError: overly formal phrase found: "genuinely"
+social_001920 phase2_teacher_batch: ValueError: Soft Decline length out of range: 20 words (expected 6-18)
+social_001921 phase2_teacher_batch: ValueError: Thoughtful: at most one comma
+social_001924 phase2_teacher_batch: ValueError: Thoughtful therapist-like phrase: "i hear you"
+social_001925 phase2_teacher_batch: ValueError: suggestions too similar pairwise (max ratio 0.90)
+social_001926 phase2_teacher_batch: ValueError: overly formal phrase found: "genuinely"
+social_001927 phase2_teacher_batch: ValueError: Direct too long: 26 words (max 14)
+social_001929 phase2_teacher_batch: ValueError: replyStyles first clauses too similar (strategy not distinct)
+social_001934 phase2_teacher_batch: ValueError: suggestions too similar pairwise (max ratio 0.91)
+social_001935 phase2_teacher_batch: ValueError: dash punctuation not allowed in suggestions
+social_001936 phase2_teacher_batch: ValueError: Direct too long: 25 words (max 14)
+social_001938 phase2_teacher_batch: ValueError: replyStyles first clauses too similar (strategy not distinct)
+social_001937 phase2_teacher_batch: ValueError: Direct too long: 16 words (max 14)
+social_001943 phase2_teacher_batch: ValueError: overly formal phrase found: "genuinely"
+social_001944 phase2_teacher_batch: ValueError: overly formal phrase found: "absolutely"
+social_001945 phase2_teacher_batch: ValueError: Thoughtful adds too many ungrounded details for risk=medium: ['5', '6'] (budget 1)
+social_001947 phase2_teacher_batch: ValueError: Direct too long: 16 words (max 14)
+social_001948 phase2_teacher_batch: ValueError: Delay length out of range: 17 words (expected 6-16)
+social_001949 phase2_teacher_batch: ValueError: replyStyles first clauses too similar (strategy not distinct)
+social_001951 phase2_teacher_batch: ValueError: replyStyles first clauses too similar (strategy not distinct)
+social_001954 phase2_teacher_batch: ValueError: replyStyles first clauses too similar (strategy not distinct)
+social_001957 phase2_teacher_batch: ValueError: replyStyles first clauses too similar (strategy not distinct)
+social_001958 phase2_teacher_batch: ValueError: Delay length out of range: 18 words (expected 6-16)
+social_001961 phase2_teacher_batch: ValueError: Soft Decline length out of range: 19 words (expected 6-18)
+social_001960 phase2_teacher_batch: ValueError: overly formal phrase found: "genuinely"
+social_001962 phase2_teacher_batch: ValueError: replyStyles first clauses too similar (strategy not distinct)
+social_001963 phase2_teacher_batch: ValueError: dash punctuation not allowed in suggestions
+social_001964 phase2_teacher_batch: ValueError: Thoughtful: single sentence only (no text after a period)
+social_001966 phase2_teacher_batch: ValueError: Direct too long: 15 words (max 14)
+social_001967 phase2_teacher_batch: ValueError: anti-cliche blacklist phrase found: "looking forward to it"
+social_001968 phase2_teacher_batch: ValueError: dash punctuation not allowed in suggestions
+social_001970 phase2_teacher_batch: ValueError: replyStyles first clauses too similar (strategy not distinct)
+social_001972 phase2_teacher_batch: ValueError: Direct too long: 23 words (max 14)
+social_001975 phase2_teacher_batch: ValueError: Delay adds too many ungrounded details for risk=high: ['tomorrow'] (budget 0)
+social_001976 phase2_teacher_batch: ValueError: dash punctuation not allowed in suggestions
+social_001979 phase2_teacher_batch: ValueError: decisionReply outputs too symmetric in length
+social_001982 phase2_teacher_batch: ValueError: overly formal phrase found: "absolutely"
+social_001984 phase2_teacher_batch: ValueError: Direct too long: 18 words (max 14)
+social_001985 phase2_teacher_batch: ValueError: Agree length out of range: 15 words (expected 3-14)
+social_001987 phase2_teacher_batch: ValueError: replyStyles first clauses too similar (strategy not distinct)
+social_001988 phase2_teacher_batch: ValueError: dash punctuation not allowed in suggestions
+social_001989 phase2_teacher_batch: ValueError: dash punctuation not allowed in suggestions
+social_001990 phase2_teacher_batch: ValueError: dash punctuation not allowed in suggestions
+social_001991 phase2_teacher_batch: ValueError: replyStyles first clauses too similar (strategy not distinct)
+social_001992 phase2_teacher_batch: ValueError: Delay adds too many ungrounded details for risk=medium: ['morning', 'tomorrow'] (budget 1)
+social_001993 phase2_teacher_batch: ValueError: Agree length out of range: 22 words (expected 3-14)
+social_001996 phase2_teacher_batch: ValueError: replyStyles first clauses too similar (strategy not distinct)
+social_001998 phase2_teacher_batch: ValueError: Delay length out of range: 17 words (expected 6-16)
+social_001999 phase2_teacher_batch: ValueError: Direct too long: 15 words (max 14)

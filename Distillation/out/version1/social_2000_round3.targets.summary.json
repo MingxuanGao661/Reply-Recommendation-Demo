@@ -1,0 +1,126 @@
+{
+  "plans_total": 872,
+  "phase1_inputs_generate_ok_count": 872,
+  "phase2_targets_generate_ok_count": 868,
+  "n_written": 868,
+  "targets_by_input_provenance": {
+    "synthetic_input": 868
+  },
+  "by_task_type": {
+    "rewrite": 468,
+    "from_scratch": 250,
+    "decision": 150
+  },
+  "by_suggestion_theme": {
+    "replyStyles": 685,
+    "decisionReply": 183
+  },
+  "relationship_distribution": {
+    "friend": 258,
+    "colleague": 84,
+    "manager": 99,
+    "romantic_interest": 127,
+    "acquaintance": 123,
+    "classmate": 177
+  },
+  "tone_distribution": {
+    "warm": 211,
+    "professional": 279,
+    "casual": 174,
+    "direct": 204
+  },
+  "length_distribution": {
+    "short": 266,
+    "long": 248,
+    "medium": 354
+  },
+  "average_words_by_label": {
+    "Agree": 19.005,
+    "Delay": 24.798,
+    "Direct": 20.276,
+    "Friendly": 23.8,
+    "Soft Decline": 25.175,
+    "Thoughtful": 18.885
+  },
+  "pct_replystyles_thoughtful_word_count_gt_18": 44.38,
+  "pct_replystyles_friendly_with_any_slang": 65.11,
+  "teacher_target_generation": {
+    "rows_attempted": 872,
+    "rows_failed_no_valid_target": 4,
+    "failure_rate": 0.0046,
+    "targets_written_validation_relaxed_count": 670
+  },
+  "phase1_inputs": {
+    "generate_ok_count": 872,
+    "plans_total": 872,
+    "by_input_provenance": {
+      "synthetic_input": 872
+    }
+  },
+  "top_validation_failure_buckets": [
+    [
+      "phase2_validation_relaxed:strategy_distinctness",
+      339
+    ],
+    [
+      "phase2_validation_relaxed:direct_word_cap",
+      99
+    ],
+    [
+      "phase2_validation_relaxed:decision_word_bounds",
+      92
+    ],
+    [
+      "phase2_validation_relaxed:overpolite",
+      73
+    ],
+    [
+      "phase2_validation_relaxed:anti_cliche",
+      31
+    ],
+    [
+      "phase2_validation_relaxed:thoughtful_shape",
+      21
+    ],
+    [
+      "phase2:parse_or_json",
+      4
+    ],
+    [
+      "phase2_validation_relaxed:friendly_word_cap",
+      4
+    ],
+    [
+      "phase2_validation_relaxed:detail_budget",
+      4
+    ],
+    [
+      "phase2_validation_relaxed:slang_marker_rules",
+      3
+    ],
+    [
+      "phase2_validation_relaxed:decision_symmetry",
+      2
+    ],
+    [
+      "phase2_validation_relaxed:format_tokens",
+      2
+    ]
+  ],
+  "cli": {
+    "total": 872,
+    "limit": 872,
+    "teacher_retries": 4,
+    "phase2_message_batch": true,
+    "phase2_batch_rescue": false,
+    "phase2_batch_chunk_size": 200,
+    "phase2_batch_poll_seconds": 30,
+    "phase2_resume": false,
+    "skip_phase_1": true,
+    "input_provenance": "synthetic_input",
+    "human_seeded_inputs": "",
+    "inputs_out": "out/version1/social_2000_round3.inputs.jsonl",
+    "targets_out": "out/version1/social_2000_round3.targets.jsonl",
+    "merged_out": "out/version1/social_2000_round3.merged.jsonl"
+  }
+}

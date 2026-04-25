@@ -1,0 +1,441 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Pending JSONL 筛选与编辑</title>
+  <style>
+    :root {
+      --bg: #0f1419;
+      --panel: #1a2332;
+      --border: #2d3a4d;
+      --text: #e7edf5;
+      --muted: #8b9cb3;
+      --accent: #5b9fd4;
+      --warn: #c9a227;
+      --bad: #c45c5c;
+      --ok: #5cad6e;
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0; font-family: ui-sans-serif, system-ui, sans-serif;
+      background: var(--bg); color: var(--text); min-height: 100vh;
+    }
+    header {
+      padding: 8px 12px; border-bottom: 1px solid var(--border);
+      display: flex; flex-wrap: nowrap; gap: 8px; align-items: center;
+      background: var(--panel); overflow-x: auto;
+    }
+    header h1 { font-size: 12px; font-weight: 600; margin: 0; flex: 0 0 auto; white-space: nowrap; color: var(--muted); }
+    .toolbar { display: flex; flex-wrap: nowrap; gap: 6px; align-items: center; flex: 1; min-width: 0; }
+    .file-slot {
+      flex: 0 0 auto; max-width: 118px; overflow: hidden;
+      border: 1px solid var(--border); border-radius: 6px; padding: 2px 6px; background: var(--bg);
+    }
+    .file-slot input[type="file"] {
+      font-size: 10px; max-width: 100%; width: 100%; color: var(--muted);
+      padding: 0; margin: 0; border: 0; cursor: pointer;
+    }
+    label { font-size: 11px; color: var(--muted); white-space: nowrap; }
+    input[type="text"], input[type="number"], select {
+      background: var(--bg); border: 1px solid var(--border); color: var(--text);
+      padding: 5px 8px; border-radius: 6px; font-size: 12px;
+    }
+    button {
+      background: var(--accent); color: #0a0e14; border: none; padding: 6px 10px;
+      border-radius: 6px; font-weight: 600; cursor: pointer; font-size: 12px; white-space: nowrap;
+    }
+    button.secondary { background: var(--border); color: var(--text); }
+    button.danger { background: var(--bad); color: #fff; }
+    main {
+      display: grid;
+      grid-template-columns: minmax(260px, 32vw) minmax(0, 1fr);
+      gap: 0;
+      min-height: calc(100vh - 44px);
+    }
+    @media (max-width: 900px) { main { grid-template-columns: 1fr; } }
+    #list-wrap { overflow: auto; padding: 8px 10px; border-right: 1px solid var(--border); }
+    table { width: 100%; border-collapse: collapse; font-size: 13px; }
+    th, td { border-bottom: 1px solid var(--border); padding: 8px 10px; text-align: left; vertical-align: top; }
+    th { color: var(--muted); font-weight: 500; position: sticky; top: 0; background: var(--bg); z-index: 1; }
+    tr:hover td { background: rgba(91, 159, 212, 0.06); }
+    tr.active td { background: rgba(91, 159, 212, 0.12); }
+    tr.excluded { opacity: 0.45; }
+    tr.excluded td { text-decoration: line-through; }
+    .badge { font-size: 11px; padding: 2px 6px; border-radius: 4px; background: var(--border); color: var(--muted); }
+    .badge.warn { background: #3d3518; color: var(--warn); }
+    .preview { color: var(--muted); max-width: 100%; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    tr.row-done td:first-of-type { box-shadow: inset 3px 0 0 var(--ok); }
+    tr.row-mod td:first-of-type { box-shadow: inset 3px 0 0 #c9a227; }
+    .badge.done { background: #1a3d28; color: var(--ok); }
+    .badge.edit { background: #3d3018; color: #e8b86a; }
+    .badge.todo { background: var(--border); color: var(--muted); }
+    #detail {
+      background: var(--panel);
+      padding: 12px 16px; overflow: auto; max-height: calc(100vh - 44px);
+    }
+    #detail h2 { font-size: 14px; margin: 0 0 10px; }
+    .field { margin-bottom: 12px; }
+    .field label { display: block; margin-bottom: 4px; }
+    textarea.mono {
+      width: 100%; min-height: 120px; font-family: ui-monospace, monospace;
+      font-size: 12px; background: var(--bg); border: 1px solid var(--border);
+      color: var(--text); border-radius: 6px; padding: 8px; resize: vertical;
+    }
+    textarea.conv { min-height: 120px; }
+    #edJson { min-height: 260px !important; }
+    #sugFields textarea.mono { min-height: 100px; }
+    .row-actions { display: flex; gap: 8px; margin-top: 10px; flex-wrap: wrap; }
+    .stat { font-size: 12px; color: var(--muted); }
+    .err { color: var(--bad); font-size: 12px; margin-top: 6px; }
+  </style>
+</head>
+<body>
+  <header>
+    <h1>Pending 筛选</h1>
+    <div class="toolbar">
+      <div class="file-slot" title="选择本地 JSONL"><input type="file" id="file" accept=".jsonl,.json,text/plain" /></div>
+      <label>搜 <input type="text" id="q" placeholder="id / 对话 / 回复 / 错误" size="18" /></label>
+      <label><input type="checkbox" id="onlyErr" /> 仅校验</label>
+      <label><input type="checkbox" id="onlyPending" /> 仅未核对</label>
+      <label>主题 <select id="theme"><option value="">全部</option><option value="replyStyles">replyStyles</option><option value="decisionReply">decisionReply</option></select></label>
+      <label>每页 <input type="number" id="pageSize" value="40" min="5" max="200" style="width:48px" /></label>
+      <button type="button" id="prev" class="secondary">上页</button>
+      <button type="button" id="next" class="secondary">下页</button>
+      <span class="stat" id="pageStat"></span>
+      <button type="button" id="export">导出</button>
+      <button type="button" id="exportExcluded" class="secondary">仅排除</button>
+    </div>
+  </header>
+  <main>
+    <div id="list-wrap">
+      <p class="stat" id="loadStat" style="margin:0 0 8px;font-size:11px">加载 JSONL… 仅本地处理。</p>
+      <table id="tbl" style="display:none">
+        <thead>
+          <tr>
+            <th style="width:32px">#</th>
+            <th style="width:88px">进度</th>
+            <th>id</th>
+            <th style="width:72px">主题</th>
+            <th style="width:72px">来源</th>
+            <th>预览</th>
+            <th style="width:40px">排</th>
+          </tr>
+        </thead>
+        <tbody id="tbody"></tbody>
+      </table>
+    </div>
+    <aside id="detail">
+      <p class="stat" style="font-size:11px;margin-top:0">左侧点选一行。右侧较宽便于编辑。<strong>已编辑</strong>=内容与载入文件不同；<strong>已核对</strong>=本条你已处理完（可表示「看过不用改」或「已改完」）。</p>
+      <div id="editor" style="display:none">
+        <h2 id="edTitle"></h2>
+        <p class="stat" id="edProgress" style="margin:4px 0 10px"></p>
+        <div class="field">
+          <label>校验信息（只读）</label>
+          <textarea class="mono" id="edErr" readonly></textarea>
+        </div>
+        <div class="field">
+          <label>对话（只读，便于上下文）</label>
+          <textarea class="mono conv" id="edConv" readonly></textarea>
+        </div>
+        <div id="sugFields"></div>
+        <div class="field">
+          <label>整行 JSON（高级）</label>
+          <textarea class="mono" id="edJson"></textarea>
+        </div>
+        <div class="row-actions">
+          <button type="button" id="applyJson">从 JSON 应用</button>
+          <button type="button" id="applySugs">从三条应用</button>
+          <button type="button" id="markReviewed" class="secondary">标为已核对</button>
+          <button type="button" id="clearReviewed" class="secondary">取消核对</button>
+          <button type="button" id="toggleEx" class="secondary">排除导出</button>
+        </div>
+        <p class="err" id="edMsg"></p>
+      </div>
+    </aside>
+  </main>
+  <script>
+(function () {
+  /** @type {{raw: object, excluded: boolean, baseline: string, reviewed: boolean}[]} */
+  let rows = [];
+  let filteredIdx = [];
+  let page = 0;
+  let activeI = -1;
+
+  const $ = (id) => document.getElementById(id);
+
+  function serializeRow(obj) {
+    return JSON.stringify(obj);
+  }
+
+  function isModified(wrap) {
+    return serializeRow(wrap.raw) !== wrap.baseline;
+  }
+
+  function progressCounts() {
+    let reviewed = 0;
+    let edited = 0;
+    let todo = 0;
+    for (const w of rows) {
+      if (w.reviewed) reviewed++;
+      else if (isModified(w)) edited++;
+      else todo++;
+    }
+    return { reviewed, edited, todo, n: rows.length };
+  }
+
+  function convText(r) {
+    const c = r.conversation || [];
+    return c.map((m) => (m.speaker || "") + ": " + (m.text || "")).join("\n");
+  }
+
+  function sugPreview(r) {
+    const s = (r.target && r.target.suggestions) || [];
+    return s.map((x) => (x.label || "") + ": " + (x.text || "")).join(" | ");
+  }
+
+  function rowMatches(r, q) {
+    if (!q) return true;
+    const t = q.toLowerCase();
+    const blob = [
+      r.sample_id,
+      r.validation_error,
+      r.suggestion_theme,
+      r.task_type,
+      convText(r),
+      sugPreview(r),
+    ].join("\n").toLowerCase();
+    return blob.includes(t);
+  }
+
+  function rebuildFilter() {
+    const q = $("q").value.trim();
+    const onlyErr = $("onlyErr").checked;
+    const onlyPending = $("onlyPending").checked;
+    const theme = $("theme").value;
+    filteredIdx = [];
+    for (let i = 0; i < rows.length; i++) {
+      const w = rows[i];
+      const r = w.raw;
+      if (onlyErr && !r.validation_error) continue;
+      if (onlyPending && w.reviewed) continue;
+      if (theme && r.suggestion_theme !== theme) continue;
+      if (!rowMatches(r, q)) continue;
+      filteredIdx.push(i);
+    }
+    page = 0;
+    renderTable();
+  }
+
+  function renderTable() {
+    const ps = Math.max(5, Math.min(200, parseInt($("pageSize").value, 10) || 40));
+    const n = filteredIdx.length;
+    const pages = Math.max(1, Math.ceil(n / ps));
+    if (page >= pages) page = pages - 1;
+    const start = page * ps;
+    const slice = filteredIdx.slice(start, start + ps);
+    const pc = progressCounts();
+    $("pageStat").textContent =
+      `筛选 ${n} · 页 ${page + 1}/${pages} · 全 ${pc.n} 条（已核对 ${pc.reviewed} · 已编辑未核对 ${pc.edited} · 未动 ${pc.todo}）`;
+    const tb = $("tbody");
+    tb.innerHTML = "";
+    slice.forEach((realIdx, j) => {
+      const wrap = rows[realIdx];
+      const r = wrap.raw;
+      const tr = document.createElement("tr");
+      if (realIdx === activeI) tr.classList.add("active");
+      if (wrap.excluded) tr.classList.add("excluded");
+      if (wrap.reviewed) tr.classList.add("row-done");
+      else if (isModified(wrap)) tr.classList.add("row-mod");
+      tr.dataset.idx = String(realIdx);
+      const err = r.validation_error;
+      const src = err ? '<span class="badge warn">校验</span>' : '<span class="badge">抽样</span>';
+      let prog;
+      if (wrap.reviewed) prog = '<span class="badge done">已核对</span>';
+      else if (isModified(wrap)) prog = '<span class="badge edit">已编辑</span>';
+      else prog = '<span class="badge todo">待处理</span>';
+      tr.innerHTML =
+        "<td>" + (start + j + 1) +
+        "</td><td>" + prog +
+        "</td><td><code>" + escapeHtml(r.sample_id || "") +
+        "</code></td><td>" + escapeHtml(r.suggestion_theme || "") +
+        "</td><td>" + src +
+        '</td><td class="preview" title="' + escapeAttr(sugPreview(r)) + '">' + escapeHtml(sugPreview(r).slice(0, 100)) +
+        "</td><td>" + (wrap.excluded ? "✓" : "") + "</td>";
+      tr.addEventListener("click", () => openEditor(realIdx));
+      tb.appendChild(tr);
+    });
+    $("tbl").style.display = n ? "table" : "none";
+  }
+
+  function escapeHtml(s) {
+    return String(s).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+  }
+  function escapeAttr(s) {
+    return escapeHtml(s).replace(/"/g, "&quot;");
+  }
+
+  function refreshEdProgress() {
+    if (activeI < 0) return;
+    const w = rows[activeI];
+    const bits = [];
+    if (w.reviewed) bits.push("已核对");
+    if (isModified(w)) bits.push("内容已相对文件改动");
+    else bits.push("内容与载入一致");
+    $("edProgress").textContent = bits.join(" · ");
+  }
+
+  function openEditor(realIdx) {
+    activeI = realIdx;
+    const wrap = rows[realIdx];
+    const r = wrap.raw;
+    $("editor").style.display = "block";
+    $("edTitle").textContent = r.sample_id || "(no id)";
+    refreshEdProgress();
+    $("edErr").value = r.validation_error || "（无 — 来自随机通过的抽样）";
+    $("edConv").value = convText(r);
+    $("edJson").value = JSON.stringify(r, null, 2);
+    $("edMsg").textContent = "";
+    const sf = $("sugFields");
+    sf.innerHTML = "";
+    const sugs = (r.target && r.target.suggestions) || [];
+    sugs.forEach((s, k) => {
+      const div = document.createElement("div");
+      div.className = "field";
+      const lab = document.createElement("label");
+      lab.textContent = "回复 · " + (s.label || "label" + k);
+      const ta = document.createElement("textarea");
+      ta.className = "mono";
+      ta.dataset.label = s.label || "";
+      ta.value = s.text || "";
+      div.appendChild(lab);
+      div.appendChild(ta);
+      sf.appendChild(div);
+    });
+    renderTable();
+  }
+
+  function applyFromTextareas() {
+    if (activeI < 0) return;
+    const wrap = rows[activeI];
+    const r = wrap.raw;
+    const tas = $("sugFields").querySelectorAll("textarea");
+    const labels = [];
+    tas.forEach((ta) => labels.push(ta.dataset.label));
+    const sugs = (r.target && r.target.suggestions) || [];
+    if (tas.length !== sugs.length) {
+      $("edMsg").textContent = "条数与原始 suggestions 不一致";
+      return;
+    }
+    tas.forEach((ta, i) => {
+      if (sugs[i]) sugs[i].text = ta.value;
+    });
+    $("edJson").value = JSON.stringify(r, null, 2);
+    $("edMsg").textContent = "已从三条文本写回 target.suggestions";
+    refreshEdProgress();
+    renderTable();
+  }
+
+  function applyFromJson() {
+    if (activeI < 0) return;
+    let o;
+    try {
+      o = JSON.parse($("edJson").value);
+    } catch (e) {
+      $("edMsg").textContent = "JSON 解析失败: " + e.message;
+      return;
+    }
+    rows[activeI].raw = o;
+    $("edMsg").textContent = "已替换本行对象";
+    openEditor(activeI);
+  }
+
+  function downloadJsonl(list, filename) {
+    const text = list.map((x) => JSON.stringify(x)).join("\n") + "\n";
+    const blob = new Blob([text], { type: "application/x-ndjson;charset=utf-8" });
+    const a = document.createElement("a");
+    a.href = URL.createObjectURL(blob);
+    a.download = filename;
+    a.click();
+    URL.revokeObjectURL(a.href);
+  }
+
+  $("file").addEventListener("change", (ev) => {
+    const f = ev.target.files && ev.target.files[0];
+    if (!f) return;
+    const reader = new FileReader();
+    reader.onload = () => {
+      const text = String(reader.result || "");
+      const lines = text.split(/\r?\n/).filter((ln) => ln.trim());
+      rows = [];
+      let bad = 0;
+      lines.forEach((ln) => {
+        try {
+          const raw = JSON.parse(ln);
+          rows.push({
+            raw,
+            excluded: false,
+            baseline: serializeRow(raw),
+            reviewed: false,
+          });
+        } catch {
+          bad++;
+        }
+      });
+      $("loadStat").textContent =
+        "已加载 " + f.name + "：有效 " + rows.length + " 行" + (bad ? "，跳过损坏 " + bad + " 行" : "");
+      rebuildFilter();
+    };
+    reader.readAsText(f, "UTF-8");
+  });
+
+  ["q", "onlyErr", "onlyPending", "theme"].forEach((id) => {
+    $(id).addEventListener("input", rebuildFilter);
+    $(id).addEventListener("change", rebuildFilter);
+  });
+  $("pageSize").addEventListener("change", () => { page = 0; renderTable(); });
+  $("prev").addEventListener("click", () => {
+    page = Math.max(0, page - 1);
+    renderTable();
+  });
+  $("next").addEventListener("click", () => {
+    page++;
+    renderTable();
+  });
+
+  $("applyJson").addEventListener("click", applyFromJson);
+  $("applySugs").addEventListener("click", applyFromTextareas);
+  $("toggleEx").addEventListener("click", () => {
+    if (activeI < 0) return;
+    rows[activeI].excluded = !rows[activeI].excluded;
+    $("edMsg").textContent = rows[activeI].excluded ? "已标记为排除导出" : "已取消排除";
+    renderTable();
+  });
+
+  $("markReviewed").addEventListener("click", () => {
+    if (activeI < 0) return;
+    rows[activeI].reviewed = true;
+    $("edMsg").textContent = "已标为已核对";
+    refreshEdProgress();
+    renderTable();
+  });
+  $("clearReviewed").addEventListener("click", () => {
+    if (activeI < 0) return;
+    rows[activeI].reviewed = false;
+    $("edMsg").textContent = "已取消核对标记";
+    refreshEdProgress();
+    renderTable();
+  });
+
+  $("export").addEventListener("click", () => {
+    const out = rows.filter((w) => !w.excluded).map((w) => w.raw);
+    downloadJsonl(out, "pending_export_filtered.jsonl");
+  });
+  $("exportExcluded").addEventListener("click", () => {
+    const out = rows.filter((w) => w.excluded).map((w) => w.raw);
+    downloadJsonl(out, "pending_export_excluded_only.jsonl");
+  });
+})();
+  </script>
+</body>
+</html>
