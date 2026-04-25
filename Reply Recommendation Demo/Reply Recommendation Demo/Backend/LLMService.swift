@@ -10,7 +10,7 @@ final class LLMService {
     private var context: OpaquePointer?
     private var vocab: OpaquePointer?
     private let modelName: String
-    private let batchSize: Int32 = 512
+    private let contextSize: Int32
 
     /// User-level defaults per axis (`tone` / `length`). Merged in parallel with `conversation_profile` (see `Profile.mergedForPrompt`).
     var defaultProfile: Profile?
@@ -25,11 +25,18 @@ final class LLMService {
     ) throws {
         self.defaultProfile = defaultProfile
         self.modelName = (path as NSString).lastPathComponent.replacingOccurrences(of: ".gguf", with: "")
+        self.contextSize = Int32(contextSize)
 
         llama_backend_init()
 
         var modelParams = llama_model_default_params()
+#if targetEnvironment(simulator)
+        // The iOS Simulator Metal device can fail inside ggml-metal residency-set setup.
+        // Keep simulator inference on CPU while preserving GPU offload on physical devices.
+        modelParams.n_gpu_layers = 0
+#else
         modelParams.n_gpu_layers = gpuLayers
+#endif
 
         guard let loadedModel = llama_model_load_from_file(path, modelParams) else {
             throw LLMError.modelLoadFailed(path)
@@ -39,7 +46,7 @@ final class LLMService {
 
         var ctxParams = llama_context_default_params()
         ctxParams.n_ctx = contextSize
-        ctxParams.n_batch = UInt32(batchSize)
+        ctxParams.n_batch = contextSize
 
         guard let ctx = llama_init_from_model(loadedModel, ctxParams) else {
             llama_model_free(loadedModel)
@@ -66,18 +73,29 @@ final class LLMService {
 
     /// Generate reply suggestions from a ConversationInput.
     func generate(input: ConversationInput) throws -> (outputJSON: String, metrics: InferenceMetrics) {
-        guard let model, let context, let vocab else {
+        guard model != nil, let context, let vocab else {
             throw LLMError.modelNotLoaded
         }
 
         let prompt = PromptBuilder.buildLlamaPrompt(input: input, userDefaultProfile: defaultProfile)
         var metrics = InferenceMetrics(modelName: modelName)
 
+        resetContextMemory(context)
+
         metrics.memoryBeforeMB = Self.getMemoryMB()
         let startTime = CACurrentMediaTime()
 
         // Tokenize
         let promptTokens = tokenize(text: prompt, vocab: vocab)
+        guard !promptTokens.isEmpty else {
+            throw LLMError.invalidInput
+        }
+        guard promptTokens.count < Int(contextSize) else {
+            throw LLMError.promptTooLong(
+                promptTokens: promptTokens.count,
+                contextSize: Int(contextSize)
+            )
+        }
         metrics.promptTokens = promptTokens.count
 
         // Create and fill batch with prompt tokens
@@ -104,7 +122,10 @@ final class LLMService {
         }
 
         // Generate tokens
-        let maxNewTokens = 512
+        let maxNewTokens = min(
+            512,
+            max(0, Int(contextSize) - promptTokens.count)
+        )
         var outputTokens: [llama_token] = []
         let eosToken = llama_vocab_eos(vocab)
         let vocabSize = Int(llama_vocab_n_tokens(vocab))
@@ -208,7 +229,7 @@ final class LLMService {
         let utf8Count = text.utf8.count
         let maxTokens = utf8Count + 16
         var tokens = [llama_token](repeating: 0, count: maxTokens)
-        let count = llama_tokenize(vocab, text, Int32(utf8Count), &tokens, Int32(maxTokens), true, true)
+        let count = llama_tokenize(vocab, text, Int32(utf8Count), &tokens, Int32(maxTokens), false, true)
         return count > 0 ? Array(tokens.prefix(Int(count))) : []
     }
 
@@ -226,6 +247,11 @@ final class LLMService {
     }
 
     // MARK: - Memory
+
+    private func resetContextMemory(_ context: OpaquePointer) {
+        guard let memory = llama_get_memory(context) else { return }
+        llama_memory_clear(memory, true)
+    }
 
     static func getMemoryMB() -> Double {
         var info = mach_task_basic_info()
@@ -246,6 +272,7 @@ enum LLMError: LocalizedError {
     case contextCreateFailed
     case modelNotLoaded
     case invalidInput
+    case promptTooLong(promptTokens: Int, contextSize: Int)
     case decodeFailed
 
     var errorDescription: String? {
@@ -254,6 +281,8 @@ enum LLMError: LocalizedError {
         case .contextCreateFailed: return "Failed to create llama context"
         case .modelNotLoaded: return "Model not loaded"
         case .invalidInput: return "Invalid JSON input"
+        case .promptTooLong(let promptTokens, let contextSize):
+            return "Prompt is too long for local inference (\(promptTokens) tokens, max \(contextSize - 1))."
         case .decodeFailed: return "Token decoding failed"
         }
     }

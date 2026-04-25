@@ -33,6 +33,28 @@
 		};
 /* End PBXFrameworksBuildPhase section */
 
+/* Begin PBXShellScriptBuildPhase section */
+		AFE0CC2C2F7F6207004F04AB /* Sign Llama Build Product */ = {
+			isa = PBXShellScriptBuildPhase;
+			alwaysOutOfDate = 1;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			inputFileListPaths = (
+			);
+			inputPaths = (
+			);
+			name = "Sign Llama Build Product";
+			outputFileListPaths = (
+			);
+			outputPaths = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+			shellPath = /bin/sh;
+			shellScript = "set -eu\n\nLLAMA_BINARY=\"${BUILT_PRODUCTS_DIR}/llama.framework/llama\"\n\nif [ \"${CODE_SIGNING_ALLOWED:-NO}\" != \"YES\" ]; then\n  exit 0\nfi\n\nif [ ! -f \"${LLAMA_BINARY}\" ]; then\n  exit 0\nfi\n\nif [ -z \"${EXPANDED_CODE_SIGN_IDENTITY:-}\" ]; then\n  exit 0\nfi\n\n/usr/bin/codesign --force --sign \"${EXPANDED_CODE_SIGN_IDENTITY}\" --timestamp=none \"${LLAMA_BINARY}\"\n";
+		};
+/* End PBXShellScriptBuildPhase section */
+
 /* Begin PBXGroup section */
 		6B9E5B502F7F22DE00E3AEF6 = {
 			isa = PBXGroup;
@@ -60,6 +82,7 @@
 				6B9E5B552F7F22DE00E3AEF6 /* Sources */,
 				6B9E5B562F7F22DE00E3AEF6 /* Frameworks */,
 				6B9E5B572F7F22DE00E3AEF6 /* Resources */,
+				AFE0CC2C2F7F6207004F04AB /* Sign Llama Build Product */,
 			);
 			buildRules = (
 			);
@@ -172,7 +195,7 @@
 				DEVELOPMENT_TEAM = 586L2Q38YL;
 				ENABLE_STRICT_OBJC_MSGSEND = YES;
 				ENABLE_TESTABILITY = YES;
-				ENABLE_USER_SCRIPT_SANDBOXING = YES;
+				ENABLE_USER_SCRIPT_SANDBOXING = NO;
 				GCC_C_LANGUAGE_STANDARD = gnu17;
 				GCC_DYNAMIC_NO_PIC = NO;
 				GCC_NO_COMMON_BLOCKS = YES;
@@ -236,7 +259,7 @@
 				DEVELOPMENT_TEAM = 586L2Q38YL;
 				ENABLE_NS_ASSERTIONS = NO;
 				ENABLE_STRICT_OBJC_MSGSEND = YES;
-				ENABLE_USER_SCRIPT_SANDBOXING = YES;
+				ENABLE_USER_SCRIPT_SANDBOXING = NO;
 				GCC_C_LANGUAGE_STANDARD = gnu17;
 				GCC_NO_COMMON_BLOCKS = YES;
 				GCC_WARN_64_TO_32_BIT_CONVERSION = YES;
@@ -262,7 +285,7 @@
 				CODE_SIGN_STYLE = Automatic;
 				COMBINE_HIDPI_IMAGES = YES;
 				CURRENT_PROJECT_VERSION = 1;
-				DEVELOPMENT_TEAM = HAVU9YLM49;
+				DEVELOPMENT_TEAM = 586L2Q38YL;
 				ENABLE_APP_SANDBOX = YES;
 				ENABLE_HARDENED_RUNTIME = YES;
 				ENABLE_PREVIEWS = YES;

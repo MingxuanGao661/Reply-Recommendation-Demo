@@ -4,7 +4,7 @@ import SwiftUI
 struct Reply_Recommendation_DemoApp: App {
     var body: some Scene {
         WindowGroup {
-            ContentView()
+            AppRootView()
         }
     }
 }
