@@ -195,7 +195,7 @@ final class LLMTrainingService {
 
     private func writeDataset(_ samples: [String], to url: URL) throws {
         let cleaned = samples
-            .map { $0.trimmingCharacters(in: .whitespacesAndNewlines) }
+            .map { materializeTrainingSample(from: $0) }
             .filter { !$0.isEmpty }
         guard !cleaned.isEmpty else {
             throw LLMTrainingError.emptyDataset
@@ -205,6 +205,40 @@ final class LLMTrainingService {
         // next-token labels. Keep sample separation explicit but simple.
         let text = cleaned.joined(separator: "\n\n<|end_of_text|>\n\n")
         try text.write(to: url, atomically: true, encoding: .utf8)
+    }
+
+    private func materializeTrainingSample(from raw: String) -> String {
+        let trimmed = raw.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !trimmed.isEmpty else { return "" }
+        guard let data = trimmed.data(using: .utf8),
+              let record = try? JSONDecoder().decode(SFTTrainingRecord.self, from: data),
+              !record.conversation.isEmpty,
+              !record.target.suggestions.isEmpty else {
+            // Backward compatibility: keep plain-text samples working.
+            return trimmed
+        }
+
+        let input = ConversationInput(
+            conversation: record.conversation,
+            draft: record.draft,
+            conversationProfile: record.conversationProfile,
+            selfId: record.selfId,
+            replyTo: record.replyTo,
+            participants: record.participants
+        )
+        let systemPrompt = SFTPromptRenderer.buildSystemPrompt(input: input, record: record)
+        let userPrompt = SFTPromptRenderer.buildUserPrompt(input: input, record: record)
+        let assistantContent = SFTPromptRenderer.assistantContent(from: record)
+
+        return """
+        <|begin_of_text|><|start_header_id|>system<|end_header_id|>
+
+        \(systemPrompt)<|eot_id|><|start_header_id|>user<|end_header_id|>
+
+        \(userPrompt)<|eot_id|><|start_header_id|>assistant<|end_header_id|>
+
+        \(assistantContent)<|eot_id|>
+        """
     }
 
     private static func timestampID() -> String {
@@ -590,5 +624,210 @@ private extension UIApplication.State {
         case .background: return "background"
         @unknown default: return "unknown"
         }
+    }
+}
+
+private struct SFTTrainingRecord: Decodable {
+    let taskType: String?
+    let suggestionTheme: String?
+    let selfId: String?
+    let participants: [Participant]
+    let conversation: [Message]
+    let replyTo: String?
+    let conversationProfile: Profile?
+    let draft: String?
+    let target: SFTTarget
+
+    enum CodingKeys: String, CodingKey {
+        case taskType = "task_type"
+        case suggestionTheme = "suggestion_theme"
+        case selfId = "self_id"
+        case participants
+        case conversation
+        case replyTo = "reply_to"
+        case conversationProfile = "conversation_profile"
+        case draft
+        case target
+    }
+}
+
+private struct SFTTarget: Decodable {
+    let suggestions: [Suggestion]
+    /// Optional human/editor gold: the single reply Me most wants to send (general threads only).
+    let primaryText: String?
+
+    enum CodingKeys: String, CodingKey {
+        case suggestions
+        case primaryText = "primary_text"
+    }
+
+    init(from decoder: Decoder) throws {
+        let c = try decoder.container(keyedBy: CodingKeys.self)
+        suggestions = try c.decode([Suggestion].self, forKey: .suggestions)
+        primaryText = try c.decodeIfPresent(String.self, forKey: .primaryText)
+    }
+}
+
+private enum SFTPromptRenderer {
+    /// General (non-decision) threads: single natural reply, plain text only.
+    private static let systemPromptGeneral = """
+    Given the conversation context, write one reply in the user's natural texting style — the single send Me would most want to send (not a menu of options).
+
+    {style_rules_block}
+
+    Rules:
+    - Write exactly one send-ready reply from Me.
+    - The reply must directly address {reply_target}.
+    - Keep it natural, concise, and context-anchored.
+    - Do not output JSON, labels, or multiple options.
+    """
+
+    /// Decision threads: three stances (Agree / Soft Decline / Delay), JSON matching app `SuggestionOutput`.
+    private static let systemPromptDecision = """
+    Given the conversation context, respond to {reply_target}. This situation calls for a clear stance.
+
+    {style_rules_block}
+
+    Rules:
+    - Produce exactly three alternative replies from Me, each with a different stance:
+      • Agree — clear yes / direct acceptance; no hedging
+      • Soft Decline — kind no; warm but firm; do not over-explain
+      • Delay — defer without committing; ask for time or say you will confirm later
+    - All three must directly address {reply_target}.
+    - Keep each line natural, concise, and sendable.
+
+    Output format: one JSON object only, no markdown. Key "suggestions" = array of exactly 3 objects. Each has "label" ("Agree", "Soft Decline", "Delay") and "text" (Me's reply for THIS chat). Use those labels exactly and include all three.
+    """
+
+    static func isDecisionRecord(_ record: SFTTrainingRecord) -> Bool {
+        if record.taskType == "decision" { return true }
+        if record.suggestionTheme == "decisionReply" { return true }
+        return false
+    }
+
+    static func buildSystemPrompt(input: ConversationInput, record: SFTTrainingRecord) -> String {
+        let styleBlock = styleRulesBlock(conversation: record.conversationProfile)
+        let targetName = input.replyTargetName ?? "the last message in the conversation"
+        let replyTarget = input.replyTargetName != nil ? "\(targetName)'s message" : targetName
+
+        let template = isDecisionRecord(record) ? systemPromptDecision : systemPromptGeneral
+        return template
+            .replacingOccurrences(of: "{style_rules_block}", with: styleBlock)
+            .replacingOccurrences(of: "{reply_target}", with: replyTarget)
+    }
+
+    static func buildUserPrompt(input: ConversationInput, record: SFTTrainingRecord) -> String {
+        var lines: [String] = []
+
+        if input.isGroupChat && !input.participants.isEmpty {
+            let names = input.participants
+                .filter { $0.isSelf != true }
+                .map { $0.name }
+                .joined(separator: ", ")
+            lines.append("Group chat with: \(names)")
+            lines.append("")
+        }
+
+        lines.append("Conversation:")
+        for msg in input.conversation {
+            let name = input.displayName(for: msg.speaker)
+            lines.append("  \(name): \(msg.text)")
+        }
+
+        if input.hasDraft {
+            lines.append("  Me (typing): \"\(input.resolvedDraft)\"")
+            lines.append("")
+            if isDecisionRecord(record) {
+                if let targetName = input.replyTargetName {
+                    lines.append("Complete \"Me (typing)\" into three stance alternatives (Agree / Soft Decline / Delay) as JSON for \(targetName).")
+                } else {
+                    lines.append("Complete \"Me (typing)\" into three stance alternatives (Agree / Soft Decline / Delay) as JSON.")
+                }
+            } else if let targetName = input.replyTargetName {
+                lines.append("Complete \"Me (typing)\" into one ready-to-send reply to \(targetName).")
+            } else {
+                lines.append("Complete \"Me (typing)\" into one ready-to-send reply.")
+            }
+        } else {
+            if let targetMsg = input.replyTargetMessage {
+                let targetName = input.replyTargetName ?? "them"
+                lines.append("\nReply ONLY to this message from \(targetName): \"\(targetMsg.text)\"")
+            } else if let targetName = input.replyTargetName {
+                lines.append("\nReplying to: \(targetName)")
+            }
+            if isDecisionRecord(record) {
+                lines.append("(no draft — write three stance alternatives as JSON)")
+            } else {
+                lines.append("(no draft — write one fresh reply)")
+            }
+        }
+
+        if isDecisionRecord(record) {
+            lines.append("\nOutput one JSON object only, as specified in the system message.")
+        } else {
+            lines.append("\nOutput one plain text reply only.")
+        }
+        return lines.joined(separator: "\n")
+    }
+
+    static func assistantContent(from record: SFTTrainingRecord) -> String {
+        let suggestions = record.target.suggestions
+        if isDecisionRecord(record) {
+            return assistantDecisionJSON(from: suggestions)
+        }
+        return assistantGeneralPrimaryText(from: record)
+    }
+
+    /// Gold for general threads: explicit `target.primary_text` when present; otherwise a fixed fallback order (not "pick Thoughtful first from three cards").
+    private static func assistantGeneralPrimaryText(from record: SFTTrainingRecord) -> String {
+        if let raw = record.target.primaryText?.trimmingCharacters(in: .whitespacesAndNewlines),
+           !raw.isEmpty {
+            return raw
+        }
+        return primaryReplyHeuristic(from: record.target.suggestions)
+    }
+
+    /// Backend default when `primary_text` is absent: **Friendly → Direct → Thoughtful** as the closest single "main" send, then any remaining label.
+    private static func primaryReplyHeuristic(from suggestions: [Suggestion]) -> String {
+        guard !suggestions.isEmpty else { return "" }
+        let preferredOrder = ["Friendly", "Direct", "Thoughtful", "Delay", "Soft Decline", "Agree"]
+        for label in preferredOrder {
+            if let text = suggestions.first(where: { $0.label == label })?.text.trimmingCharacters(in: .whitespacesAndNewlines),
+               !text.isEmpty {
+                return text
+            }
+        }
+        return suggestions[0].text.trimmingCharacters(in: .whitespacesAndNewlines)
+    }
+
+    private static func assistantDecisionJSON(from suggestions: [Suggestion]) -> String {
+        let order = ["Agree", "Soft Decline", "Delay"]
+        var picked: [Suggestion] = []
+        for label in order {
+            if let s = suggestions.first(where: { $0.label == label }) {
+                picked.append(s)
+            }
+        }
+        if picked.count < 3 {
+            for s in suggestions where !picked.contains(where: { $0.label == s.label }) {
+                picked.append(s)
+                if picked.count == 3 { break }
+            }
+        }
+        let trimmed = Array(picked.prefix(3))
+        let payload = SuggestionOutput(suggestions: trimmed)
+        return payload.toJSON(prettyPrint: false) ?? "{\"suggestions\":[]}"
+    }
+
+    private static func styleRulesBlock(conversation: Profile?) -> String {
+        let cTone = conversation?.tone ?? "not set (this chat does not override)"
+        let cLen = conversation?.length ?? "not set (this chat does not override)"
+        let effective = Profile.mergedForPrompt(conversation: conversation, userDefault: nil)
+        return """
+    - Style — honor BOTH the user's personal preferences AND this conversation's settings:
+      • Personal (user, app-wide): tone: not set (no personal preference on this axis) | length: not set (no personal preference on this axis)
+      • This conversation / thread: tone: \(cTone) | length: \(cLen)
+      • Use for THIS reply (per axis: conversation value if set, else personal, else app default warm/short): Tone: \(effective.resolvedTone) | Length: \(effective.resolvedLength)
+    """
     }
 }

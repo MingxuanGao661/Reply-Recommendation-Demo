@@ -35,12 +35,11 @@ struct AppRootView: View {
     private func warmUpLocalEngineIfNeeded() {
         guard settingsStore.backendMode == .local,
               !settingsStore.isRunningInXcodePreview else { return }
+        let lor = settingsStore.resolvedLocalLoraConfiguration()
         LocalReplyEngine(
             modelResourceName: settingsStore.bundledLlamaModel.resourceName,
-            loraResourceName: (
-                settingsStore.loraAdapterEnabled
-                    && settingsStore.bundledLlamaModel.supportsReplyLoRA
-            ) ? BundledLoraAdapterOption.replySFT_v1.resourceName : nil
+            loraResourceName: lor.bundledResourceName,
+            loraAdapterFilePath: lor.userAdapterPath
         )
         .warmUp()
     }

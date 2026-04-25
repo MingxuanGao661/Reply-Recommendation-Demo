@@ -53,7 +53,9 @@ let report = try await service.runConservativeLoRATest(
 }
 ```
 
-`samples` 是纯文本数组。当前 native bridge 会把它们写入一个 plain-text dataset 文件，然后做 next-token LoRA training。
+`samples` 是 `String` 数组。native bridge 会把**最终写入 `train.txt` 的纯文本**做 token 化与 next-token LoRA 训练。
+
+**JSONL 行（可选）**：若某条 `String` 能解析为与数据集 schema 一致的单行 JSON（含 `conversation`、`target.suggestions` 等），`LLMTrainingService` 会先 **materialize** 成一条多轮模板文本（Llama 3.2 风格的 `system` / `user` / `assistant` 片段），再写入 `train.txt`。解析失败或非该 schema 时，仍按**原始字符串**写入，兼容旧 smoke 文本。
 
 建议前端先用小数据测试：
 
@@ -62,6 +64,72 @@ let report = try await service.runConservativeLoRATest(
 每条样本尽量短
 先验证流程能完成，再扩大数据
 ```
+
+## JSONL 行 → 训练文本（general vs decision）
+
+与云端 SFT 数据一致时，每条样本可按下面规则分支（与 `LLMTrainingService` 内 `SFTPromptRenderer` 对齐）：
+
+| 条件 | 判定为 decision |
+|------|------------------|
+| `task_type == "decision"` | 是 |
+| `suggestion_theme == "decisionReply"` | 是 |
+| 否则 | **general**（含 `from_scratch` / `rewrite` 等） |
+
+- **general**：`system` 要求「根据上下文写 **一条** Me 最想发出去的短信（不是多选项菜单）」；`user` 结尾为「只输出一条纯文本」；`assistant` 监督为**单行纯文本**：
+  - 若 `target` 含 **`primary_text`**（可选字符串），则 **gold 仅用该字段**（表示标注/产品认定的「主推荐」一句）。
+  - 否则使用后端约定回退：**不按「从三卡挑一条」语义**，而是用固定启发顺序 **`Friendly` → `Direct` → `Thoughtful`**（再其余标签）从 `target.suggestions` 取第一条非空 `text`，仅作缺省主推荐占位；**推荐在数据里显式写 `primary_text`** 以对齐真实用户偏好。
+- **decision**：`system` 要求输出 **恰好三条** 立场：`Agree` / `Soft Decline` / `Delay`；`user` 结尾为「只输出一个 JSON」；`assistant` 监督为 **紧凑 JSON**，形状与现有 `SuggestionOutput` 一致：`{"suggestions":[{"label":"Agree","text":"..."},...]}`，标签名与顺序与 App 解析层一致。
+
+前端把 `jsonl` 文件读入后，按行 `append` 到 `samples` 即可，无需在 Swift 外再拼 `train.txt`。
+
+## User LoRA 与推理侧输出约定（前端必读）
+
+端上训练得到的 LoRA 若与上述 **materialize** 分布一致，推理时建议 **按线程类型切换 system / 期望输出**，否则解析器（`OutputParser` / 三卡 UI）会与模型习惯不一致。
+
+### 1) General 线程（单条推荐）
+
+- **训练目标**：模型被监督为输出 **纯文本一条**，不是 `{"suggestions":[...]}`；语义是 **「一句最想发出去的回复」**，不是从 `Direct/Friendly/Thoughtful` 三卡里机械抽一条当 gold（除非未提供 `primary_text` 时走后端启发顺序，见上节）。
+- **推理建议**：
+  - `systemPrompt`：与训练 materialize 的 general 分支一致（见 `LLMTrainingService` / `SFTPromptRenderer`），核心是 **一条自然短信、不要 JSON**。
+  - **解析**：不要用「必须抽出三卡 JSON」的硬约束；可先取模型输出整段文本作为**唯一推荐**，或前端自行映射为单卡 UI。
+  - 若产品仍要复用 `SuggestionOutput` 结构，可在客户端把该纯文本**复制为三卡同文**或只展示第一张卡，并在文档中写清产品选择。
+
+### 2) Decision 线程（Agree / Soft Decline / Delay）
+
+- **训练目标**：与历史产品一致，**三条 + 固定标签** JSON。
+- **推理建议**：
+  - `systemPrompt`：与训练一致，明确要求三条立场 + 输出一个 JSON object、`suggestions` 长度 3、label 精确为 `"Agree"`、`"Soft Decline"`、`"Delay"`。
+  - **解析**：沿用现有 `SuggestionOutput` + `OutputParser` 路径即可。
+
+### 3) 如何区分 decision（与训练判定一致）
+
+与训练 materialize 相同：由业务层根据 `ConversationInput` / 线程元数据判断是否为「二选一/邀请类」场景；若为 decision，则走 **三条 JSON** 的 system + 解析；否则走 **单条纯文本**。
+
+## User LoRA 与默认 Bundled LoRA（后端行为，前端需写入设置）
+
+以下已由 **`AppSettingsStore` + `LocalReplyEngine` + `ChatViewModel`** 实现；前端只需在训练成功后写入路径并打开开关（或你们自己的设置 UI 绑定到同一套 `UserDefaults` key）。
+
+| UserDefaults key | 类型 | 含义 |
+|------------------|------|------|
+| `replyDemo.userTrainedLoraAdapterEnabled` | `Bool` | 是否使用用户端上训练产出的 LoRA |
+| `replyDemo.userTrainedLoraAdapterPath` | `String` | 绝对路径，一般为 `LLMTrainingReport.outputAdapterPath`（`.gguf`） |
+| `replyDemo.loraAdapterEnabled` | `Bool` | 是否使用 **bundle 内** 默认 `reply_sft_lora_v1`（仅 3B + `supportsReplyLoRA` 时有效） |
+
+**互斥规则（自动）**
+
+- 当 **`userTrainedLoraAdapterEnabled == true`** 时，后端会把 **`loraAdapterEnabled` 置为 `false`**，即 **默认 Bundled LoRA 关闭**，避免双适配器叠加。
+- 当用户重新打开 **`loraAdapterEnabled`** 时，会把 **`userTrainedLoraAdapterEnabled` 置为 `false`**。
+- 实际加载路径由 `AppSettingsStore.resolvedLocalLoraConfiguration()` 决定：用户路径 **存在且文件在磁盘上** 时优先；否则在 `loraAdapterEnabled` 为真时回退到 bundle 内默认 LoRA。
+
+**`LocalReplyEngine`**
+
+- 新增参数 `loraAdapterFilePath`：传入上述绝对路径时，**不再**从 bundle 按资源名解析 LoRA。
+
+**训练完成后前端建议流程**
+
+1. 读取 `report.outputAdapterPath`。
+2. 写入 `userTrainedLoraAdapterPath`，并设 `userTrainedLoraAdapterEnabled = true`（此时默认 LoRA 会被自动关掉）。
+3. 本地引擎缓存会随 Publisher 失效；无需额外重启 App（`ChatViewModel` 已订阅相关字段）。
 
 ## 默认训练参数
 
@@ -279,9 +347,14 @@ report.outputAdapterPath
 后续接入方式建议：
 
 1. 训练完成后保存 `report.outputAdapterPath` 到 App settings / adapter registry。
-2. 用户选择某个 adapter。
+2. 用户开启 **User LoRA**（或等价：选用本次 run 产出的 adapter）时，加载该路径下的 LoRA 再推理。
 3. 创建 `LocalReplyEngine` / `LLMService` 时传入该 adapter path。
 4. 重新加载 model + adapter 后再推理。
+
+**User LoRA 开启时**（与上文「User LoRA 与推理侧输出约定」一致）：
+
+- **general**：推理 `systemPrompt` / 期望输出应与训练 materialize 的 general 分支一致（**单条纯文本**）；前端解析与 UI 需适配，不要强制三卡 JSON。
+- **decision**：与未启用 User LoRA 时的 **三立场 JSON**（`Agree` / `Soft Decline` / `Delay`）一致；`systemPrompt` 与训练 decision 分支对齐即可。
 
 目前 `LocalReplyEngine` 主要从 bundle 查找 LoRA resource。若要使用训练生成的 adapter，需要后续增加“从文件路径加载 LoRA”的入口。
 

@@ -171,7 +171,29 @@ final class AppSettingsStore: ObservableObject {
 
     /// Whether to apply the bundled reply SFT LoRA adapter during local inference.
     /// Only has effect when `bundledLlamaModel` is the 3B model (the only compatible base).
+    /// Mutually exclusive with `userTrainedLoraAdapterEnabled`: enabling one turns the other off.
     @Published var loraAdapterEnabled: Bool {
+        didSet {
+            if loraAdapterEnabled, userTrainedLoraAdapterEnabled {
+                userTrainedLoraAdapterEnabled = false
+            }
+            persist()
+        }
+    }
+
+    /// When true, local inference loads the adapter at `userTrainedLoraAdapterPath` (sandbox / Application Support path).
+    /// **Default bundled LoRA is off** while this is on: enabling User LoRA clears `loraAdapterEnabled` (see `didSet` below).
+    @Published var userTrainedLoraAdapterEnabled: Bool {
+        didSet {
+            if userTrainedLoraAdapterEnabled, loraAdapterEnabled {
+                loraAdapterEnabled = false
+            }
+            persist()
+        }
+    }
+
+    /// Absolute path to a user-trained LoRA `.gguf` (e.g. `report.outputAdapterPath` from `LLMTrainingService`).
+    @Published var userTrainedLoraAdapterPath: String {
         didSet { persist() }
     }
 
@@ -214,7 +236,15 @@ final class AppSettingsStore: ObservableObject {
             rawValue: defaults.string(forKey: Keys.bundledLlamaModel) ?? ""
         ) ?? .instruct3B_Q4
         loraAdapterEnabled = defaults.object(forKey: Keys.loraAdapterEnabled) as? Bool ?? false
+        userTrainedLoraAdapterEnabled = defaults.object(
+            forKey: Keys.userTrainedLoraAdapterEnabled
+        ) as? Bool ?? false
+        userTrainedLoraAdapterPath = defaults.string(forKey: Keys.userTrainedLoraAdapterPath) ?? ""
         demoComposerParticipantIDs = Self.loadDemoComposerParticipantIDs(from: defaults)
+
+        if userTrainedLoraAdapterEnabled, loraAdapterEnabled {
+            loraAdapterEnabled = false
+        }
 
         if isRunningInXcodePreview {
             backendMode = .mock
@@ -224,6 +254,19 @@ final class AppSettingsStore: ObservableObject {
 
     var defaultProfile: Profile {
         Profile(tone: defaultTone.rawValue, length: defaultLength.rawValue)
+    }
+
+    /// Resolved LoRA for `LocalReplyEngine`: user-trained path wins when enabled and file exists; otherwise optional bundled adapter.
+    func resolvedLocalLoraConfiguration() -> (bundledResourceName: String?, userAdapterPath: String?) {
+        let trimmedPath = userTrainedLoraAdapterPath.trimmingCharacters(in: .whitespacesAndNewlines)
+        let userOn = userTrainedLoraAdapterEnabled && !trimmedPath.isEmpty
+            && FileManager.default.fileExists(atPath: trimmedPath)
+        if userOn {
+            return (bundledResourceName: nil, userAdapterPath: trimmedPath)
+        }
+        let bundledOn = loraAdapterEnabled && bundledLlamaModel.supportsReplyLoRA
+        let bundledName = bundledOn ? BundledLoraAdapterOption.replySFT_v1.resourceName : nil
+        return (bundledResourceName: bundledName, userAdapterPath: nil)
     }
 
     var availableBackendModes: [ReplyBackendMode] {
@@ -249,6 +292,8 @@ final class AppSettingsStore: ObservableObject {
         defaults.set(safeDemoModeEnabled, forKey: Keys.safeDemoModeEnabled)
         defaults.set(bundledLlamaModel.rawValue, forKey: Keys.bundledLlamaModel)
         defaults.set(loraAdapterEnabled, forKey: Keys.loraAdapterEnabled)
+        defaults.set(userTrainedLoraAdapterEnabled, forKey: Keys.userTrainedLoraAdapterEnabled)
+        defaults.set(userTrainedLoraAdapterPath, forKey: Keys.userTrainedLoraAdapterPath)
     }
 
     private func persistDemoComposerParticipantIDs() {
@@ -275,6 +320,8 @@ final class AppSettingsStore: ObservableObject {
         static let safeDemoModeEnabled = "replyDemo.safeDemoModeEnabled"
         static let bundledLlamaModel = "replyDemo.bundledLlamaModel"
         static let loraAdapterEnabled = "replyDemo.loraAdapterEnabled"
+        static let userTrainedLoraAdapterEnabled = "replyDemo.userTrainedLoraAdapterEnabled"
+        static let userTrainedLoraAdapterPath = "replyDemo.userTrainedLoraAdapterPath"
         static let demoSenderDeviceID = "replyDemo.demoSenderDeviceID"
         static let demoComposerParticipantIDs = "replyDemo.demoComposerParticipantIDs"
     }

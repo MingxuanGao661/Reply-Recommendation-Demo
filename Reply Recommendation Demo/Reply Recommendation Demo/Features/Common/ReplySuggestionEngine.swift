@@ -201,6 +201,8 @@ final class LocalReplyEngine: ReplySuggestionEngine {
     private let modelResourceName: String
     /// Resource name (no extension) of the bundled LoRA adapter GGUF, if any.
     private let loraResourceName: String?
+    /// Absolute filesystem path to a LoRA `.gguf` (e.g. user-trained adapter). When set and the file exists, this wins over `loraResourceName`.
+    private let loraAdapterFilePath: String?
     /// Scale applied to the LoRA adapter weights (1.0 = full strength).
     private let loraScale: Float
     private let bundle: Bundle
@@ -214,11 +216,13 @@ final class LocalReplyEngine: ReplySuggestionEngine {
     init(
         modelResourceName: String = "Llama-3.2-3B-Instruct-Q4_K_M",
         loraResourceName: String? = nil,
+        loraAdapterFilePath: String? = nil,
         loraScale: Float = 1.0,
         bundle: Bundle = .main
     ) {
         self.modelResourceName = modelResourceName
         self.loraResourceName = loraResourceName
+        self.loraAdapterFilePath = loraAdapterFilePath
         self.loraScale = loraScale
         self.bundle = bundle
         inferenceQueue.setSpecific(key: Self.inferenceQueueSpecificKey, value: ())
@@ -238,7 +242,7 @@ final class LocalReplyEngine: ReplySuggestionEngine {
 
     var statusDescription: String {
         if service != nil {
-            let loraNote = loraResourceName != nil ? " + LoRA" : ""
+            let loraNote = resolvedLoraPathForLoad() != nil ? " + LoRA" : ""
 #if targetEnvironment(simulator)
             return "Local model\(loraNote) loaded on Simulator (CPU mode)."
 #else
@@ -247,10 +251,12 @@ final class LocalReplyEngine: ReplySuggestionEngine {
         }
         if modelPathInBundle() != nil {
             let loraNote: String
-            if let loraResourceName {
-                loraNote = loraPathInBundle() != nil
-                    ? " + LoRA adapter found."
-                    : " (LoRA adapter \(loraResourceName).gguf not found in bundle.)"
+            if resolvedLoraPathForLoad() != nil {
+                loraNote = " + LoRA adapter found."
+            } else if loraAdapterFilePath?.isEmpty == false {
+                loraNote = " (User LoRA path set but file not found.)"
+            } else if let name = loraResourceName {
+                loraNote = " (LoRA adapter \(name).gguf not found in bundle.)"
             } else {
                 loraNote = ""
             }
@@ -369,7 +375,7 @@ final class LocalReplyEngine: ReplySuggestionEngine {
             )
         }
 
-        let resolvedLoraPath = loraPathInBundle()
+        let resolvedLoraPath = resolvedLoraPathForLoad()
         let service = try LLMService(
             modelPath: modelPath,
             loraPath: resolvedLoraPath,
@@ -387,6 +393,14 @@ final class LocalReplyEngine: ReplySuggestionEngine {
     private func loraPathInBundle() -> String? {
         guard let name = loraResourceName else { return nil }
         return bundle.path(forResource: name, ofType: "gguf")
+    }
+
+    private func resolvedLoraPathForLoad() -> String? {
+        let trimmed = loraAdapterFilePath?.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
+        if !trimmed.isEmpty, FileManager.default.fileExists(atPath: trimmed) {
+            return trimmed
+        }
+        return loraPathInBundle()
     }
 }
 
