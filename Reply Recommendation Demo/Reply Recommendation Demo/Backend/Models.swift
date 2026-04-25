@@ -26,28 +26,44 @@ struct Participant: Codable {
     }
 }
 
-struct Profile: Codable {
-    var tone: String = "warm"
-    var length: String = "short"
-    var style: String = "casual"
+/// Style preferences (`tone` + `length`). Each field is optional so JSON can specify only one axis.
+/// **Merge rule (parallel):** for `tone`, use `conversation_profile.tone` if present, else `defaultProfile.tone`, else `"warm"`. Same pattern for `length` → `"short"`.
+struct Profile: Codable, Equatable {
+    var tone: String?
+    var length: String?
 
-    init(tone: String = "warm", length: String = "short", style: String = "casual") {
+    init(tone: String? = nil, length: String? = nil) {
         self.tone = tone
         self.length = length
-        self.style = style
+    }
+
+    /// Strings ready for the system prompt (after merge or as fallback).
+    var resolvedTone: String { tone ?? "warm" }
+    var resolvedLength: String { length ?? "short" }
+
+    /// Field-wise merge: conversation and user default fill **different axes** without overriding each other.
+    static func mergedForPrompt(conversation: Profile?, userDefault: Profile?) -> Profile {
+        let c = conversation
+        let u = userDefault
+        return Profile(
+            tone: c?.tone ?? u?.tone ?? "warm",
+            length: c?.length ?? u?.length ?? "short"
+        )
     }
 }
 
 struct ConversationInput: Codable {
     let conversation: [Message]
     let draft: String?
-    let profile: Profile?
+    /// Per-thread / per-chat (e.g. work vs friends). Persist with the conversation in your app.
+    let conversationProfile: Profile?
     let selfId: String?
     let replyTo: String?
     let participants: [Participant]
 
     enum CodingKeys: String, CodingKey {
-        case conversation, draft, profile, participants
+        case conversation, draft, participants
+        case conversationProfile = "conversation_profile"
         case selfId = "self_id"
         case replyTo = "reply_to"
     }
@@ -55,14 +71,14 @@ struct ConversationInput: Codable {
     init(
         conversation: [Message],
         draft: String? = nil,
-        profile: Profile? = nil,
+        conversationProfile: Profile? = nil,
         selfId: String? = nil,
         replyTo: String? = nil,
         participants: [Participant] = []
     ) {
         self.conversation = conversation
         self.draft = draft
-        self.profile = profile
+        self.conversationProfile = conversationProfile
         self.selfId = selfId
         self.replyTo = replyTo
         self.participants = participants
@@ -76,8 +92,6 @@ struct ConversationInput: Codable {
         (draft ?? "").trimmingCharacters(in: .whitespacesAndNewlines)
     }
 
-    var resolvedProfile: Profile { profile ?? Profile() }
-
     var hasDraft: Bool { !resolvedDraft.isEmpty }
 
     var isGroupChat: Bool {
@@ -85,8 +99,12 @@ struct ConversationInput: Codable {
         return uniqueSpeakers.count > 2
     }
 
+    /// Merged profile for the prompt: each of `tone` / `length` is taken from `conversation_profile` if set, else `defaultProfile`, else app default.
+    func effectiveProfile(userDefault: Profile?) -> Profile {
+        Profile.mergedForPrompt(conversation: conversationProfile, userDefault: userDefault)
+    }
+
     /// Get the display name for a speaker ID.
-    /// Priority: participants lookup → speaker ID itself
     func displayName(for speakerId: String) -> String {
         if speakerId == resolvedSelfId { return "Me" }
         if let p = participants.first(where: { $0.id == speakerId }) {
@@ -95,7 +113,6 @@ struct ConversationInput: Codable {
         return speakerId
     }
 
-    /// The display name of the reply target (nil if not specified)
     var replyTargetName: String? {
         guard let replyTo else { return nil }
         return displayName(for: replyTo)

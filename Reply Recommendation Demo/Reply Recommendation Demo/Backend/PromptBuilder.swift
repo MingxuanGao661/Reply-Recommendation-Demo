@@ -2,14 +2,14 @@ import Foundation
 
 enum PromptBuilder {
 
-    // MARK: - System Prompts
+    // MARK: - System prompt core (instructions + merged targets)
 
     private static let systemPromptWithDraft = """
     You are a text messaging assistant that helps users reply to conversations.
     The user has typed a rough draft. Generate 3 polished versions that are ready to send.
 
     Rules:
-    - Tone: {tone} | Length: {length} | Style: {style}
+    {style_rules_block}
     - Write like a REAL PERSON texting — not like an AI assistant
     - Use lowercase, contractions, and natural abbreviations when fitting
     - Do NOT be overly enthusiastic or add unnecessary exclamation marks
@@ -35,7 +35,7 @@ enum PromptBuilder {
     The user hasn't typed anything yet. Suggest 3 possible replies based on the conversation context.
 
     Rules:
-    - Tone: {tone} | Length: {length} | Style: {style}
+    {style_rules_block}
     - Write like a REAL PERSON texting — not like an AI assistant
     - Use lowercase, contractions, and natural abbreviations when fitting
     - Do NOT be overly enthusiastic or add unnecessary exclamation marks
@@ -57,9 +57,34 @@ enum PromptBuilder {
     {"suggestions": [{"label": "Natural", "text": "..."}, {"label": "Polite", "text": "..."}, {"label": "Like You", "text": "..."}]}
     """
 
+    // MARK: - Style rules (system — user + conversation + effective)
+
+    private static func styleRulesBlock(
+        userDefault: Profile?,
+        conversation: Profile?,
+        effective: Profile
+    ) -> String {
+        let uTone = userDefault?.tone ?? "not set (no personal preference on this axis)"
+        let uLen = userDefault?.length ?? "not set (no personal preference on this axis)"
+        let cTone = conversation?.tone ?? "not set (this chat does not override)"
+        let cLen = conversation?.length ?? "not set (this chat does not override)"
+        return """
+    - Style — honor BOTH the user's personal preferences AND this conversation's settings:
+      • Personal (user, app-wide): tone: \(uTone) | length: \(uLen)
+      • This conversation / thread: tone: \(cTone) | length: \(cLen)
+      • Use for THIS reply (per axis: conversation value if set, else personal, else app default warm/short): Tone: \(effective.resolvedTone) | Length: \(effective.resolvedLength)
+    """
+    }
+
     // MARK: - Build System Prompt
 
-    static func buildSystemPrompt(profile: Profile, hasDraft: Bool, replyTargetName: String?) -> String {
+    static func buildSystemPrompt(
+        input: ConversationInput,
+        userDefaultProfile: Profile?,
+        hasDraft: Bool,
+        replyTargetName: String?
+    ) -> String {
+        let effective = input.effectiveProfile(userDefault: userDefaultProfile)
         let template = hasDraft ? systemPromptWithDraft : systemPromptNoDraft
 
         let target: String
@@ -69,17 +94,26 @@ enum PromptBuilder {
             target = "the last message in the conversation"
         }
 
+        let styleBlock = styleRulesBlock(
+            userDefault: userDefaultProfile,
+            conversation: input.conversationProfile,
+            effective: effective
+        )
+
         return template
-            .replacingOccurrences(of: "{tone}", with: profile.tone)
-            .replacingOccurrences(of: "{length}", with: profile.length)
-            .replacingOccurrences(of: "{style}", with: profile.style)
+            .replacingOccurrences(of: "{style_rules_block}", with: styleBlock)
             .replacingOccurrences(of: "{reply_target}", with: target)
     }
 
     // MARK: - Build User Prompt
 
+    /// `conversation` is expected to be a **client-chosen window** (e.g. last N messages), not the full thread history.
     static func buildUserPrompt(input: ConversationInput) -> String {
-        var lines: [String] = []
+        var lines: [String] = [
+            "Below is the recent conversation the client included (a bounded window, not necessarily the full chat).",
+            "Follow the system instructions and output JSON only.",
+            "",
+        ]
 
         if input.isGroupChat && !input.participants.isEmpty {
             let names = input.participants
@@ -110,10 +144,10 @@ enum PromptBuilder {
     }
 
     // MARK: - Build Full Prompt String (for llama.cpp)
-
-    static func buildLlamaPrompt(input: ConversationInput) -> String {
+    static func buildLlamaPrompt(input: ConversationInput, userDefaultProfile: Profile?) -> String {
         let systemPrompt = buildSystemPrompt(
-            profile: input.resolvedProfile,
+            input: input,
+            userDefaultProfile: userDefaultProfile,
             hasDraft: input.hasDraft,
             replyTargetName: input.replyTargetName
         )
@@ -121,21 +155,22 @@ enum PromptBuilder {
 
         return """
         <|begin_of_text|>\
-        <|start_header_id|>system<|end_header_id|>
+        <|redacted_start_header_id|>system<|redacted_end_header_id|>
 
         \(systemPrompt)<|eot_id|>\
-        <|start_header_id|>user<|end_header_id|>
+        <|redacted_start_header_id|>user<|redacted_end_header_id|>
 
         \(userPrompt)<|eot_id|>\
-        <|start_header_id|>assistant<|end_header_id|>
+        <|redacted_start_header_id|>assistant<|redacted_end_header_id|>
 
         """
     }
 
     /// Builds a messages array (for OpenAI-compatible APIs / chat completion)
-    static func buildMessages(input: ConversationInput) -> [[String: String]] {
+    static func buildMessages(input: ConversationInput, userDefaultProfile: Profile?) -> [[String: String]] {
         let systemPrompt = buildSystemPrompt(
-            profile: input.resolvedProfile,
+            input: input,
+            userDefaultProfile: userDefaultProfile,
             hasDraft: input.hasDraft,
             replyTargetName: input.replyTargetName
         )

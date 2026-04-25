@@ -12,9 +12,18 @@ final class LLMService {
     private let modelName: String
     private let batchSize: Int32 = 512
 
+    /// User-level defaults per axis (`tone` / `length`). Merged in parallel with `conversation_profile` (see `Profile.mergedForPrompt`).
+    var defaultProfile: Profile?
+
     // MARK: - Init / Deinit
 
-    init(modelPath path: String, contextSize: UInt32 = 2048, gpuLayers: Int32 = -1) throws {
+    init(
+        modelPath path: String,
+        contextSize: UInt32 = 2048,
+        gpuLayers: Int32 = -1,
+        defaultProfile: Profile? = nil
+    ) throws {
+        self.defaultProfile = defaultProfile
         self.modelName = (path as NSString).lastPathComponent.replacingOccurrences(of: ".gguf", with: "")
 
         llama_backend_init()
@@ -61,7 +70,7 @@ final class LLMService {
             throw LLMError.modelNotLoaded
         }
 
-        let prompt = PromptBuilder.buildLlamaPrompt(input: input)
+        let prompt = PromptBuilder.buildLlamaPrompt(input: input, userDefaultProfile: defaultProfile)
         var metrics = InferenceMetrics(modelName: modelName)
 
         metrics.memoryBeforeMB = Self.getMemoryMB()

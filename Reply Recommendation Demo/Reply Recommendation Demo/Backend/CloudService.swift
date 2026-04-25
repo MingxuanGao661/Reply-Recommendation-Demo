@@ -45,6 +45,9 @@ final class CloudService {
     private let isAnthropic: Bool
     let modelName: String
 
+    /// User-level defaults per axis. Merged in parallel with `conversation_profile`.
+    var defaultProfile: Profile?
+
     // MARK: - Init
 
     /// Initialize a cloud inference service.
@@ -52,7 +55,13 @@ final class CloudService {
     ///   - apiKey: API key for the provider
     ///   - provider: One of "openai", "anthropic", "gemini", "groq", "openrouter"
     ///   - model: Specific model name (nil = use provider's default)
-    init(apiKey: String, provider: String = "openai", model: String? = nil) throws {
+    ///   - defaultProfile: User-level defaults; fills any axis missing from `conversation_profile`
+    init(
+        apiKey: String,
+        provider: String = "openai",
+        model: String? = nil,
+        defaultProfile: Profile? = nil
+    ) throws {
         guard let preset = Self.providers[provider] else {
             throw CloudError.unknownProvider(provider, Array(Self.providers.keys))
         }
@@ -62,6 +71,7 @@ final class CloudService {
         self.model = model ?? preset.defaultModel
         self.modelName = "\(provider)/\(self.model)"
         self.isAnthropic = provider == "anthropic"
+        self.defaultProfile = defaultProfile
     }
 
     // MARK: - Public API
@@ -76,7 +86,7 @@ final class CloudService {
 
     /// Generate reply suggestions from a ConversationInput.
     func generate(input: ConversationInput) async throws -> (outputJSON: String, metrics: InferenceMetrics) {
-        let messages = PromptBuilder.buildMessages(input: input)
+        let messages = PromptBuilder.buildMessages(input: input, userDefaultProfile: defaultProfile)
 
         var metrics = InferenceMetrics(modelName: modelName)
         metrics.memoryBeforeMB = LLMService.getMemoryMB()
