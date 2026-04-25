@@ -28,7 +28,8 @@ class ConversationInput:
     def from_dict(cls, data: dict) -> "ConversationInput":
         messages = [Message(**m) for m in data["conversation"]]
         profile = Profile(**data.get("profile", {}))
-        return cls(conversation=messages, draft=data["draft"], profile=profile)
+        draft = data.get("draft", "") or ""
+        return cls(conversation=messages, draft=draft.strip(), profile=profile)
 
     @classmethod
     def from_json(cls, json_str: str) -> "ConversationInput":
