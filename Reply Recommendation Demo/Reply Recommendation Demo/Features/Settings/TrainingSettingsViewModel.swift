@@ -86,10 +86,14 @@ final class TrainingSettingsViewModel: ObservableObject {
         report = nil
         errorMessage = nil
         startedAt = Date()
+        let dataset = Self.resolvedSmokeTrainingSamples()
+        logs = [
+            "[dataset] source=\(dataset.source) samples=\(dataset.samples.count)"
+        ]
 
         do {
             let finalReport = try await trainingService.runConservativeLoRATest(
-                samples: Self.smokeTrainingSamples,
+                samples: dataset.samples,
                 options: .conservativeLlama32OneB(),
                 onEvent: { [weak self] event in
                     Task { @MainActor [weak self] in
@@ -114,7 +118,7 @@ final class TrainingSettingsViewModel: ObservableObject {
         case .started(let runID, let message, _):
             status = .running
             self.runID = runID
-            logs = [message]
+            logs.append(message)
             latestStep = nil
             report = nil
             errorMessage = nil
@@ -151,7 +155,41 @@ final class TrainingSettingsViewModel: ObservableObject {
         logs = report.logs.isEmpty ? logs : report.logs
     }
 
-    private static let smokeTrainingSamples: [String] = [
+    private struct SmokeDatasetSelection {
+        let samples: [String]
+        let source: String
+    }
+
+    /// Preferred smoke dataset file in app bundle (without extension).
+    private static let preferredSmokeDatasetResource = "social_300_shakespeare_smoke_test_ondevice_train"
+    private static let smokeSampleSeparator = "<|end_of_text|>"
+
+    private static func resolvedSmokeTrainingSamples(bundle: Bundle = .main) -> SmokeDatasetSelection {
+        if let loaded = loadSamplesFromBundledTXT(bundle: bundle), !loaded.isEmpty {
+            return SmokeDatasetSelection(
+                samples: loaded,
+                source: "bundle:\(preferredSmokeDatasetResource).txt"
+            )
+        }
+        return SmokeDatasetSelection(
+            samples: fallbackSmokeTrainingSamples,
+            source: "fallback:inline_smoke_samples"
+        )
+    }
+
+    private static func loadSamplesFromBundledTXT(bundle: Bundle) -> [String]? {
+        guard let url = bundle.url(forResource: preferredSmokeDatasetResource, withExtension: "txt"),
+              let raw = try? String(contentsOf: url, encoding: .utf8) else {
+            return nil
+        }
+        let samples = raw
+            .components(separatedBy: smokeSampleSeparator)
+            .map { $0.trimmingCharacters(in: .whitespacesAndNewlines) }
+            .filter { !$0.isEmpty }
+        return samples.isEmpty ? nil : samples
+    }
+
+    private static let fallbackSmokeTrainingSamples: [String] = [
         "User: hey are you free tonight? Assistant: I can make time after 8 if that works for you.",
         "User: can you review this before tomorrow? Assistant: Yes, send it over and I can take a look tonight.",
         "User: want to grab lunch this week? Assistant: I would be down, Thursday or Friday is probably easiest.",

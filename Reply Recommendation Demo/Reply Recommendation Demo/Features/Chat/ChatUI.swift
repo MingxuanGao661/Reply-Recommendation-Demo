@@ -283,20 +283,31 @@ struct DemoMessageComposer: View {
     @Binding var text: String
     let isSendEnabled: Bool
     let isGenerating: Bool
+    /// The ghost suffix to display after the cursor (nil = no suggestion active).
+    let ghostSuffix: String?
     let onGenerate: () -> Void
+    let onAcceptInline: () -> Void
     let onSend: () -> Void
 
     var body: some View {
         HStack(alignment: .bottom, spacing: 10) {
-            TextField("Message", text: $text, axis: .vertical)
-                .lineLimit(1...5)
-                .textFieldStyle(.plain)
-                .padding(.horizontal, 14)
-                .padding(.vertical, 12)
-                .background(
-                    RoundedRectangle(cornerRadius: 24, style: .continuous)
-                        .fill(Color(uiColor: .secondarySystemBackground))
-                )
+            GhostTextField(text: $text, ghostSuffix: ghostSuffix)
+
+            // Accept inline button — only visible when a ghost suggestion is ready.
+            if ghostSuffix != nil {
+                Button(action: onAcceptInline) {
+                    Image(systemName: "arrow.right.to.line")
+                        .font(.system(size: 15, weight: .semibold))
+                        .foregroundStyle(Color.accentColor)
+                        .frame(width: 42, height: 42)
+                        .background(
+                            Circle()
+                                .fill(Color.accentColor.opacity(0.15))
+                        )
+                }
+                .transition(.scale.combined(with: .opacity))
+                .accessibilityLabel("Accept inline suggestion")
+            }
 
             Button(action: onGenerate) {
                 ZStack {
@@ -335,10 +346,52 @@ struct DemoMessageComposer: View {
             .disabled(!isSendEnabled)
             .accessibilityLabel("Send Message")
         }
+        .animation(.spring(response: 0.22, dampingFraction: 0.8), value: ghostSuffix != nil)
         .padding(.horizontal, 16)
         .padding(.top, 10)
         .padding(.bottom, 12)
         .background(.ultraThinMaterial)
+    }
+}
+
+/// TextField with ghost-text overlay: draft text renders normally; completion suffix
+/// renders in tertiary colour behind the real cursor so it feels like Copilot autocomplete.
+private struct GhostTextField: View {
+    @Binding var text: String
+    let ghostSuffix: String?
+
+    var body: some View {
+        ZStack(alignment: .topLeading) {
+            // Ghost layer — invisible base + gray suffix, sits below the real TextField.
+            if let suffix = ghostSuffix, !suffix.isEmpty {
+                ghostTextView(current: text, suffix: suffix)
+                    .allowsHitTesting(false)
+            }
+            // Real TextField on top; user types here normally.
+            TextField("Message", text: $text, axis: .vertical)
+                .lineLimit(1...5)
+                .textFieldStyle(.plain)
+                .textContentType(nil)
+                .autocorrectionDisabled(true)
+                .padding(.horizontal, 14)
+                .padding(.vertical, 12)
+        }
+        .background(
+            RoundedRectangle(cornerRadius: 24, style: .continuous)
+                .fill(Color(uiColor: .secondarySystemBackground))
+        )
+    }
+
+    private func ghostTextView(current: String, suffix: String) -> some View {
+        var baseAttr = AttributedString(current)
+        baseAttr.foregroundColor = .clear          // hide — TextField draws the real text on top
+        var suffixAttr = AttributedString(suffix)
+        suffixAttr.foregroundColor = Color(uiColor: .tertiaryLabel)
+        return Text(baseAttr + suffixAttr)
+            .font(.body)
+            .frame(maxWidth: .infinity, alignment: .topLeading)
+            .padding(.horizontal, 14)
+            .padding(.vertical, 12)
     }
 }
 

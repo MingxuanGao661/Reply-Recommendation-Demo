@@ -200,6 +200,15 @@ private struct LocalModelLoraSettingsView: View {
                     Text("Applies when Backend is Local. Switching model reloads the local engine on the next generation.")
                         .font(.footnote)
                         .foregroundStyle(.secondary)
+
+                    Toggle(isOn: $settingsStore.localInlineCompletionEnabled) {
+                        VStack(alignment: .leading, spacing: 2) {
+                            Text("Inline ghost completion")
+                            Text("Gray continuation after your draft uses this same model (no extra load).")
+                                .font(.caption)
+                                .foregroundStyle(.secondary)
+                        }
+                    }
                 }
 
                 Section("LoRA") {

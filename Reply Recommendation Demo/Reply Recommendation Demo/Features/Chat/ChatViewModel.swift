@@ -12,6 +12,8 @@ final class ChatViewModel: ObservableObject {
     @Published private(set) var isSending: Bool
     @Published private(set) var errorMessage: String?
     @Published private(set) var metrics: InferenceMetrics?
+    @Published private(set) var inlineSuggestion: ReplySuggestionItem?
+    @Published private(set) var inlineMetrics: InferenceMetrics?
     @Published private(set) var engineStatusText: String
     @Published var threadToneOverride: ThreadToneOverride
     @Published var threadLengthOverride: ThreadLengthOverride
@@ -35,6 +37,9 @@ final class ChatViewModel: ObservableObject {
     private var cancellables = Set<AnyCancellable>()
     private var hasBootstrapped = false
     private let contextWindowSize = 7
+    private let inlineIdleDelayNs: UInt64 = 200_000_000
+    private var inlineDebounceTask: Task<Void, Never>?
+    private var inlineRequestGeneration = 0
 
     init(
         threadItem: DemoThreadListItem? = nil,
@@ -60,6 +65,8 @@ final class ChatViewModel: ObservableObject {
         isSending = false
         errorMessage = nil
         metrics = nil
+        inlineSuggestion = nil
+        inlineMetrics = nil
         activeComposerParticipantID = settingsStore.demoComposerParticipantID(for: resolvedThreadItem.id)
             ?? resolvedThreadItem.thread.defaultComposerParticipantID
         threadToneOverride = ThreadToneOverride(
@@ -71,17 +78,20 @@ final class ChatViewModel: ObservableObject {
 
         let initialModelName = settingsStore.bundledLlamaModel.resourceName
         let initialLora = settingsStore.resolvedLocalLoraConfiguration()
+        let initialPersonal = Self.personalGeneralInferenceEnabled(settingsStore: settingsStore)
         let initialLocalEngine = LocalReplyEngine(
             modelResourceName: initialModelName,
             loraResourceName: initialLora.bundledResourceName,
-            loraAdapterFilePath: initialLora.userAdapterPath
+            loraAdapterFilePath: initialLora.userAdapterPath,
+            usePersonalLoraGeneralInference: initialPersonal
         )
         cachedLocalEngine = initialLocalEngine
         cachedLocalModelResource = initialModelName
         cachedLocalLoraSignature = Self.localLoraSignature(
             model: initialModelName,
             bundled: initialLora.bundledResourceName,
-            userPath: initialLora.userAdapterPath
+            userPath: initialLora.userAdapterPath,
+            personalGeneral: initialPersonal
         )
         engineStatusText = initialLocalEngine.statusDescription
 
@@ -124,14 +134,35 @@ final class ChatViewModel: ObservableObject {
                 self.refreshEngineStatus()
             }
             .store(in: &cancellables)
+
+        settingsStore.$localInlineCompletionEnabled
+            .dropFirst()
+            .receive(on: DispatchQueue.main)
+            .sink { [weak self] enabled in
+                guard let self else { return }
+                if !enabled {
+                    self.inlineDebounceTask?.cancel()
+                    self.inlineDebounceTask = nil
+                    self.inlineSuggestion = nil
+                    self.inlineMetrics = nil
+                }
+            }
+            .store(in: &cancellables)
     }
 
     private static func localLoraSignature(
         model: String,
         bundled: String?,
-        userPath: String?
+        userPath: String?,
+        personalGeneral: Bool
     ) -> String {
-        "\(model)|\(bundled ?? "-")|\(userPath ?? "-")"
+        "\(model)|\(bundled ?? "-")|\(userPath ?? "-")|pg:\(personalGeneral ? "1" : "0")"
+    }
+
+    /// User-trained LoRA is on **and** a valid adapter path is resolved → general threads use single-reply prompts.
+    private static func personalGeneralInferenceEnabled(settingsStore: AppSettingsStore) -> Bool {
+        let lor = settingsStore.resolvedLocalLoraConfiguration()
+        return settingsStore.userTrainedLoraAdapterEnabled && lor.userAdapterPath != nil
     }
 
     var threadTitle: String { thread.title }
@@ -179,10 +210,13 @@ final class ChatViewModel: ObservableObject {
         await loadMessages()
         await subscribeToRealtime()
         startPollingForNewMessages()
-        await generateSuggestions()
+        warmUpLocalEngineIfNeeded()
+        warmUpInlineLocalEngineIfNeeded()
     }
 
     func teardown() {
+        inlineDebounceTask?.cancel()
+        inlineDebounceTask = nil
         realtimeSubscription?.cancel()
         realtimeSubscription = nil
         pollingTask?.cancel()
@@ -241,6 +275,15 @@ final class ChatViewModel: ObservableObject {
 
     func insertSuggestion(_ suggestion: ReplySuggestionItem) {
         draftText = suggestion.text
+        inlineSuggestion = nil
+        inlineMetrics = nil
+    }
+
+    func acceptInlineSuggestion() {
+        guard let inlineSuggestion else { return }
+        draftText = inlineSuggestion.text
+        self.inlineSuggestion = nil
+        self.inlineMetrics = nil
     }
 
     func clearError() {
@@ -338,6 +381,7 @@ final class ChatViewModel: ObservableObject {
 
     func generateSuggestions() async {
         guard !isGenerating else { return }
+        inlineDebounceTask?.cancel()
         isGenerating = true
         suggestionSlots = SuggestionSlotItem.placeholderSlots(labels: currentSuggestionLabels)
         metrics = nil
@@ -434,6 +478,150 @@ final class ChatViewModel: ObservableObject {
         localEngineForCurrentSettings().warmUp()
     }
 
+    func warmUpInlineLocalEngineIfNeeded() {
+        guard settingsStore.localInlineCompletionEnabled,
+              settingsStore.backendMode == .local,
+              !settingsStore.isRunningInXcodePreview else { return }
+        localEngineForCurrentSettings().warmUp()
+    }
+
+    /// The suffix portion of the current inline suggestion that extends beyond the draft.
+    /// Used by the UI to render ghost text after the cursor.
+    var inlineGhostSuffix: String? {
+        guard let suggestion = inlineSuggestion else { return nil }
+        let draft = draftText
+        guard !draft.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else { return nil }
+        let suggText = suggestion.text
+        // Case-insensitive prefix match so ghost stays visible even with different capitalisation.
+        if suggText.lowercased().hasPrefix(draft.lowercased()) {
+            let suffix = String(suggText.dropFirst(draft.count))
+            return suffix.isEmpty ? nil : suffix
+        }
+        return nil
+    }
+
+    func scheduleInlineSuggestionGeneration() {
+        guard settingsStore.localInlineCompletionEnabled else {
+            inlineDebounceTask?.cancel()
+            inlineDebounceTask = nil
+            inlineSuggestion = nil
+            inlineMetrics = nil
+            logInlineDebug("skip disabled thread=\(threadID)")
+            return
+        }
+        let trimmedDraft = draftText.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !trimmedDraft.isEmpty else {
+            inlineDebounceTask?.cancel()
+            inlineSuggestion = nil
+            inlineMetrics = nil
+            logInlineDebug("skip empty draft thread=\(threadID)")
+            return
+        }
+
+        // If the existing suggestion is still a valid completion of the new draft,
+        // keep it — the ghost suffix updates automatically via the computed property.
+        if let existing = inlineSuggestion,
+           existing.text.lowercased().hasPrefix(trimmedDraft.lowercased()) {
+            logInlineDebug("reuse existing suggestion thread=\(threadID) draftChars=\(trimmedDraft.count)")
+            return
+        }
+
+        // Draft has diverged from the suggestion. Clear and schedule fresh generation.
+        inlineDebounceTask?.cancel()
+        inlineRequestGeneration += 1
+        let requestGeneration = inlineRequestGeneration
+        inlineSuggestion = nil
+        inlineMetrics = nil
+        guard !isGenerating else {
+            logInlineDebug("skip panel generation active thread=\(threadID) draftChars=\(trimmedDraft.count)")
+            return
+        }
+
+        logInlineDebug("schedule thread=\(threadID) draftChars=\(trimmedDraft.count)")
+        inlineDebounceTask = Task { [weak self] in
+            guard let self else { return }
+            do {
+                try await Task.sleep(nanoseconds: inlineIdleDelayNs)
+                guard !Task.isCancelled else { return }
+                await generateInlineSuggestion(requestGeneration: requestGeneration)
+            } catch {
+                return
+            }
+        }
+    }
+
+    func generateInlineSuggestion(requestGeneration: Int? = nil) async {
+        guard settingsStore.localInlineCompletionEnabled else { return }
+        let trimmedDraft = draftText.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !trimmedDraft.isEmpty else {
+            inlineSuggestion = nil
+            inlineMetrics = nil
+            return
+        }
+        let input = makeConversationInput()
+        let requestedDraft = draftText
+        logInlineDebug("generate start thread=\(threadID) draftChars=\(trimmedDraft.count)")
+
+        // Try the primary inline engine first; fall back to mock so the UI always shows
+        // something rather than silently failing (e.g. when the local model is not bundled).
+        let engines: [any ReplySuggestionEngine] = [resolveInlineEngine(), mockEngine]
+        for engine in engines {
+            guard !Task.isCancelled else { return }
+            do {
+                let engineName = String(describing: type(of: engine))
+                logInlineDebug("trying engine=\(engineName) thread=\(threadID)")
+                let result = try await engine.generateInlineSuggestion(
+                    input: input,
+                    defaultProfile: settingsStore.defaultProfile
+                )
+                guard !Task.isCancelled else { return }
+                if let requestGeneration,
+                   requestGeneration != inlineRequestGeneration {
+                    logInlineDebug("discard stale generation thread=\(threadID)")
+                    return
+                }
+                guard draftText == requestedDraft else {
+                    logInlineDebug("discard draft changed thread=\(threadID)")
+                    return
+                }
+                if let normalized = normalizeSingleSuggestion(result.suggestion) {
+                    guard let suffix = visibleInlineSuffix(for: normalized.text, draft: draftText) else {
+                        logInlineDebug(
+                            "reject no visible suffix engine=\(engineName) thread=\(threadID) suggestionChars=\(normalized.text.count)"
+                        )
+                        continue
+                    }
+                    inlineSuggestion = normalized
+                    inlineMetrics = result.metrics
+                    logInlineDebug(
+                        "accepted engine=\(engineName) thread=\(threadID) latencyMs=\(Int(result.metrics.latencyMs)) suggestionChars=\(normalized.text.count) ghostSuffixChars=\(suffix.count)"
+                    )
+                    return
+                }
+                logInlineDebug("normalized empty engine=\(engineName) thread=\(threadID)")
+            } catch {
+                logInlineDebug("engine failed thread=\(threadID) error=\(error.localizedDescription)")
+                // Try next engine in the fallback chain.
+                continue
+            }
+        }
+        logInlineDebug("all engines failed thread=\(threadID)")
+    }
+
+    private func logInlineDebug(_ message: String) {
+        NSLog("[inline-debug] %@", message)
+    }
+
+    private func visibleInlineSuffix(for suggestionText: String, draft: String) -> String? {
+        guard !draft.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty,
+              suggestionText.lowercased().hasPrefix(draft.lowercased()) else {
+            return nil
+        }
+        let suffix = String(suggestionText.dropFirst(draft.count))
+            .trimmingCharacters(in: .whitespacesAndNewlines)
+        return suffix.isEmpty ? nil : suffix
+    }
+
     private func subscribeToRealtime() async {
         realtimeSubscription?.cancel()
         realtimeSubscription = await chatService.subscribeToMessages(threadID: threadID) { [weak self] message in
@@ -489,10 +677,12 @@ final class ChatViewModel: ObservableObject {
     private func localEngineForCurrentSettings() -> LocalReplyEngine {
         let name = settingsStore.bundledLlamaModel.resourceName
         let lor = settingsStore.resolvedLocalLoraConfiguration()
+        let personal = Self.personalGeneralInferenceEnabled(settingsStore: settingsStore)
         let sig = Self.localLoraSignature(
             model: name,
             bundled: lor.bundledResourceName,
-            userPath: lor.userAdapterPath
+            userPath: lor.userAdapterPath,
+            personalGeneral: personal
         )
         if cachedLocalModelResource == name,
            cachedLocalLoraSignature == sig,
@@ -502,7 +692,8 @@ final class ChatViewModel: ObservableObject {
         let engine = LocalReplyEngine(
             modelResourceName: name,
             loraResourceName: lor.bundledResourceName,
-            loraAdapterFilePath: lor.userAdapterPath
+            loraAdapterFilePath: lor.userAdapterPath,
+            usePersonalLoraGeneralInference: personal
         )
         cachedLocalEngine = engine
         cachedLocalModelResource = name
@@ -511,9 +702,13 @@ final class ChatViewModel: ObservableObject {
     }
 
     private func invalidateLocalEngineCache() {
+        inlineDebounceTask?.cancel()
+        inlineDebounceTask = nil
         cachedLocalEngine = nil
         cachedLocalModelResource = nil
         cachedLocalLoraSignature = nil
+        inlineSuggestion = nil
+        inlineMetrics = nil
     }
 
     private func resolveEngine() -> any ReplySuggestionEngine {
@@ -529,6 +724,20 @@ final class ChatViewModel: ObservableObject {
                 modelName: settingsStore.cloudModelName,
                 apiKey: settingsStore.cloudAPIKey
             )
+        }
+    }
+
+    private func resolveInlineEngine() -> any ReplySuggestionEngine {
+        switch settingsStore.backendMode {
+        case .mock:
+            return mockEngine
+        case .local:
+            if settingsStore.isRunningInXcodePreview { return mockEngine }
+            return localEngineForCurrentSettings()
+        case .cloud:
+            // Keep inline path on-device for lower latency.
+            if settingsStore.isRunningInXcodePreview { return mockEngine }
+            return localEngineForCurrentSettings()
         }
     }
 
@@ -602,6 +811,8 @@ final class ChatViewModel: ObservableObject {
     private func clearSuggestionState() {
         suggestionSlots = []
         metrics = nil
+        inlineSuggestion = nil
+        inlineMetrics = nil
         errorMessage = nil
     }
 

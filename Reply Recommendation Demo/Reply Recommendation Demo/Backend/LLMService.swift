@@ -22,9 +22,15 @@ final class LLMService {
     private var loraAdapter: OpaquePointer?
     private let modelName: String
     private let contextSize: Int32
+    /// Token cache for stable prompt prefixes (system + chat template) to reduce repeated tokenization cost.
+    private var prefixTokenCache: [String: [llama_token]] = [:]
+    private let prefixTokenCacheLimit = 12
 
     /// User-level defaults per axis (`tone` / `length`). Merged in parallel with `conversation_profile` (see `Profile.mergedForPrompt`).
     var defaultProfile: Profile?
+
+    /// When true with **general** (`replyStyles`) input, use the User-LoRA single-reply prompt and normalize output to one card.
+    var inferPersonalLoraGeneralAsPlainText: Bool = false
 
     // MARK: - Init / Deinit
 
@@ -34,7 +40,10 @@ final class LLMService {
         loraScale: Float = 1.0,
         contextSize: UInt32 = 2048,
         gpuLayers: Int32 = 999,
-        defaultProfile: Profile? = nil
+        defaultProfile: Profile? = nil,
+        temperature: Float = 0.70,
+        topK: Int32 = 40,
+        topP: Float = 0.90
     ) throws {
         self.defaultProfile = defaultProfile
         let baseName = (path as NSString).lastPathComponent.replacingOccurrences(of: ".gguf", with: "")
@@ -96,9 +105,9 @@ final class LLMService {
         var sparams = llama_sampler_chain_default_params()
         sparams.no_perf = true
         let chain = llama_sampler_chain_init(sparams)
-        llama_sampler_chain_add(chain, llama_sampler_init_top_k(40))
-        llama_sampler_chain_add(chain, llama_sampler_init_top_p(0.90, 1))
-        llama_sampler_chain_add(chain, llama_sampler_init_temp(0.70))
+        llama_sampler_chain_add(chain, llama_sampler_init_top_k(topK))
+        llama_sampler_chain_add(chain, llama_sampler_init_top_p(topP, 1))
+        llama_sampler_chain_add(chain, llama_sampler_init_temp(temperature))
         llama_sampler_chain_add(chain, llama_sampler_init_dist(UInt32.random(in: 0 ..< UInt32.max)))
         ownedSampler = chain
 
@@ -145,8 +154,40 @@ final class LLMService {
     /// Generate reply suggestions from a ConversationInput.
     func generate(input: ConversationInput) throws -> (outputJSON: String, metrics: InferenceMetrics) {
         guard model != nil else { throw LLMError.modelNotLoaded }
-        let prompt = PromptBuilder.buildLlamaPrompt(input: input, userDefaultProfile: defaultProfile)
-        return try generate(prompt: prompt)
+        let personalGeneral = inferPersonalLoraGeneralAsPlainText
+            && input.suggestionThemeSet == .replyStyles
+        let prompt: String
+        let tokenLimit: Int
+        if personalGeneral {
+            prompt = PromptBuilder.buildLlamaPromptPersonalLoraGeneral(
+                input: input,
+                userDefaultProfile: defaultProfile
+            )
+            tokenLimit = 160
+        } else {
+            prompt = PromptBuilder.buildLlamaPrompt(input: input, userDefaultProfile: defaultProfile)
+            tokenLimit = 280
+        }
+        var (outputJSON, metrics) = try generate(prompt: prompt, tokenLimit: tokenLimit)
+        if personalGeneral {
+            outputJSON = Self.normalizePersonalGeneralJSON(outputJSON)
+        }
+        return (outputJSON, metrics)
+    }
+
+    /// Collapse parser output to a single `Natural` card for general + User LoRA plain-text mode.
+    private static func normalizePersonalGeneralJSON(_ json: String) -> String {
+        guard let data = json.data(using: .utf8),
+              let decoded = try? JSONDecoder().decode(SuggestionOutput.self, from: data) else {
+            return json
+        }
+        let first = decoded.suggestions.first { !$0.text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty }
+            ?? decoded.suggestions.first
+        guard let pick = first else { return json }
+        let text = pick.text.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !text.isEmpty else { return json }
+        let wrapped = SuggestionOutput(suggestions: [Suggestion(label: "Natural", text: text)])
+        return wrapped.toJSON(prettyPrint: false) ?? json
     }
 
     /// Generate from a pre-built raw prompt string.
@@ -155,6 +196,15 @@ final class LLMService {
     ///   Pass a small value (e.g. 2) for warm-up calls to trigger Metal shader compilation
     ///   without spending time on full generation.
     func generate(prompt: String, tokenLimit: Int = 280) throws -> (outputJSON: String, metrics: InferenceMetrics) {
+        let (rawOutput, metrics) = try generateRaw(prompt: prompt, tokenLimit: tokenLimit)
+        let output = OutputParser.parse(raw: rawOutput)
+        let outputJSON = output.toJSON() ?? "{\"suggestions\": []}"
+        return (outputJSON, metrics)
+    }
+
+    /// Generate from a pre-built prompt and return the model text verbatim.
+    /// Used by inline completion, where JSON parsing would destroy the continuation.
+    func generateRaw(prompt: String, tokenLimit: Int = 280) throws -> (rawOutput: String, metrics: InferenceMetrics) {
         guard model != nil, let context, let vocab, let sampler else {
             throw LLMError.modelNotLoaded
         }
@@ -167,7 +217,7 @@ final class LLMService {
         let startTime = CACurrentMediaTime()
 
         // Tokenize
-        let promptTokens = tokenize(text: prompt, vocab: vocab)
+        let promptTokens = tokenizePromptWithPrefixCache(prompt: prompt, vocab: vocab)
         guard !promptTokens.isEmpty else {
             throw LLMError.invalidInput
         }
@@ -253,11 +303,7 @@ final class LLMService {
             metrics.tokensPerSec = Double(outputTokens.count) / elapsed
         }
 
-        // Parse output
-        let output = OutputParser.parse(raw: rawOutput)
-        let outputJSON = output.toJSON() ?? "{\"suggestions\": []}"
-
-        return (outputJSON, metrics)
+        return (rawOutput, metrics)
     }
 
     // MARK: - Tokenization
@@ -268,6 +314,40 @@ final class LLMService {
         var tokens = [llama_token](repeating: 0, count: maxTokens)
         let count = llama_tokenize(vocab, text, Int32(utf8Count), &tokens, Int32(maxTokens), false, true)
         return count > 0 ? Array(tokens.prefix(Int(count))) : []
+    }
+
+    private func tokenizePromptWithPrefixCache(prompt: String, vocab: OpaquePointer) -> [llama_token] {
+        let userMarkers = [
+            "<|start_header_id|>user<|end_header_id|>",
+            "<|redacted_start_header_id|>user<|redacted_end_header_id|>",
+        ]
+        for marker in userMarkers {
+            if let range = prompt.range(of: marker) {
+                let prefix = String(prompt[..<range.lowerBound])
+                let suffix = String(prompt[range.lowerBound...])
+
+                let prefixTokens: [llama_token]
+                if let cached = prefixTokenCache[prefix] {
+                    prefixTokens = cached
+                } else {
+                    prefixTokens = tokenize(text: prefix, vocab: vocab)
+                    if !prefixTokens.isEmpty {
+                        prefixTokenCache[prefix] = prefixTokens
+                        trimPrefixTokenCacheIfNeeded()
+                    }
+                }
+                let suffixTokens = tokenize(text: suffix, vocab: vocab)
+                return prefixTokens + suffixTokens
+            }
+        }
+        return tokenize(text: prompt, vocab: vocab)
+    }
+
+    private func trimPrefixTokenCacheIfNeeded() {
+        guard prefixTokenCache.count > prefixTokenCacheLimit else { return }
+        if let firstKey = prefixTokenCache.keys.first {
+            prefixTokenCache.removeValue(forKey: firstKey)
+        }
     }
 
     private func detokenize(tokens: [llama_token], vocab: OpaquePointer) -> String {

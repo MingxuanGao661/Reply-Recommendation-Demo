@@ -61,6 +61,9 @@ struct ChatScreen: View {
                 .onChange(of: viewModel.suggestionSlots.count) { _, _ in
                     scrollToBottom(proxy: proxy, animated: true)
                 }
+                .onChange(of: viewModel.draftText) { _, _ in
+                    viewModel.scheduleInlineSuggestionGeneration()
+                }
                 .safeAreaInset(edge: .bottom, spacing: 0) {
                     VStack(spacing: 0) {
                         Divider()
@@ -91,8 +94,12 @@ struct ChatScreen: View {
                             text: $viewModel.draftText,
                             isSendEnabled: viewModel.canSendDraft,
                             isGenerating: viewModel.isGenerating,
+                            ghostSuffix: viewModel.inlineGhostSuffix,
                             onGenerate: {
                                 Task<Void, Never> { await viewModel.generateSuggestions() }
+                            },
+                            onAcceptInline: {
+                                viewModel.acceptInlineSuggestion()
                             },
                             onSend: {
                                 Task<Void, Never> { await viewModel.sendDraft() }
@@ -134,7 +141,6 @@ struct ChatScreen: View {
     }
 
     private let bottomAnchorId = "reply-demo-bottom"
-
     private var settingsButton: some View {
         Button {
             isShowingSettings = true

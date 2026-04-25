@@ -5,6 +5,11 @@ struct ReplyGenerationResult {
     let metrics: InferenceMetrics
 }
 
+struct InlineGenerationResult {
+    let suggestion: Suggestion
+    let metrics: InferenceMetrics
+}
+
 protocol ReplySuggestionEngine {
     func generateSuggestions(
         input: ConversationInput,
@@ -18,6 +23,12 @@ protocol ReplySuggestionEngine {
         defaultProfile: Profile,
         onSuggestionReady: @escaping (Suggestion) -> Void
     ) async throws -> InferenceMetrics
+
+    /// Fast-path single suggestion for inline completion.
+    func generateInlineSuggestion(
+        input: ConversationInput,
+        defaultProfile: Profile
+    ) async throws -> InlineGenerationResult
 }
 
 extension ReplySuggestionEngine {
@@ -32,6 +43,31 @@ extension ReplySuggestionEngine {
             onSuggestionReady(suggestion)
         }
         return result.metrics
+    }
+
+    func generateInlineSuggestion(
+        input: ConversationInput,
+        defaultProfile: Profile
+    ) async throws -> InlineGenerationResult {
+        if input.hasDraft {
+            let startTime = Date()
+            try await Task.sleep(nanoseconds: 120_000_000)
+            var metrics = InferenceMetrics()
+            metrics.modelName = "mock/inline"
+            metrics.latencyMs = Date().timeIntervalSince(startTime) * 1000
+            metrics.tokensGenerated = 4
+            metrics.totalTokens = 4
+            return InlineGenerationResult(
+                suggestion: Suggestion(label: "Direct", text: input.resolvedDraft + " sounds good."),
+                metrics: metrics
+            )
+        }
+
+        let result = try await generateSuggestions(input: input, defaultProfile: defaultProfile)
+        guard let first = result.suggestions.first else {
+            throw ReplySuggestionEngineError.emptySuggestions
+        }
+        return InlineGenerationResult(suggestion: first, metrics: result.metrics)
     }
 }
 
@@ -72,6 +108,17 @@ final class MockReplyEngine: ReplySuggestionEngine {
             suggestions: pairs.map { Suggestion(label: $0.0, text: $0.1) },
             metrics: metrics
         )
+    }
+
+    func generateInlineSuggestion(
+        input: ConversationInput,
+        defaultProfile: Profile
+    ) async throws -> InlineGenerationResult {
+        let result = try await generateSuggestions(input: input, defaultProfile: defaultProfile)
+        guard let first = result.suggestions.first else {
+            throw ReplySuggestionEngineError.emptySuggestions
+        }
+        return InlineGenerationResult(suggestion: first, metrics: result.metrics)
     }
 
     func generateSuggestionsProgressive(
@@ -194,6 +241,17 @@ final class CloudReplyEngine: ReplySuggestionEngine {
         let (jsonString, metrics) = try await service.generate(input: input)
         return try decodeGenerationResult(outputJSON: jsonString, metrics: metrics)
     }
+
+    func generateInlineSuggestion(
+        input: ConversationInput,
+        defaultProfile: Profile
+    ) async throws -> InlineGenerationResult {
+        let result = try await generateSuggestions(input: input, defaultProfile: defaultProfile)
+        guard let first = result.suggestions.first else {
+            throw ReplySuggestionEngineError.emptySuggestions
+        }
+        return InlineGenerationResult(suggestion: first, metrics: result.metrics)
+    }
 }
 
 final class LocalReplyEngine: ReplySuggestionEngine {
@@ -203,9 +261,13 @@ final class LocalReplyEngine: ReplySuggestionEngine {
     private let loraResourceName: String?
     /// Absolute filesystem path to a LoRA `.gguf` (e.g. user-trained adapter). When set and the file exists, this wins over `loraResourceName`.
     private let loraAdapterFilePath: String?
+    /// When true, **general** (`replyStyles`) inference uses the User-LoRA single-reply prompt (plain text → one `Natural` card).
+    private let usePersonalLoraGeneralInference: Bool
     /// Scale applied to the LoRA adapter weights (1.0 = full strength).
     private let loraScale: Float
     private let bundle: Bundle
+    private let temperature: Float
+    private let topK: Int32
     private let inferenceQueue = DispatchQueue(
         label: "reply-demo.local-inference",
         qos: .userInitiated
@@ -217,12 +279,18 @@ final class LocalReplyEngine: ReplySuggestionEngine {
         modelResourceName: String = "Llama-3.2-3B-Instruct-Q4_K_M",
         loraResourceName: String? = nil,
         loraAdapterFilePath: String? = nil,
+        usePersonalLoraGeneralInference: Bool = false,
         loraScale: Float = 1.0,
-        bundle: Bundle = .main
+        bundle: Bundle = .main,
+        temperature: Float = 0.70,
+        topK: Int32 = 40
     ) {
         self.modelResourceName = modelResourceName
         self.loraResourceName = loraResourceName
+        self.temperature = temperature
+        self.topK = topK
         self.loraAdapterFilePath = loraAdapterFilePath
+        self.usePersonalLoraGeneralInference = usePersonalLoraGeneralInference
         self.loraScale = loraScale
         self.bundle = bundle
         inferenceQueue.setSpecific(key: Self.inferenceQueueSpecificKey, value: ())
@@ -315,6 +383,179 @@ final class LocalReplyEngine: ReplySuggestionEngine {
         }
     }
 
+    func generateInlineSuggestion(
+        input: ConversationInput,
+        defaultProfile: Profile
+    ) async throws -> InlineGenerationResult {
+        try await withCheckedThrowingContinuation { continuation in
+            inferenceQueue.async { [weak self] in
+                guard let self else {
+                    continuation.resume(throwing: CancellationError())
+                    return
+                }
+                do {
+                    let service = try self.prepareService(defaultProfile: defaultProfile)
+                    service.defaultProfile = defaultProfile
+
+                    // Copilot-style prompt: plain-text output, 3-message context, pre-filled draft prefix.
+                    let draftPrefix = input.hasDraft ? input.resolvedDraft : ""
+                    let prompt = PromptBuilder.buildLlamaPromptInline(input: input)
+                    Self.logInlineDebug(
+                        "engine start draftChars=\(draftPrefix.count) promptChars=\(prompt.count) model=\(self.modelResourceName)"
+                    )
+
+                    // Tiny token budget for inline: speed matters more than perfect wording here.
+                    let (rawOutput, metrics) = try service.generateRaw(prompt: prompt, tokenLimit: 15)
+                    Self.logInlineDebug(
+                        "engine output latencyMs=\(Int(metrics.latencyMs)) tokens=\(metrics.tokensGenerated) raw=\(Self.preview(rawOutput))"
+                    )
+
+                    // Output is the continuation after the pre-filled draft.
+                    // Reconstruct the full message: draft + continuation, strip after first newline.
+                    let llmContinuation = Self.cleanedInlineMessage(rawOutput)
+
+                    // Build the full suggested text so callers can do prefix comparison.
+                    let fullText: String
+                    if draftPrefix.isEmpty {
+                        fullText = llmContinuation
+                    } else if llmContinuation.lowercased().hasPrefix(draftPrefix.lowercased()) {
+                        // Model echoed the draft — use it as-is (it's already full text).
+                        fullText = llmContinuation
+                    } else {
+                        fullText = Self.appendInlineContinuation(
+                            draftPrefix: draftPrefix,
+                            continuation: llmContinuation
+                        )
+                    }
+
+                    guard !fullText.isEmpty else {
+                        Self.logInlineDebug("engine empty fullText")
+                        throw ReplySuggestionEngineError.emptySuggestions
+                    }
+                    if !draftPrefix.isEmpty,
+                       Self.visibleInlineSuffix(fullText: fullText, draftPrefix: draftPrefix) == nil {
+                        Self.logInlineDebug(
+                            "engine no visible suffix full=\(Self.preview(fullText)) draftChars=\(draftPrefix.count)"
+                        )
+                        throw ReplySuggestionEngineError.emptySuggestions
+                    }
+                    Self.logInlineDebug(
+                        "engine fullText prefixMatch=\(fullText.lowercased().hasPrefix(draftPrefix.lowercased())) full=\(Self.preview(fullText))"
+                    )
+
+                    let label: String
+                    switch input.suggestionThemeSet {
+                    case .decisionReply: label = "Agree"
+                    case .replyStyles:   label = "Direct"
+                    }
+                    continuation.resume(returning: InlineGenerationResult(
+                        suggestion: Suggestion(label: label, text: fullText),
+                        metrics: metrics
+                    ))
+                } catch {
+                    continuation.resume(throwing: error)
+                }
+            }
+        }
+    }
+
+    private static func logInlineDebug(_ message: String) {
+        NSLog("[inline-debug] %@", message)
+    }
+
+    private static func preview(_ text: String, limit: Int = 180) -> String {
+        let cleaned = text
+            .replacingOccurrences(of: "\n", with: "\\n")
+            .replacingOccurrences(of: "\r", with: "\\r")
+        guard cleaned.count > limit else { return cleaned }
+        return String(cleaned.prefix(limit)) + "..."
+    }
+
+    private static func cleanedInlineMessage(_ rawText: String) -> String {
+        let hardStops = [
+            "\n",
+            "{",
+            "}",
+            "<|eot_id|>",
+            "<|start_header_id|>",
+            "<|end_header_id|>",
+            "```",
+        ]
+
+        var text = rawText
+        for stop in hardStops {
+            if let range = text.range(of: stop) {
+                text = String(text[..<range.lowerBound])
+            }
+        }
+
+        text = text
+            .trimmingCharacters(in: .whitespacesAndNewlines)
+            .trimmingCharacters(in: CharacterSet(charactersIn: "\"'`"))
+            .trimmingCharacters(in: .whitespacesAndNewlines)
+
+        for prefix in ["Me:", "me:", "ME:", "Assistant:", "assistant:", "Other:", "other:"] {
+            if text.hasPrefix(prefix) {
+                text = String(text.dropFirst(prefix.count))
+                    .trimmingCharacters(in: .whitespacesAndNewlines)
+                break
+            }
+        }
+
+        return text
+    }
+
+    private static func appendInlineContinuation(draftPrefix: String, continuation: String) -> String {
+        let draft = draftPrefix.trimmingCharacters(in: .whitespacesAndNewlines)
+        var suffix = continuation.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !draft.isEmpty else { return suffix }
+        guard !suffix.isEmpty else { return draft }
+
+        if let deduped = deduplicatedContinuation(draft: draft, continuation: suffix) {
+            suffix = deduped
+        }
+
+        let noSpaceBefore = CharacterSet(charactersIn: ".,!?;:%)]}")
+        if let firstScalar = suffix.unicodeScalars.first,
+           noSpaceBefore.contains(firstScalar) {
+            return draft + suffix
+        }
+        return draft + " " + suffix
+    }
+
+    private static func deduplicatedContinuation(draft: String, continuation: String) -> String? {
+        let draftWords = draft.split(whereSeparator: \.isWhitespace).map(String.init)
+        let continuationWords = continuation.split(whereSeparator: \.isWhitespace).map(String.init)
+        guard !draftWords.isEmpty, !continuationWords.isEmpty else { return nil }
+
+        let maxOverlap = min(draftWords.count, continuationWords.count)
+        for overlapCount in stride(from: maxOverlap, through: 1, by: -1) {
+            let draftSuffix = Array(draftWords.suffix(overlapCount)).map { $0.lowercased() }
+            guard overlapCount >= 2 || (draftSuffix.first?.count ?? 0) >= 4 else {
+                continue
+            }
+
+            for start in 0...(continuationWords.count - overlapCount) {
+                let candidate = continuationWords[start..<(start + overlapCount)].map { $0.lowercased() }
+                if candidate == draftSuffix {
+                    let remaining = continuationWords.dropFirst(start + overlapCount).joined(separator: " ")
+                    return remaining.trimmingCharacters(in: .whitespacesAndNewlines)
+                }
+            }
+        }
+
+        return nil
+    }
+
+    private static func visibleInlineSuffix(fullText: String, draftPrefix: String) -> String? {
+        guard fullText.lowercased().hasPrefix(draftPrefix.lowercased()) else {
+            return nil
+        }
+        let suffix = String(fullText.dropFirst(draftPrefix.count))
+            .trimmingCharacters(in: .whitespacesAndNewlines)
+        return suffix.isEmpty ? nil : suffix
+    }
+
     /// Progressive: runs three separate single-tone LLM calls in serial.
     /// Each card is delivered via `onSuggestionReady` as soon as it finishes,
     /// so the UI can animate cards in one by one.
@@ -334,6 +575,29 @@ final class LocalReplyEngine: ReplySuggestionEngine {
                     service.defaultProfile = defaultProfile
 
                     var combined = InferenceMetrics(modelName: self.modelResourceName)
+
+                    if self.usePersonalLoraGeneralInference {
+                        switch input.suggestionThemeSet {
+                        case .replyStyles:
+                            let (jsonString, metrics) = try service.generate(input: input)
+                            combined.tokensGenerated += metrics.tokensGenerated
+                            combined.totalTokens += metrics.totalTokens
+                            combined.latencyMs += metrics.latencyMs
+                            combined.modelName = metrics.modelName
+
+                            let result = try decodeGenerationResult(
+                                outputJSON: jsonString,
+                                metrics: metrics
+                            )
+                            for suggestion in result.suggestions {
+                                onSuggestionReady(suggestion)
+                            }
+                            continuation.resume(returning: combined)
+                            return
+                        case .decisionReply:
+                            break
+                        }
+                    }
 
                     for toneLabel in input.suggestionThemeSet.labels {
                         let prompt = PromptBuilder.buildLlamaPromptSingle(
@@ -366,6 +630,8 @@ final class LocalReplyEngine: ReplySuggestionEngine {
 
     private func prepareService(defaultProfile: Profile) throws -> LLMService {
         if let service {
+            service.defaultProfile = defaultProfile
+            service.inferPersonalLoraGeneralAsPlainText = usePersonalLoraGeneralInference
             return service
         }
 
@@ -380,8 +646,11 @@ final class LocalReplyEngine: ReplySuggestionEngine {
             modelPath: modelPath,
             loraPath: resolvedLoraPath,
             loraScale: loraScale,
-            defaultProfile: defaultProfile
+            defaultProfile: defaultProfile,
+            temperature: temperature,
+            topK: topK
         )
+        service.inferPersonalLoraGeneralAsPlainText = usePersonalLoraGeneralInference
         self.service = service
         return service
     }

@@ -221,6 +221,61 @@ enum PromptBuilder {
         """
     }
 
+    // MARK: - Inline Completion Prompt (Copilot-style)
+
+    /// Lightweight prompt for real-time inline completion.
+    ///
+    /// Design goals (vs the panel prompts):
+    /// - Tiny system prompt — no style rules, no JSON schema
+    /// - Only the last conversation turn for context
+    /// - Plain-text output so the model doesn't waste tokens on JSON wrapping
+    /// - When a draft exists, the assistant turn is **pre-filled** with the draft prefix so
+    ///   the model just continues the sentence (true fill-in-the-middle behaviour)
+    /// - When no draft, request a short fresh reply
+    ///
+    /// Caller should use `tokenLimit: 15` and strip everything after `\n` in the output.
+    static func buildLlamaPromptInline(input: ConversationInput) -> String {
+        // Keep inline extremely small: one prior message plus the partial draft.
+        var contextLines: [String] = []
+        for msg in input.conversation.suffix(1) {
+            let name = input.displayName(for: msg.speaker)
+            contextLines.append("\(name): \(msg.text)")
+        }
+        let contextBlock = contextLines.joined(separator: "\n")
+
+        if input.hasDraft {
+            let draft = input.resolvedDraft
+            // Pre-fill the assistant turn so llama continues exactly after the draft.
+            return """
+            <|begin_of_text|><|start_header_id|>system<|end_header_id|>
+
+            Continue only a few words.<|eot_id|><|start_header_id|>user<|end_header_id|>
+
+            \(contextBlock)
+            Draft:<|eot_id|><|start_header_id|>assistant<|end_header_id|>
+
+            \(draft)
+            """
+        } else {
+            let targetLine: String
+            if let name = input.replyTargetName {
+                targetLine = "Reply to \(name):"
+            } else {
+                targetLine = "Reply:"
+            }
+            return """
+            <|begin_of_text|><|start_header_id|>system<|end_header_id|>
+
+            Write one short text reply.<|eot_id|><|start_header_id|>user<|end_header_id|>
+
+            \(contextBlock)
+
+            \(targetLine)<|eot_id|><|start_header_id|>assistant<|end_header_id|>
+
+            """
+        }
+    }
+
     /// Builds a llama.cpp prompt for a single specific tone label.
     /// Used by progressive generation to run one card at a time.
     static func buildLlamaPromptSingle(
@@ -305,5 +360,109 @@ enum PromptBuilder {
         default:
             return "natural, conversational"
         }
+    }
+
+    // MARK: - Personal / User LoRA — general only (Llama 3.2 3B tuned)
+
+    /// Shorter system copy for 3B: fewer bullets, explicit output shape (plain text only).
+    private static let systemPersonalLoraGeneralNoDraft = """
+    You help Me write ONE sendable text in a phone chat (Llama 3.2 3B). Be literal and short.
+
+    {style_rules_block}
+
+    Rules (keep brief — 3B loses long lists):
+    1) Output exactly one reply Me can send; match tone/length above.
+    2) Sound like real texting, not an essay, list, or coach.
+    3) Speak to {reply_target} only; answer a direct question if there is one.
+    4) Plain text only: no JSON, no markdown code fences, no Option A/B/C labels.
+    5) No roleplay preamble — only Me's line.
+    """
+
+    private static let systemPersonalLoraGeneralWithDraft = """
+    Polish Me's draft into ONE sendable line (Llama 3.2 3B).
+
+    {style_rules_block}
+
+    Rules (short for 3B):
+    1) Same intent as the draft: same yes/no, times, and meaning — never flip the answer.
+    2) One line (or one very short paragraph if length is long); natural SMS; match tone/length.
+    3) Plain text only — no JSON, no lists, no quotes wrapping the whole reply.
+    4) Still a reply to {reply_target}.
+    """
+
+    /// User-Lora general threads: same transcript layout as `buildUserPrompt`, but ask for plain text (not JSON).
+    static func buildUserPromptPersonalLoraGeneral(input: ConversationInput) -> String {
+        var lines: [String] = []
+
+        if input.isGroupChat && !input.participants.isEmpty {
+            let names = input.participants
+                .filter { $0.isSelf != true }
+                .map { $0.name }
+                .joined(separator: ", ")
+            lines.append("Group chat with: \(names)")
+            lines.append("")
+        }
+
+        lines.append("Conversation:")
+        for msg in input.conversation {
+            let name = input.displayName(for: msg.speaker)
+            lines.append("  \(name): \(msg.text)")
+        }
+
+        if input.hasDraft {
+            lines.append("  Me (typing): \"\(input.resolvedDraft)\"")
+            lines.append("")
+            if let targetName = input.replyTargetName {
+                lines.append("Polish Me's typing into one send-ready reply to \(targetName).")
+            } else {
+                lines.append("Polish Me's typing into one send-ready reply.")
+            }
+        } else {
+            if let targetMsg = input.replyTargetMessage {
+                let targetName = input.replyTargetName ?? "them"
+                lines.append("\nReply ONLY to this message from \(targetName): \"\(targetMsg.text)\"")
+            } else if let targetName = input.replyTargetName {
+                lines.append("\nReplying to: \(targetName)")
+            }
+            lines.append("(no draft — write one reply Me would actually send)")
+        }
+
+        lines.append("\nOutput: one plain-text reply only. Stop after that line.")
+        return lines.joined(separator: "\n")
+    }
+
+    /// Full Llama 3.2 Instruct template for **general + User LoRA**: single plain-text assistant continuation.
+    static func buildLlamaPromptPersonalLoraGeneral(input: ConversationInput, userDefaultProfile: Profile?) -> String {
+        let effective = input.effectiveProfile(userDefault: userDefaultProfile)
+        let styleBlock = styleRulesBlock(
+            userDefault: userDefaultProfile,
+            conversation: input.conversationProfile,
+            effective: effective
+        )
+        let target: String
+        if let name = input.replyTargetName {
+            target = "\(name)'s message"
+        } else {
+            target = "the last message in the conversation"
+        }
+
+        let systemCore = input.hasDraft ? systemPersonalLoraGeneralWithDraft : systemPersonalLoraGeneralNoDraft
+        let systemPrompt = systemCore
+            .replacingOccurrences(of: "{style_rules_block}", with: styleBlock)
+            .replacingOccurrences(of: "{reply_target}", with: target)
+
+        let userPrompt = buildUserPromptPersonalLoraGeneral(input: input)
+
+        return """
+        <|begin_of_text|>\
+        <|start_header_id|>system<|end_header_id|>
+
+        \(systemPrompt)<|eot_id|>\
+        <|start_header_id|>user<|end_header_id|>
+
+        \(userPrompt)<|eot_id|>\
+        <|start_header_id|>assistant<|end_header_id|>
+
+        """
     }
 }

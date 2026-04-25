@@ -177,6 +177,11 @@ final class AppSettingsStore: ObservableObject {
         didSet { persist() }
     }
 
+    /// Ghost-style inline completion while typing. Uses the same bundled GGUF as panel suggestions (no second model load).
+    @Published var localInlineCompletionEnabled: Bool {
+        didSet { persist() }
+    }
+
     /// Whether to apply the bundled reply SFT LoRA adapter during local inference.
     /// Only has effect when `bundledLlamaModel` is the 3B model (the only compatible base).
     /// Mutually exclusive with `userTrainedLoraAdapterEnabled`: enabling one turns the other off.
@@ -263,6 +268,7 @@ final class AppSettingsStore: ObservableObject {
         bundledLlamaModel = BundledLlamaModelOption(
             rawValue: defaults.string(forKey: Keys.bundledLlamaModel) ?? ""
         ) ?? .instruct3B_Q4
+        localInlineCompletionEnabled = defaults.object(forKey: Keys.localInlineCompletionEnabled) as? Bool ?? true
         loraAdapterEnabled = defaults.object(forKey: Keys.loraAdapterEnabled) as? Bool ?? false
         userTrainedLoraAdapterEnabled = defaults.object(
             forKey: Keys.userTrainedLoraAdapterEnabled
@@ -337,6 +343,7 @@ final class AppSettingsStore: ObservableObject {
         defaults.set(localTrainingEnabled, forKey: Keys.localTrainingEnabled)
         defaults.set(localTrainingOnboardingCompleted, forKey: Keys.localTrainingOnboardingCompleted)
         defaults.set(bundledLlamaModel.rawValue, forKey: Keys.bundledLlamaModel)
+        defaults.set(localInlineCompletionEnabled, forKey: Keys.localInlineCompletionEnabled)
         defaults.set(loraAdapterEnabled, forKey: Keys.loraAdapterEnabled)
         defaults.set(userTrainedLoraAdapterEnabled, forKey: Keys.userTrainedLoraAdapterEnabled)
         defaults.set(userTrainedLoraAdapterPath, forKey: Keys.userTrainedLoraAdapterPath)
@@ -388,6 +395,7 @@ final class AppSettingsStore: ObservableObject {
         static let localTrainingEnabled = "replyDemo.localTrainingEnabled"
         static let localTrainingOnboardingCompleted = "replyDemo.localTrainingOnboardingCompleted"
         static let bundledLlamaModel = "replyDemo.bundledLlamaModel"
+        static let localInlineCompletionEnabled = "replyDemo.localInlineCompletionEnabled"
         static let loraAdapterEnabled = "replyDemo.loraAdapterEnabled"
         static let userTrainedLoraAdapterEnabled = "replyDemo.userTrainedLoraAdapterEnabled"
         static let userTrainedLoraAdapterPath = "replyDemo.userTrainedLoraAdapterPath"
