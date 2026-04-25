@@ -91,7 +91,11 @@ struct DemoConversationThread {
 enum DemoScenario: String, CaseIterable, Identifiable {
     case weekendPlans
     case hackathonTeam
-    case socialReplySample
+    case socialReplyDinner
+    case socialReplyLunch
+    case socialReplySupport
+    case socialReplySlides
+    case socialReplyInternship
 
     var id: String { rawValue }
 
@@ -99,7 +103,11 @@ enum DemoScenario: String, CaseIterable, Identifiable {
         switch self {
         case .weekendPlans: return "Weekend plans"
         case .hackathonTeam: return "Hackathon team"
-        case .socialReplySample: return "Social reply sample"
+        case .socialReplyDinner: return "Dinner timing"
+        case .socialReplyLunch: return "Lunch invite"
+        case .socialReplySupport: return "Supportive reply"
+        case .socialReplySlides: return "Revised slides"
+        case .socialReplyInternship: return "Internship news"
         }
     }
 
@@ -180,7 +188,7 @@ enum DemoScenario: String, CaseIterable, Identifiable {
                 ]
             )
 
-        case .socialReplySample:
+        case .socialReplyDinner:
             return DemoConversationThread(
                 title: "Dinner Plan",
                 subtitle: "Imported social sample",
@@ -209,6 +217,142 @@ enum DemoScenario: String, CaseIterable, Identifiable {
                         speakerId: "other",
                         speakerName: "Other",
                         text: "cool, what time should i expect you?",
+                        createdAt: referenceDate.addingTimeInterval(-120)
+                    ),
+                ]
+            )
+
+        case .socialReplyLunch:
+            return DemoConversationThread(
+                title: "Lunch Tomorrow",
+                subtitle: "Imported social sample",
+                defaultComposerParticipantID: "me",
+                replyTo: "other",
+                initialDraft: "kind of tired dont really want go",
+                participants: [
+                    Participant(id: "other", name: "Other", isSelf: false, relationship: "friend"),
+                    Participant(id: "me", name: "Me", isSelf: true, relationship: "self"),
+                ],
+                conversationProfile: Profile(tone: "polite", length: "short"),
+                messages: [
+                    ChatMessageItem(
+                        speakerId: "other",
+                        speakerName: "Other",
+                        text: "want to grab lunch tomorrow?",
+                        createdAt: referenceDate.addingTimeInterval(-540)
+                    ),
+                    ChatMessageItem(
+                        speakerId: "me",
+                        speakerName: "Me",
+                        text: "maybe, depends on work",
+                        createdAt: referenceDate.addingTimeInterval(-360)
+                    ),
+                    ChatMessageItem(
+                        speakerId: "other",
+                        speakerName: "Other",
+                        text: "no worries, just let me know later tonight",
+                        createdAt: referenceDate.addingTimeInterval(-120)
+                    ),
+                ]
+            )
+
+        case .socialReplySupport:
+            return DemoConversationThread(
+                title: "Checking In",
+                subtitle: "Imported social sample",
+                defaultComposerParticipantID: "me",
+                replyTo: "other",
+                initialDraft: "its okay not all your fault",
+                participants: [
+                    Participant(id: "other", name: "Other", isSelf: false, relationship: "friend"),
+                    Participant(id: "me", name: "Me", isSelf: true, relationship: "self"),
+                ],
+                conversationProfile: Profile(tone: "gentle", length: "medium"),
+                messages: [
+                    ChatMessageItem(
+                        speakerId: "other",
+                        speakerName: "Other",
+                        text: "i honestly think i messed everything up",
+                        createdAt: referenceDate.addingTimeInterval(-540)
+                    ),
+                    ChatMessageItem(
+                        speakerId: "me",
+                        speakerName: "Me",
+                        text: "what happened?",
+                        createdAt: referenceDate.addingTimeInterval(-360)
+                    ),
+                    ChatMessageItem(
+                        speakerId: "other",
+                        speakerName: "Other",
+                        text: "i said the wrong thing and now everyone is upset with me",
+                        createdAt: referenceDate.addingTimeInterval(-120)
+                    ),
+                ]
+            )
+
+        case .socialReplySlides:
+            return DemoConversationThread(
+                title: "Work Follow-up",
+                subtitle: "Imported social sample",
+                defaultComposerParticipantID: "me",
+                replyTo: "other",
+                initialDraft: "yes i can send before 9",
+                participants: [
+                    Participant(id: "other", name: "Other", isSelf: false, relationship: "coworker"),
+                    Participant(id: "me", name: "Me", isSelf: true, relationship: "self"),
+                ],
+                conversationProfile: Profile(tone: "professional", length: "short"),
+                messages: [
+                    ChatMessageItem(
+                        speakerId: "other",
+                        speakerName: "Other",
+                        text: "could you send me the revised slides by tonight?",
+                        createdAt: referenceDate.addingTimeInterval(-540)
+                    ),
+                    ChatMessageItem(
+                        speakerId: "me",
+                        speakerName: "Me",
+                        text: "yes, i'm still working on them",
+                        createdAt: referenceDate.addingTimeInterval(-360)
+                    ),
+                    ChatMessageItem(
+                        speakerId: "other",
+                        speakerName: "Other",
+                        text: "thank you, that would really help",
+                        createdAt: referenceDate.addingTimeInterval(-120)
+                    ),
+                ]
+            )
+
+        case .socialReplyInternship:
+            return DemoConversationThread(
+                title: "Big News",
+                subtitle: "Imported social sample",
+                defaultComposerParticipantID: "me",
+                replyTo: "other",
+                initialDraft: "thats amazing proud of you",
+                participants: [
+                    Participant(id: "other", name: "Other", isSelf: false, relationship: "friend"),
+                    Participant(id: "me", name: "Me", isSelf: true, relationship: "self"),
+                ],
+                conversationProfile: Profile(tone: "enthusiastic", length: "short"),
+                messages: [
+                    ChatMessageItem(
+                        speakerId: "other",
+                        speakerName: "Other",
+                        text: "i got the internship!",
+                        createdAt: referenceDate.addingTimeInterval(-540)
+                    ),
+                    ChatMessageItem(
+                        speakerId: "me",
+                        speakerName: "Me",
+                        text: "no way",
+                        createdAt: referenceDate.addingTimeInterval(-360)
+                    ),
+                    ChatMessageItem(
+                        speakerId: "other",
+                        speakerName: "Other",
+                        text: "yes!! i literally screamed when i saw the email",
                         createdAt: referenceDate.addingTimeInterval(-120)
                     ),
                 ]
