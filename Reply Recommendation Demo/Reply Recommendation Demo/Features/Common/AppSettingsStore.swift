@@ -101,7 +101,6 @@ enum CloudProviderOption: String, CaseIterable, Identifiable {
 /// Bundled `.gguf` base names (no extension) — must match files in **Copy Bundle Resources**.
 enum BundledLlamaModelOption: String, CaseIterable, Identifiable {
     case instruct1B_Q4 = "Llama-3.2-1B-Instruct-Q4_K_M"
-    case instruct1B_Q8 = "Llama-3.2-1B-Instruct-Q8_0"
     case instruct3B_Q4 = "Llama-3.2-3B-Instruct-Q4_K_M"
 
     var id: String { rawValue }
@@ -109,7 +108,6 @@ enum BundledLlamaModelOption: String, CaseIterable, Identifiable {
     var displayName: String {
         switch self {
         case .instruct1B_Q4: return "1B · Q4_K_M (~770 MB)"
-        case .instruct1B_Q8: return "1B · Q8_0 (~1.2 GB)"
         case .instruct3B_Q4: return "3B · Q4_K_M (~1.9 GB)"
         }
     }

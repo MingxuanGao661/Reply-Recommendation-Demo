@@ -9,6 +9,8 @@ final class LLMService {
     private var model: OpaquePointer?
     private var context: OpaquePointer?
     private var vocab: OpaquePointer?
+    /// Native llama.cpp sampler chain (`llama_sampler *` in C).
+    private var sampler: UnsafeMutablePointer<llama_sampler>?
     private let modelName: String
     private let contextSize: Int32
 
@@ -53,9 +55,21 @@ final class LLMService {
             throw LLMError.contextCreateFailed
         }
         self.context = ctx
+
+        // Build llama.cpp native sampler chain: top_k → top_p → temperature → dist
+        // This runs entirely in C, avoiding per-token Swift loops over the full vocab.
+        var sparams = llama_sampler_chain_default_params()
+        sparams.no_perf = true
+        let chain = llama_sampler_chain_init(sparams)
+        llama_sampler_chain_add(chain, llama_sampler_init_top_k(40))
+        llama_sampler_chain_add(chain, llama_sampler_init_top_p(0.90, 1))
+        llama_sampler_chain_add(chain, llama_sampler_init_temp(0.70))
+        llama_sampler_chain_add(chain, llama_sampler_init_dist(UInt32.random(in: 0 ..< UInt32.max)))
+        self.sampler = chain
     }
 
     deinit {
+        if let sampler { llama_sampler_free(sampler) }
         if let context { llama_free(context) }
         if let model { llama_model_free(model) }
         llama_backend_free()
@@ -73,7 +87,7 @@ final class LLMService {
 
     /// Generate reply suggestions from a ConversationInput.
     func generate(input: ConversationInput) throws -> (outputJSON: String, metrics: InferenceMetrics) {
-        guard model != nil, let context, let vocab else {
+        guard model != nil, let context, let vocab, let sampler else {
             throw LLMError.modelNotLoaded
         }
 
@@ -121,26 +135,28 @@ final class LLMService {
             throw LLMError.decodeFailed
         }
 
-        // Generate tokens
+        // Reset sampler state so each generation starts fresh (no stale repetition context).
+        llama_sampler_reset(sampler)
+
+        // Generate tokens using llama.cpp native sampler chain (top_k → top_p → temp → dist).
+        // This avoids a per-token Swift loop over the full vocab, which was the main CPU bottleneck.
         let maxNewTokens = min(
-            512,
+            280,
             max(0, Int(contextSize) - promptTokens.count)
         )
         var outputTokens: [llama_token] = []
         let eosToken = llama_vocab_eos(vocab)
-        let vocabSize = Int(llama_vocab_n_tokens(vocab))
         var nCur = batch.n_tokens
 
         for _ in 0..<maxNewTokens {
-            guard let logits = llama_get_logits_ith(context, batch.n_tokens - 1) else { break }
-
-            // Temperature sampling (temperature = 0.7)
-            let nextToken = sampleWithTemperature(logits: logits, vocabSize: vocabSize, temperature: 0.7)
+            // llama_sampler_sample reads logits from the context internally — no Swift logit copy.
+            let nextToken = llama_sampler_sample(sampler, context, batch.n_tokens - 1)
+            llama_sampler_accept(sampler, nextToken)
 
             if nextToken == eosToken { break }
             outputTokens.append(nextToken)
 
-            // Prepare batch for next token
+            // Prepare single-token batch for next decode step.
             batch.n_tokens = 1
             batch.token[0] = nextToken
             batch.pos[0] = nCur
@@ -175,52 +191,6 @@ final class LLMService {
         let outputJSON = output.toJSON() ?? "{\"suggestions\": []}"
 
         return (outputJSON, metrics)
-    }
-
-    // MARK: - Sampling
-
-    /// Temperature sampling: apply temperature scaling, softmax, then random pick
-    private func sampleWithTemperature(logits: UnsafeMutablePointer<Float>, vocabSize: Int, temperature: Float) -> llama_token {
-        if temperature <= 0 {
-            // Greedy: pick highest logit
-            var maxLogit = logits[0]
-            var bestToken: llama_token = 0
-            for i in 1..<vocabSize {
-                if logits[i] > maxLogit {
-                    maxLogit = logits[i]
-                    bestToken = llama_token(i)
-                }
-            }
-            return bestToken
-        }
-
-        // Apply temperature
-        var scaled = [Float](repeating: 0, count: vocabSize)
-        for i in 0..<vocabSize {
-            scaled[i] = logits[i] / temperature
-        }
-
-        // Softmax
-        let maxVal = scaled.max() ?? 0
-        var expSum: Float = 0
-        for i in 0..<vocabSize {
-            scaled[i] = exp(scaled[i] - maxVal)
-            expSum += scaled[i]
-        }
-        for i in 0..<vocabSize {
-            scaled[i] /= expSum
-        }
-
-        // Random weighted pick
-        let r = Float.random(in: 0..<1)
-        var cumulative: Float = 0
-        for i in 0..<vocabSize {
-            cumulative += scaled[i]
-            if cumulative >= r {
-                return llama_token(i)
-            }
-        }
-        return llama_token(vocabSize - 1)
     }
 
     // MARK: - Tokenization
