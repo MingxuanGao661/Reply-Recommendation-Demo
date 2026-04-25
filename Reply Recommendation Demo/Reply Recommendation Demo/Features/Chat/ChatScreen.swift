@@ -22,7 +22,8 @@ struct ChatScreen: View {
                             }
                             DemoChatMessageRow(
                                 message: message,
-                                showsSenderName: shouldShowSenderName(at: index)
+                                showsSenderName: shouldShowSenderName(at: index),
+                                isTrailing: viewModel.isTrailingMessage(message)
                             )
                             .id(message.id)
                         }
@@ -50,7 +51,7 @@ struct ChatScreen: View {
                 .onChange(of: viewModel.messages.count) { _, _ in
                     scrollToBottom(proxy: proxy, animated: true)
                 }
-                .onChange(of: viewModel.suggestions.count) { _, _ in
+                .onChange(of: viewModel.suggestionSlots.count) { _, _ in
                     scrollToBottom(proxy: proxy, animated: true)
                 }
                 .safeAreaInset(edge: .bottom, spacing: 0) {
@@ -58,7 +59,7 @@ struct ChatScreen: View {
                         Divider()
 
                         SuggestionShelf(
-                            suggestions: viewModel.suggestions,
+                            suggestionSlots: viewModel.suggestionSlots,
                             isLoading: viewModel.isGenerating,
                             metricsSummary: viewModel.metricsSummary,
                             onPickSuggestion: { suggestion in
@@ -70,6 +71,16 @@ struct ChatScreen: View {
                         )
 
                         Divider()
+
+                        if viewModel.shouldShowComposerParticipantPicker {
+                            ComposerParticipantPicker(
+                                participants: viewModel.participants,
+                                activeParticipantID: viewModel.activeComposerParticipantID,
+                                onSelectParticipant: { participantID in
+                                    viewModel.setActiveComposerParticipant(participantID)
+                                }
+                            )
+                        }
 
                         DemoMessageComposer(
                             text: $viewModel.draftText,
@@ -148,7 +159,7 @@ struct ChatScreen: View {
     private func shouldShowSenderName(at index: Int) -> Bool {
         guard index < viewModel.messages.count else { return false }
         let message = viewModel.messages[index]
-        guard !message.isSelf else { return false }
+        guard !viewModel.isTrailingMessage(message) else { return false }
         guard index > 0 else { return true }
         let previous = viewModel.messages[index - 1]
         if previous.speakerId != message.speakerId { return true }

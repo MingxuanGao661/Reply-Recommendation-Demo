@@ -3,19 +3,19 @@ import UIKit
 
 struct DemoMessageBubble: View {
     let text: String
-    let isSelf: Bool
+    let isTrailing: Bool
 
     var body: some View {
         Text(text)
             .font(.body)
-            .foregroundStyle(isSelf ? .white : .primary)
+            .foregroundStyle(isTrailing ? .white : .primary)
             .textSelection(.enabled)
             .padding(.horizontal, 14)
             .padding(.vertical, 10)
             .background(
                 RoundedRectangle(cornerRadius: 20, style: .continuous)
                     .fill(
-                        isSelf
+                        isTrailing
                             ? Color.accentColor
                             : Color(uiColor: .secondarySystemBackground)
                     )
@@ -31,13 +31,14 @@ struct DemoMessageBubble: View {
 struct DemoChatMessageRow: View {
     let message: ChatMessageItem
     let showsSenderName: Bool
+    let isTrailing: Bool
 
     var body: some View {
         VStack(
-            alignment: message.isSelf ? .trailing : .leading,
+            alignment: isTrailing ? .trailing : .leading,
             spacing: 4
         ) {
-            if showsSenderName, !message.isSelf {
+            if showsSenderName, !isTrailing {
                 Text(message.speakerName)
                     .font(.caption.weight(.medium))
                     .foregroundStyle(.secondary)
@@ -45,17 +46,51 @@ struct DemoChatMessageRow: View {
             }
 
             HStack(alignment: .bottom, spacing: 8) {
-                if message.isSelf {
+                if isTrailing {
                     Spacer(minLength: 44)
-                    DemoMessageBubble(text: message.text, isSelf: true)
+                    DemoMessageBubble(text: message.text, isTrailing: true)
                 } else {
                     DemoAvatarBadge(name: message.speakerName)
-                    DemoMessageBubble(text: message.text, isSelf: false)
+                    DemoMessageBubble(text: message.text, isTrailing: false)
                     Spacer(minLength: 44)
                 }
             }
         }
         .padding(.horizontal, 16)
+    }
+}
+
+struct ComposerParticipantPicker: View {
+    let participants: [Participant]
+    let activeParticipantID: String
+    let onSelectParticipant: (String) -> Void
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            Text("Send as")
+                .font(.caption.weight(.semibold))
+                .foregroundStyle(.secondary)
+
+            Picker(
+                "Send as",
+                selection: Binding(
+                    get: { activeParticipantID },
+                    set: onSelectParticipant
+                )
+            ) {
+                ForEach(participants, id: \.id) { participant in
+                    Text(displayName(for: participant)).tag(participant.id)
+                }
+            }
+            .pickerStyle(.segmented)
+        }
+        .padding(.horizontal, 16)
+        .padding(.top, 12)
+    }
+
+    private func displayName(for participant: Participant) -> String {
+        let trimmed = participant.name.trimmingCharacters(in: .whitespacesAndNewlines)
+        return trimmed.isEmpty ? participant.id : trimmed
     }
 }
 
@@ -123,7 +158,7 @@ struct DemoMessageComposer: View {
 }
 
 struct SuggestionShelf: View {
-    let suggestions: [ReplySuggestionItem]
+    let suggestionSlots: [SuggestionSlotItem]
     let isLoading: Bool
     let metricsSummary: String?
     let onPickSuggestion: (ReplySuggestionItem) -> Void
@@ -157,10 +192,12 @@ struct SuggestionShelf: View {
                 }
                 .buttonStyle(.plain)
                 .foregroundStyle(.secondary)
+                .disabled(isLoading)
+                .opacity(isLoading ? 0.45 : 1)
                 .accessibilityLabel("Regenerate Suggestions")
             }
 
-            if !isLoading && suggestions.isEmpty {
+            if !isLoading && suggestionSlots.isEmpty {
                 Text("Tap the sparkle button or Regenerate to draft contextual replies.")
                     .font(.footnote)
                     .foregroundStyle(.secondary)
@@ -169,20 +206,23 @@ struct SuggestionShelf: View {
             } else {
                 ScrollView(.horizontal, showsIndicators: false) {
                     HStack(spacing: 10) {
-                        ForEach(suggestions) { suggestion in
-                            Button {
-                                onPickSuggestion(suggestion)
-                            } label: {
-                                SuggestionCard(suggestion: suggestion)
+                        ForEach(suggestionSlots) { slot in
+                            if let suggestion = slot.suggestion {
+                                Button {
+                                    onPickSuggestion(suggestion)
+                                } label: {
+                                    SuggestionCard(slot: slot)
+                                }
+                                .buttonStyle(.plain)
+                                .transition(.opacity)
+                            } else {
+                                SuggestionCard(slot: slot)
                             }
-                            .buttonStyle(.plain)
-                            .transition(.opacity)
                         }
                     }
                     .padding(.vertical, 2)
-                    // Reserve height while cards load so the shelf doesn't collapse
-                    .frame(minHeight: 96)
-                    .animation(.easeInOut(duration: 0.35), value: suggestions.count)
+                    .frame(minHeight: 122)
+                    .animation(.easeInOut(duration: 0.35), value: suggestionSlots)
                 }
             }
         }
@@ -197,27 +237,98 @@ struct SuggestionShelf: View {
 }
 
 private struct SuggestionCard: View {
-    let suggestion: ReplySuggestionItem
+    let slot: SuggestionSlotItem
 
     var body: some View {
         VStack(alignment: .leading, spacing: 8) {
-            Text(suggestion.label)
+            Text(slot.label)
                 .font(.caption.weight(.bold))
-                .foregroundStyle(Color.accentColor)
+                .foregroundStyle(labelColor)
                 .textCase(.uppercase)
 
-            TypewriterText(fullText: suggestion.text)
-                .font(.subheadline)
-                .foregroundStyle(.primary)
-                .lineLimit(3)
-                .multilineTextAlignment(.leading)
+            switch slot.state {
+            case .placeholder:
+                PlaceholderSuggestionBody()
+            case .ready(let suggestion):
+                TypewriterText(fullText: suggestion.text)
+                    .font(.subheadline)
+                    .foregroundStyle(.primary)
+                    .lineLimit(3)
+                    .multilineTextAlignment(.leading)
+            }
         }
         .frame(width: 184, alignment: .leading)
         .padding(14)
         .background(
             RoundedRectangle(cornerRadius: 18, style: .continuous)
-                .fill(Color(uiColor: .secondarySystemBackground))
+                .fill(backgroundColor)
         )
+        .overlay {
+            if slot.isPlaceholder {
+                RoundedRectangle(cornerRadius: 18, style: .continuous)
+                    .fill(Color.white.opacity(0.14))
+                    .modifier(ShimmerEffect())
+                    .clipShape(RoundedRectangle(cornerRadius: 18, style: .continuous))
+            }
+        }
+    }
+
+    private var labelColor: Color {
+        slot.isPlaceholder ? .secondary : Color.accentColor
+    }
+
+    private var backgroundColor: Color {
+        slot.isPlaceholder
+            ? Color(uiColor: .tertiarySystemFill)
+            : Color(uiColor: .secondarySystemBackground)
+    }
+}
+
+private struct PlaceholderSuggestionBody: View {
+    var body: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            RoundedRectangle(cornerRadius: 4, style: .continuous)
+                .fill(Color.secondary.opacity(0.22))
+                .frame(height: 12)
+
+            RoundedRectangle(cornerRadius: 4, style: .continuous)
+                .fill(Color.secondary.opacity(0.18))
+                .frame(height: 12)
+
+            RoundedRectangle(cornerRadius: 4, style: .continuous)
+                .fill(Color.secondary.opacity(0.14))
+                .frame(width: 104, height: 12)
+        }
+        .padding(.top, 2)
+    }
+}
+
+private struct ShimmerEffect: ViewModifier {
+    @State private var phase: CGFloat = -0.8
+
+    func body(content: Content) -> some View {
+        content
+            .mask(
+                LinearGradient(
+                    colors: [
+                        Color.clear,
+                        Color.white.opacity(0.2),
+                        Color.clear,
+                    ],
+                    startPoint: .topLeading,
+                    endPoint: .bottomTrailing
+                )
+                .scaleEffect(1.8)
+                .offset(x: phase * 220, y: phase * 120)
+            )
+            .onAppear {
+                withAnimation(
+                    .linear(duration: 1.1)
+                        .repeatForever(autoreverses: false)
+                ) {
+                    phase = 0.8
+                }
+            }
     }
 }
 
@@ -232,32 +343,23 @@ private struct TypewriterText: View {
 
     var body: some View {
         Text(visibleWords)
-            .onAppear {
+            .task(id: fullText) {
                 visibleWordCount = 0
-                revealNextWord()
-            }
-            // Re-trigger if the card is reused with new text (e.g. regenerate)
-            .onChange(of: fullText) {
-                visibleWordCount = 0
-                revealNextWord()
+                guard !words.isEmpty else { return }
+                let delay = UInt64((1.0 / wordsPerSecond) * 1_000_000_000)
+                for index in 1...words.count {
+                    visibleWordCount = index
+                    if index < words.count {
+                        try? await Task.sleep(nanoseconds: delay)
+                    }
+                }
             }
     }
 
     private var visibleWords: String {
         words.prefix(visibleWordCount).joined(separator: " ")
     }
-
-    private func revealNextWord() {
-        guard visibleWordCount < words.count else { return }
-        visibleWordCount += 1
-        guard visibleWordCount < words.count else { return }
-        let delay = 1.0 / wordsPerSecond
-        DispatchQueue.main.asyncAfter(deadline: .now() + delay) {
-            revealNextWord()
-        }
-    }
 }
-
 
 struct DemoTimestampBanner: View {
     let date: Date

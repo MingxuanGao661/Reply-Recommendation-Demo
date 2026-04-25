@@ -7,7 +7,7 @@ struct Message: Codable {
     let text: String
 }
 
-struct Participant: Codable {
+struct Participant: Codable, Equatable {
     let id: String
     let name: String
     let isSelf: Bool?

@@ -10,14 +10,30 @@
 		AFE0CC2B2F7F5F5A004F04AB /* LlamaSwift in Frameworks */ = {isa = PBXBuildFile; productRef = AFE0CC2A2F7F5F5A004F04AB /* LlamaSwift */; };
 /* End PBXBuildFile section */
 
+/* Begin PBXContainerItemProxy section */
+		C0D0AAAA2F80000100AAA001 /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = 6B9E5B512F7F22DE00E3AEF6 /* Project object */;
+			proxyType = 1;
+			remoteGlobalIDString = 6B9E5B582F7F22DE00E3AEF6;
+			remoteInfo = "Reply Recommendation Demo";
+		};
+/* End PBXContainerItemProxy section */
+
 /* Begin PBXFileReference section */
 		6B9E5B592F7F22DE00E3AEF6 /* Reply Recommendation Demo.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = "Reply Recommendation Demo.app"; sourceTree = BUILT_PRODUCTS_DIR; };
+		C0D0AAA12F80000100AAA001 /* Reply Recommendation Demo Tests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = "Reply Recommendation Demo Tests.xctest"; sourceTree = BUILT_PRODUCTS_DIR; };
 /* End PBXFileReference section */
 
 /* Begin PBXFileSystemSynchronizedRootGroup section */
 		6B9E5B5B2F7F22DE00E3AEF6 /* Reply Recommendation Demo */ = {
 			isa = PBXFileSystemSynchronizedRootGroup;
 			path = "Reply Recommendation Demo";
+			sourceTree = "<group>";
+		};
+		C0D0AAA22F80000100AAA001 /* Reply Recommendation Demo Tests */ = {
+			isa = PBXFileSystemSynchronizedRootGroup;
+			path = "Reply Recommendation Demo Tests";
 			sourceTree = "<group>";
 		};
 /* End PBXFileSystemSynchronizedRootGroup section */
@@ -31,6 +47,13 @@
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
+		C0D0AAA42F80000100AAA001 /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
 /* End PBXFrameworksBuildPhase section */
 
 /* Begin PBXGroup section */
@@ -38,6 +61,7 @@
 			isa = PBXGroup;
 			children = (
 				6B9E5B5B2F7F22DE00E3AEF6 /* Reply Recommendation Demo */,
+				C0D0AAA22F80000100AAA001 /* Reply Recommendation Demo Tests */,
 				6B9E5B5A2F7F22DE00E3AEF6 /* Products */,
 			);
 			sourceTree = "<group>";
@@ -46,6 +70,7 @@
 			isa = PBXGroup;
 			children = (
 				6B9E5B592F7F22DE00E3AEF6 /* Reply Recommendation Demo.app */,
+				C0D0AAA12F80000100AAA001 /* Reply Recommendation Demo Tests.xctest */,
 			);
 			name = Products;
 			sourceTree = "<group>";
@@ -76,6 +101,29 @@
 			productReference = 6B9E5B592F7F22DE00E3AEF6 /* Reply Recommendation Demo.app */;
 			productType = "com.apple.product-type.application";
 		};
+		C0D0AAA62F80000100AAA001 /* Reply Recommendation Demo Tests */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = C0D0AAA72F80000100AAA001 /* Build configuration list for PBXNativeTarget "Reply Recommendation Demo Tests" */;
+			buildPhases = (
+				C0D0AAA32F80000100AAA001 /* Sources */,
+				C0D0AAA42F80000100AAA001 /* Frameworks */,
+				C0D0AAA52F80000100AAA001 /* Resources */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+				C0D0AAAB2F80000100AAA001 /* PBXTargetDependency */,
+			);
+			fileSystemSynchronizedGroups = (
+				C0D0AAA22F80000100AAA001 /* Reply Recommendation Demo Tests */,
+			);
+			name = "Reply Recommendation Demo Tests";
+			packageProductDependencies = (
+			);
+			productName = "Reply Recommendation Demo Tests";
+			productReference = C0D0AAA12F80000100AAA001 /* Reply Recommendation Demo Tests.xctest */;
+			productType = "com.apple.product-type.bundle.unit-test";
+		};
 /* End PBXNativeTarget section */
 
 /* Begin PBXProject section */
@@ -88,6 +136,10 @@
 				TargetAttributes = {
 					6B9E5B582F7F22DE00E3AEF6 = {
 						CreatedOnToolsVersion = 26.4;
+					};
+					C0D0AAA62F80000100AAA001 = {
+						CreatedOnToolsVersion = 26.4;
+						TestTargetID = 6B9E5B582F7F22DE00E3AEF6;
 					};
 				};
 			};
@@ -109,12 +161,20 @@
 			projectRoot = "";
 			targets = (
 				6B9E5B582F7F22DE00E3AEF6 /* Reply Recommendation Demo */,
+				C0D0AAA62F80000100AAA001 /* Reply Recommendation Demo Tests */,
 			);
 		};
 /* End PBXProject section */
 
 /* Begin PBXResourcesBuildPhase section */
 		6B9E5B572F7F22DE00E3AEF6 /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		C0D0AAA52F80000100AAA001 /* Resources */ = {
 			isa = PBXResourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
@@ -131,7 +191,22 @@
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
+		C0D0AAA32F80000100AAA001 /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
 /* End PBXSourcesBuildPhase section */
+
+/* Begin PBXTargetDependency section */
+		C0D0AAAB2F80000100AAA001 /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			target = 6B9E5B582F7F22DE00E3AEF6 /* Reply Recommendation Demo */;
+			targetProxy = C0D0AAAA2F80000100AAA001 /* PBXContainerItemProxy */;
+		};
+/* End PBXTargetDependency section */
 
 /* Begin XCBuildConfiguration section */
 		6B9E5B642F7F22DF00E3AEF6 /* Debug */ = {
@@ -257,13 +332,17 @@
 			buildSettings = {
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
+				ASSETCATALOG_COMPILER_INCLUDE_ALL_APPICON_ASSETS = YES;
+				CODE_SIGN_IDENTITY = "Apple Development";
 				CODE_SIGN_STYLE = Automatic;
 				CURRENT_PROJECT_VERSION = 1;
-				DEVELOPMENT_TEAM = HAVU9YLM49;
+				DEVELOPMENT_TEAM = 586L2Q38YL;
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_KEY_NSHumanReadableCopyright = "";
-				IPHONEOS_DEPLOYMENT_TARGET = 17.0;
+				INFOPLIST_KEY_UILaunchStoryboardName = LaunchScreen;
+				INFOPLIST_KEY_UISupportedInterfaceOrientations = UIInterfaceOrientationPortrait;
+				IPHONEOS_DEPLOYMENT_TARGET = 26.0;
 				LD_RUNPATH_SEARCH_PATHS = (
 					"$(inherited)",
 					"@executable_path/Frameworks",
@@ -271,6 +350,7 @@
 				MARKETING_VERSION = 1.0;
 				PRODUCT_BUNDLE_IDENTIFIER = "Shawnwang.Reply-Recommendation-Demo";
 				PRODUCT_NAME = "$(TARGET_NAME)";
+				PROVISIONING_PROFILE_SPECIFIER = "";
 				SDKROOT = iphoneos;
 				STRING_CATALOG_GENERATE_SYMBOLS = YES;
 				SUPPORTED_PLATFORMS = "iphoneos iphonesimulator";
@@ -288,13 +368,17 @@
 			buildSettings = {
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
+				ASSETCATALOG_COMPILER_INCLUDE_ALL_APPICON_ASSETS = YES;
+				CODE_SIGN_IDENTITY = "Apple Development";
 				CODE_SIGN_STYLE = Automatic;
 				CURRENT_PROJECT_VERSION = 1;
 				DEVELOPMENT_TEAM = 586L2Q38YL;
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_KEY_NSHumanReadableCopyright = "";
-				IPHONEOS_DEPLOYMENT_TARGET = 17.0;
+				INFOPLIST_KEY_UILaunchStoryboardName = LaunchScreen;
+				INFOPLIST_KEY_UISupportedInterfaceOrientations = UIInterfaceOrientationPortrait;
+				IPHONEOS_DEPLOYMENT_TARGET = 26.0;
 				LD_RUNPATH_SEARCH_PATHS = (
 					"$(inherited)",
 					"@executable_path/Frameworks",
@@ -302,6 +386,7 @@
 				MARKETING_VERSION = 1.0;
 				PRODUCT_BUNDLE_IDENTIFIER = "Shawnwang.Reply-Recommendation-Demo";
 				PRODUCT_NAME = "$(TARGET_NAME)";
+				PROVISIONING_PROFILE_SPECIFIER = "";
 				SDKROOT = iphoneos;
 				STRING_CATALOG_GENERATE_SYMBOLS = YES;
 				SUPPORTED_PLATFORMS = "iphoneos iphonesimulator";
@@ -311,6 +396,63 @@
 				SWIFT_UPCOMING_FEATURE_MEMBER_IMPORT_VISIBILITY = YES;
 				SWIFT_VERSION = 5.0;
 				TARGETED_DEVICE_FAMILY = "1,2";
+			};
+			name = Release;
+		};
+		C0D0AAA82F80000100AAA001 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				BUNDLE_LOADER = "$(TEST_HOST)";
+				CODE_SIGN_IDENTITY = "Apple Development";
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				DEVELOPMENT_TEAM = 586L2Q38YL;
+				GENERATE_INFOPLIST_FILE = YES;
+				IPHONEOS_DEPLOYMENT_TARGET = 26.0;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@loader_path/Frameworks",
+					"@executable_path/Frameworks",
+				);
+				MARKETING_VERSION = 1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = "Shawnwang.Reply-Recommendation-DemoTests";
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SDKROOT = iphoneos;
+				SKIP_INSTALL = YES;
+				SUPPORTED_PLATFORMS = "iphoneos iphonesimulator";
+				SWIFT_ACTIVE_COMPILATION_CONDITIONS = "DEBUG $(inherited)";
+				SWIFT_EMIT_LOC_STRINGS = NO;
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = "1,2";
+				TEST_HOST = "$(BUILT_PRODUCTS_DIR)/Reply Recommendation Demo.app/Reply Recommendation Demo";
+			};
+			name = Debug;
+		};
+		C0D0AAA92F80000100AAA001 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				BUNDLE_LOADER = "$(TEST_HOST)";
+				CODE_SIGN_IDENTITY = "Apple Development";
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				DEVELOPMENT_TEAM = 586L2Q38YL;
+				GENERATE_INFOPLIST_FILE = YES;
+				IPHONEOS_DEPLOYMENT_TARGET = 26.0;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@loader_path/Frameworks",
+					"@executable_path/Frameworks",
+				);
+				MARKETING_VERSION = 1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = "Shawnwang.Reply-Recommendation-DemoTests";
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SDKROOT = iphoneos;
+				SKIP_INSTALL = YES;
+				SUPPORTED_PLATFORMS = "iphoneos iphonesimulator";
+				SWIFT_EMIT_LOC_STRINGS = NO;
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = "1,2";
+				TEST_HOST = "$(BUILT_PRODUCTS_DIR)/Reply Recommendation Demo.app/Reply Recommendation Demo";
 			};
 			name = Release;
 		};
@@ -331,6 +473,15 @@
 			buildConfigurations = (
 				6B9E5B672F7F22DF00E3AEF6 /* Debug */,
 				6B9E5B682F7F22DF00E3AEF6 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
+		C0D0AAA72F80000100AAA001 /* Build configuration list for PBXNativeTarget "Reply Recommendation Demo Tests" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				C0D0AAA82F80000100AAA001 /* Debug */,
+				C0D0AAA92F80000100AAA001 /* Release */,
 			);
 			defaultConfigurationIsVisible = 0;
 			defaultConfigurationName = Release;

@@ -3,18 +3,19 @@ import Foundation
 
 @MainActor
 final class ChatViewModel: ObservableObject {
+    @Published private(set) var conversationMode: ConversationMode
     @Published private(set) var scenario: DemoScenario
-    @Published private(set) var threadTitle: String
-    @Published private(set) var threadSubtitle: String
     @Published private(set) var messages: [ChatMessageItem]
+    @Published private(set) var participants: [Participant]
     @Published var draftText: String
-    @Published private(set) var suggestions: [ReplySuggestionItem]
+    @Published private(set) var suggestionSlots: [SuggestionSlotItem]
     @Published private(set) var isGenerating: Bool
     @Published private(set) var errorMessage: String?
     @Published private(set) var metrics: InferenceMetrics?
     @Published private(set) var engineStatusText: String
     @Published var threadToneOverride: ThreadToneOverride
     @Published var threadLengthOverride: ThreadLengthOverride
+    @Published private(set) var activeComposerParticipantID: String
 
     private let settingsStore: AppSettingsStore
     private var cachedLocalEngine: LocalReplyEngine?
@@ -23,9 +24,10 @@ final class ChatViewModel: ObservableObject {
     private var cancellables = Set<AnyCancellable>()
     private var hasBootstrapped = false
     private let contextWindowSize = 10
-    private var selfId: String
-    private var replyTo: String
-    private var participants: [Participant]
+
+    private var templateThreadTitle: String
+    private var templateThreadSubtitle: String
+    private var templateReplyTargetID: String?
 
     init(
         scenario: DemoScenario = .weekendPlans,
@@ -33,26 +35,28 @@ final class ChatViewModel: ObservableObject {
     ) {
         self.settingsStore = settingsStore
         self.scenario = scenario
-
-        let thread = scenario.makeThread()
-        threadTitle = thread.title
-        threadSubtitle = thread.subtitle
-        messages = thread.messages
+        conversationMode = .template
         draftText = ""
-        suggestions = []
+        suggestionSlots = []
         isGenerating = false
         errorMessage = nil
         metrics = nil
-        selfId = thread.selfId
-        replyTo = thread.replyTo
+
+        let thread = scenario.makeThread()
+        templateThreadTitle = thread.title
+        templateThreadSubtitle = thread.subtitle
+        templateReplyTargetID = thread.replyTo
         participants = thread.participants
+        messages = thread.messages
+        activeComposerParticipantID = thread.defaultComposerParticipantID
+        draftText = thread.initialDraft ?? ""
         threadToneOverride = ThreadToneOverride(
             profileTone: thread.conversationProfile?.tone
         )
         threadLengthOverride = ThreadLengthOverride(
             profileLength: thread.conversationProfile?.length
         )
-        // Cannot call instance methods on `self` here — `engineStatusText` is not initialized yet.
+
         let initialModelName = settingsStore.bundledLlamaModel.resourceName
         let initialLocalEngine = LocalReplyEngine(modelResourceName: initialModelName)
         cachedLocalEngine = initialLocalEngine
@@ -70,20 +74,22 @@ final class ChatViewModel: ObservableObject {
             .store(in: &cancellables)
     }
 
-    private func localEngineForCurrentSettings() -> LocalReplyEngine {
-        let name = settingsStore.bundledLlamaModel.resourceName
-        if cachedLocalModelResource == name, let cached = cachedLocalEngine {
-            return cached
+    var threadTitle: String {
+        switch conversationMode {
+        case .template:
+            templateThreadTitle
+        case .simulation:
+            "Two-User Simulation"
         }
-        let engine = LocalReplyEngine(modelResourceName: name)
-        cachedLocalEngine = engine
-        cachedLocalModelResource = name
-        return engine
     }
 
-    private func invalidateLocalEngineCache() {
-        cachedLocalEngine = nil
-        cachedLocalModelResource = nil
+    var threadSubtitle: String {
+        switch conversationMode {
+        case .template:
+            templateThreadSubtitle
+        case .simulation:
+            participantSummary
+        }
     }
 
     var backendBadgeText: String {
@@ -110,6 +116,21 @@ final class ChatViewModel: ObservableObject {
         return "\(metrics.modelName) | \(latency)"
     }
 
+    var trailingParticipantID: String? {
+        participants.last?.id
+    }
+
+    var shouldShowComposerParticipantPicker: Bool {
+        participants.count == 2
+    }
+
+    var participantSummary: String {
+        participants
+            .prefix(2)
+            .map { displayName(for: $0) }
+            .joined(separator: " and ")
+    }
+
     func bootstrapIfNeeded() async {
         guard !hasBootstrapped else { return }
         hasBootstrapped = true
@@ -117,26 +138,61 @@ final class ChatViewModel: ObservableObject {
         await generateSuggestions()
     }
 
+    func setConversationMode(_ newMode: ConversationMode) {
+        guard conversationMode != newMode else { return }
+        conversationMode = newMode
+        switch newMode {
+        case .template:
+            applyTemplateScenario(scenario)
+        case .simulation:
+            seedSimulationConversation()
+        }
+    }
+
     func applyScenario(_ newScenario: DemoScenario) {
-        guard scenario != newScenario else { return }
         scenario = newScenario
-        let thread = newScenario.makeThread()
-        threadTitle = thread.title
-        threadSubtitle = thread.subtitle
-        messages = thread.messages
+        guard conversationMode == .template else { return }
+        applyTemplateScenario(newScenario)
+    }
+
+    func updateParticipantName(_ name: String, for participantID: String) {
+        guard let index = participants.firstIndex(where: { $0.id == participantID }) else {
+            return
+        }
+        participants[index] = Participant(
+            id: participants[index].id,
+            name: name,
+            relationship: participants[index].relationship
+        )
+
+        for messageIndex in messages.indices where messages[messageIndex].speakerId == participantID {
+            messages[messageIndex] = ChatMessageItem(
+                id: messages[messageIndex].id,
+                speakerId: messages[messageIndex].speakerId,
+                speakerName: displayName(for: participants[index]),
+                text: messages[messageIndex].text,
+                createdAt: messages[messageIndex].createdAt
+            )
+        }
+
+        clearSuggestionState()
+    }
+
+    func setActiveComposerParticipant(_ participantID: String) {
+        guard participants.contains(where: { $0.id == participantID }) else { return }
+        activeComposerParticipantID = participantID
+        clearSuggestionState()
+    }
+
+    func resetSimulationConversation() {
+        guard conversationMode == .simulation else { return }
+        messages = []
         draftText = ""
-        suggestions = []
-        metrics = nil
-        errorMessage = nil
-        selfId = thread.selfId
-        replyTo = thread.replyTo
-        participants = thread.participants
-        threadToneOverride = ThreadToneOverride(
-            profileTone: thread.conversationProfile?.tone
-        )
-        threadLengthOverride = ThreadLengthOverride(
-            profileLength: thread.conversationProfile?.length
-        )
+        if !participants.contains(where: { $0.id == activeComposerParticipantID }),
+           let fallback = participants.last?.id {
+            activeComposerParticipantID = fallback
+        }
+        clearSuggestionState()
     }
 
     func insertSuggestion(_ suggestion: ReplySuggestionItem) {
@@ -150,22 +206,20 @@ final class ChatViewModel: ObservableObject {
     func sendDraft() {
         let trimmed = draftText.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !trimmed.isEmpty else { return }
-        let participantName = participants
-            .first(where: { $0.id == selfId })?
-            .name ?? "Me"
+        guard let sender = participants.first(where: { $0.id == activeComposerParticipantID }) else {
+            return
+        }
+
         messages.append(
             ChatMessageItem(
-                speakerId: selfId,
-                speakerName: participantName,
+                speakerId: sender.id,
+                speakerName: displayName(for: sender),
                 text: trimmed,
-                createdAt: Date(),
-                isSelf: true
+                createdAt: Date()
             )
         )
         draftText = ""
-        suggestions = []
-        metrics = nil
-        errorMessage = nil
+        clearSuggestionState()
     }
 
     func refreshEngineStatus() {
@@ -193,7 +247,8 @@ final class ChatViewModel: ObservableObject {
     func generateSuggestions() async {
         guard !isGenerating else { return }
         isGenerating = true
-        suggestions = []
+        suggestionSlots = SuggestionSlotItem.placeholderSlots()
+        metrics = nil
         errorMessage = nil
         refreshEngineStatus()
         defer {
@@ -202,13 +257,19 @@ final class ChatViewModel: ObservableObject {
         }
 
         let input = makeConversationInput()
-
-        // Called from inferenceQueue (background) — hop to MainActor to mutate published state.
         let appendSuggestion: (Suggestion) -> Void = { [weak self] suggestion in
-            DispatchQueue.main.async { [weak self] in
-                guard let self else { return }
+            guard let self else { return }
+            let applySuggestion = {
                 if let item = self.normalizeSingleSuggestion(suggestion) {
-                    self.suggestions.append(item)
+                    self.replaceSuggestionSlot(with: item)
+                }
+            }
+
+            if Thread.isMainThread {
+                applySuggestion()
+            } else {
+                DispatchQueue.main.sync {
+                    applySuggestion()
                 }
             }
         }
@@ -220,19 +281,19 @@ final class ChatViewModel: ObservableObject {
                 onSuggestionReady: appendSuggestion
             )
             metrics = metricsResult
-            if suggestions.isEmpty {
+            if !hasReadySuggestion {
                 throw ReplySuggestionEngineError.emptySuggestions
             }
         } catch {
             guard settingsStore.safeDemoModeEnabled,
                   settingsStore.backendMode != .mock else {
-                suggestions = []
+                suggestionSlots = []
                 metrics = nil
                 errorMessage = error.localizedDescription
                 return
             }
 
-            suggestions = []
+            suggestionSlots = SuggestionSlotItem.placeholderSlots()
             do {
                 let metricsResult = try await mockEngine.generateSuggestionsProgressive(
                     input: input,
@@ -240,72 +301,77 @@ final class ChatViewModel: ObservableObject {
                     onSuggestionReady: appendSuggestion
                 )
                 metrics = metricsResult
+                if !hasReadySuggestion {
+                    throw ReplySuggestionEngineError.emptySuggestions
+                }
                 errorMessage = "Fallback to Mock: \(error.localizedDescription)"
             } catch {
-                suggestions = []
+                suggestionSlots = []
                 metrics = nil
                 errorMessage = error.localizedDescription
             }
         }
     }
 
-    private func normalizeSuggestions(
-        _ rawSuggestions: [Suggestion]
-    ) -> [ReplySuggestionItem] {
-        let cleaned = rawSuggestions.compactMap { suggestion -> Suggestion? in
-            let label = suggestion.label.trimmingCharacters(
-                in: .whitespacesAndNewlines
-            )
-            let text = suggestion.text.trimmingCharacters(
-                in: .whitespacesAndNewlines
-            )
-            guard !text.isEmpty else { return nil }
-            let normalizedLabel = normalizeSuggestionLabel(label)
-            return Suggestion(label: normalizedLabel, text: text)
-        }
-
-        let preferredOrder = ["Natural", "Polite", "Like You"]
-        var usedLabels = Set<String>()
-        var ordered: [ReplySuggestionItem] = []
-
-        for label in preferredOrder {
-            if let match = cleaned.first(where: { $0.label == label && !usedLabels.contains($0.text) }) {
-                ordered.append(ReplySuggestionItem(suggestion: match))
-                usedLabels.insert(match.text)
-            }
-        }
-
-        for suggestion in cleaned where !usedLabels.contains(suggestion.text) {
-            let fallbackLabel = ordered.count < preferredOrder.count
-                ? preferredOrder[ordered.count]
-                : suggestion.label
-            ordered.append(
-                ReplySuggestionItem(
-                    suggestion: Suggestion(
-                        label: fallbackLabel,
-                        text: suggestion.text
-                    )
-                )
-            )
-            usedLabels.insert(suggestion.text)
-        }
-
-        return Array(ordered.prefix(3))
+    func isTrailingMessage(_ message: ChatMessageItem) -> Bool {
+        message.speakerId == trailingParticipantID
     }
 
-    private func normalizeSuggestionLabel(_ label: String) -> String {
-        switch label.lowercased() {
-        case "natural", "normal":
-            return "Natural"
-        case "polite", "kind", "kinder":
-            return "Polite"
-        case "like you", "likeyou", "casual", "casual punchy":
-            return "Like You"
-        case "label", "text", "option":
-            return "Natural"
-        default:
-            return label.isEmpty ? "Natural" : label.capitalized
+    func displayName(for participantID: String) -> String {
+        guard let participant = participants.first(where: { $0.id == participantID }) else {
+            return participantID
         }
+        return displayName(for: participant)
+    }
+
+    func currentConversationInput() -> ConversationInput {
+        makeConversationInput()
+    }
+
+    private var hasReadySuggestion: Bool {
+        suggestionSlots.contains { $0.suggestion != nil }
+    }
+
+    private func applyTemplateScenario(_ scenario: DemoScenario) {
+        let thread = scenario.makeThread()
+        templateThreadTitle = thread.title
+        templateThreadSubtitle = thread.subtitle
+        templateReplyTargetID = thread.replyTo
+        participants = thread.participants
+        messages = thread.messages
+        activeComposerParticipantID = thread.defaultComposerParticipantID
+        draftText = thread.initialDraft ?? ""
+        threadToneOverride = ThreadToneOverride(
+            profileTone: thread.conversationProfile?.tone
+        )
+        threadLengthOverride = ThreadLengthOverride(
+            profileLength: thread.conversationProfile?.length
+        )
+        clearSuggestionState()
+    }
+
+    private func seedSimulationConversation() {
+        participants = SimulationConversation.makeParticipants()
+        messages = []
+        draftText = ""
+        activeComposerParticipantID = SimulationConversation.rightParticipantID
+        clearSuggestionState()
+    }
+
+    private func localEngineForCurrentSettings() -> LocalReplyEngine {
+        let name = settingsStore.bundledLlamaModel.resourceName
+        if cachedLocalModelResource == name, let cached = cachedLocalEngine {
+            return cached
+        }
+        let engine = LocalReplyEngine(modelResourceName: name)
+        cachedLocalEngine = engine
+        cachedLocalModelResource = name
+        return engine
+    }
+
+    private func invalidateLocalEngineCache() {
+        cachedLocalEngine = nil
+        cachedLocalModelResource = nil
     }
 
     private func resolveEngine() -> any ReplySuggestionEngine {
@@ -333,12 +399,47 @@ final class ChatViewModel: ObservableObject {
         return ReplySuggestionItem(suggestion: Suggestion(label: label, text: text))
     }
 
+    private func normalizeSuggestionLabel(_ label: String) -> String {
+        switch label.lowercased() {
+        case "natural", "normal":
+            return "Natural"
+        case "polite", "kind", "kinder":
+            return "Polite"
+        case "like you", "likeyou", "casual", "casual punchy":
+            return "Like You"
+        case "label", "text", "option":
+            return "Natural"
+        default:
+            return label.isEmpty ? "Natural" : label.capitalized
+        }
+    }
+
     private var resolvedBackendMode: ReplyBackendMode {
         if settingsStore.backendMode == .local,
            settingsStore.isRunningInXcodePreview {
             return .mock
         }
         return settingsStore.backendMode
+    }
+
+    private func replaceSuggestionSlot(with item: ReplySuggestionItem) {
+        if let index = suggestionSlots.firstIndex(where: { $0.label == item.label }) {
+            suggestionSlots[index].state = .ready(item)
+            return
+        }
+        if let index = suggestionSlots.firstIndex(where: { $0.isPlaceholder }) {
+            suggestionSlots[index] = SuggestionSlotItem(label: item.label, state: .ready(item))
+            return
+        }
+        suggestionSlots.append(
+            SuggestionSlotItem(label: item.label, state: .ready(item))
+        )
+    }
+
+    private func clearSuggestionState() {
+        suggestionSlots = []
+        metrics = nil
+        errorMessage = nil
     }
 
     private func makeConversationInput() -> ConversationInput {
@@ -357,9 +458,37 @@ final class ChatViewModel: ObservableObject {
                 tone: threadToneOverride.toneValue,
                 length: threadLengthOverride.lengthValue
             ),
-            selfId: selfId,
-            replyTo: replyTo,
-            participants: participants
+            selfId: activeComposerParticipantID,
+            replyTo: currentReplyTargetID,
+            participants: participants.map { participant in
+                Participant(
+                    id: participant.id,
+                    name: displayName(for: participant),
+                    isSelf: participant.id == activeComposerParticipantID,
+                    relationship: participant.relationship
+                )
+            }
         )
+    }
+
+    private var currentReplyTargetID: String? {
+        if participants.count == 2 {
+            return participants.first(where: { $0.id != activeComposerParticipantID })?.id
+        }
+        return templateReplyTargetID
+    }
+
+    private func displayName(for participant: Participant) -> String {
+        let trimmed = participant.name.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !trimmed.isEmpty else {
+            if participant.id == SimulationConversation.leftParticipantID {
+                return "Person 1"
+            }
+            if participant.id == SimulationConversation.rightParticipantID {
+                return "Person 2"
+            }
+            return participant.id
+        }
+        return trimmed
     }
 }
