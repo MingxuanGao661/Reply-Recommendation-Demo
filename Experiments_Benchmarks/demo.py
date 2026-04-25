@@ -11,11 +11,12 @@ from datetime import datetime
 from dotenv import load_dotenv
 from schemas import ConversationInput, SuggestionOutput, EvalMetrics
 
-#How you could run the inference locally:
-#python demo.py local 
-#python demo.py local --model gemma-4-E4B-it-Q4_K_M.gguf
-#python demo.py benchmark --limit 0
-#python demo.py cloud --provider anthropic
+# How you could run the inference locally:
+#   python demo.py local
+#   python demo.py local --model gemma-4-E4B-it-Q4_K_M.gguf
+#   python demo.py local --model Llama-3.2-3B-Instruct-Q4_K_M.gguf --lora reply_sft_lora_v1.gguf
+#   python demo.py benchmark --limit 0
+#   python demo.py cloud --provider anthropic --limit 0
 
 
 PROJECT_DIR = os.path.dirname(os.path.abspath(__file__))
@@ -34,7 +35,16 @@ DEFAULT_MODEL_PATH = os.path.join(
     "Reply Recommendation Demo",
     DEFAULT_MODEL,
 )
-DEFAULT_SAMPLES = os.path.join(REPO_ROOT, "social_reply_test_samples_26.json")
+DEFAULT_SAMPLES = os.path.join(
+    REPO_ROOT, "Sample_dialogue_data", "social_reply_test_samples_26.json"
+)
+# LoRA GGUF paired with Llama 3.2 3B Instruct for an extra benchmark run (base + LoRA).
+LLAMA_32_3B_LORA_ADAPTER = "reply_sft_lora_v1.gguf"
+
+
+def _is_lora_adapter_filename(basename: str) -> bool:
+    """Skip standalone LoRA GGUFs when scanning for full models (benchmark)."""
+    return "lora" in basename.lower()
 
 
 def _model_scan_dirs(extra_dirs: list[str] | None) -> list[str]:
@@ -63,6 +73,8 @@ def find_local_models(extra_dirs: list[str] | None = None) -> list[str]:
     for d in _model_scan_dirs(extra_dirs):
         for p in sorted(glob.glob(os.path.join(d, "*.gguf"))):
             base = os.path.basename(p)
+            if _is_lora_adapter_filename(base):
+                continue
             r = os.path.realpath(p)
             if base in seen_base or r in seen_real:
                 continue
@@ -70,6 +82,33 @@ def find_local_models(extra_dirs: list[str] | None = None) -> list[str]:
             seen_real.add(r)
             out.append(p)
     return sorted(out, key=os.path.basename)
+
+
+def build_benchmark_plan(
+    extra_dirs: list[str] | None = None,
+) -> list[tuple[str, str | None, float]]:
+    """Each entry is ``(base_gguf_path, lora_gguf_or_none, lora_scale)``.
+
+    Includes every full model from ``find_local_models``, then appends an extra run for
+    **Llama-3.2-3B-Instruct** + ``reply_sft_lora_v1.gguf`` when that LoRA sits in the same
+    directory as the base file (so benchmark compares 3B base vs 3B+LoRA).
+    """
+    bases = find_local_models(extra_dirs=extra_dirs)
+    plan: list[tuple[str, str | None, float]] = [(p, None, 1.0) for p in bases]
+    seen_lora_runs: set[tuple[str, str]] = set()
+    for model_path in bases:
+        bn = os.path.basename(model_path).lower()
+        if "llama-3.2-3b" not in bn or "instruct" not in bn:
+            continue
+        lora_path = os.path.join(os.path.dirname(model_path), LLAMA_32_3B_LORA_ADAPTER)
+        if not os.path.isfile(lora_path):
+            continue
+        key = (os.path.realpath(model_path), os.path.realpath(lora_path))
+        if key in seen_lora_runs:
+            continue
+        seen_lora_runs.add(key)
+        plan.append((model_path, lora_path, 1.0))
+    return plan
 
 
 def save_results(model_name: str, sample_results: list[dict], all_metrics: list[EvalMetrics]):
@@ -130,15 +169,27 @@ def run_local(
     max_tokens: int,
     temperature: float,
     chat_format: str | None = None,
+    lora_path: str | None = None,
+    lora_base: str | None = None,
+    lora_scale: float = 1.0,
 ):
     from engine_local import LocalEngine
 
-    model_name = os.path.basename(model_path).replace(".gguf", "")
-    print(f"LOCAL MODE — {model_name}")
+    engine = LocalEngine(
+        model_path,
+        chat_format=chat_format,
+        lora_path=lora_path,
+        lora_base=lora_base,
+        lora_scale=lora_scale,
+    )
+    print(f"LOCAL MODE — {engine.model_name}")
     if chat_format:
         print(f"  chat_format={chat_format!r} (CLI override)")
-
-    engine = LocalEngine(model_path, chat_format=chat_format)
+    if lora_path:
+        print(f"  LoRA GGUF: {lora_path}")
+        print(f"  lora_scale={lora_scale}")
+        if lora_base:
+            print(f"  lora_base={lora_base}")
 
     all_metrics = []
     sample_results = []
@@ -183,7 +234,7 @@ def run_local(
         print(f"  Avg latency:    {avg_latency:.0f} ms")
         print(f"  Avg tokens/sec: {avg_tps:.1f}")
 
-    save_results(model_name, sample_results, all_metrics)
+    save_results(engine.model_name, sample_results, all_metrics)
     return all_metrics
 
 
@@ -254,41 +305,62 @@ def run_benchmark(
     temperature: float,
     models_dirs: list[str] | None = None,
 ):
-    """Run all local models and compare results."""
-    models = find_local_models(extra_dirs=models_dirs)
-    if not models:
+    """Run all local full-model GGUFs plus Llama 3.2 3B + LoRA when the adapter GGUF is present."""
+    plan = build_benchmark_plan(extra_dirs=models_dirs)
+    if not plan:
         print("No .gguf models found. Scanned these directories:")
         for d in _model_scan_dirs(models_dirs):
             print(f"  - {d}")
         return
 
-    print(f"\nFound {len(models)} local models:")
-    for m in models:
-        print(f"  - {os.path.basename(m)}")
+    print(f"\nBenchmark plan ({len(plan)} run(s); base 3B and 3B+LoRA are separate runs when LoRA exists):")
+    for model_path, lora_path, lora_scale in plan:
+        line = os.path.basename(model_path)
+        if lora_path:
+            line += f"  +  {os.path.basename(lora_path)}  (lora_scale={lora_scale})"
+        print(f"  - {line}")
 
-    results = {}
-    for model_path in models:
-        metrics = run_local(model_path, samples, max_tokens, temperature)
-        name = os.path.basename(model_path)
+    results: dict[str, dict[str, float]] = {}
+    for model_path, lora_path, lora_scale in plan:
+        metrics = run_local(
+            model_path,
+            samples,
+            max_tokens,
+            temperature,
+            lora_path=lora_path,
+            lora_scale=lora_scale,
+        )
+        if lora_path:
+            name = (
+                f"{os.path.basename(model_path).replace('.gguf', '')}+"
+                f"{os.path.basename(lora_path).replace('.gguf', '')}"
+            )
+        else:
+            name = os.path.basename(model_path)
         if metrics:
             avg_latency = sum(m.latency_ms for m in metrics) / len(metrics)
             avg_tps = sum(m.tokens_per_sec for m in metrics) / len(metrics)
             results[name] = {"avg_latency_ms": avg_latency, "avg_tokens_per_sec": avg_tps}
 
-    print(f"\n{'='*65}")
+    col = max(45, min(72, max((len(n) for n in results), default=45) + 2))
+    print(f"\n{'='*(col + 24)}")
     print("BENCHMARK SUMMARY")
-    print(f"{'='*65}")
-    print(f"{'Model':<45} {'Latency':>10} {'Tok/s':>8}")
-    print(f"{'-'*45} {'-'*10} {'-'*8}")
+    print(f"{'='*(col + 24)}")
+    print(f"{'Model':<{col}} {'Latency':>10} {'Tok/s':>8}")
+    print(f"{'-'*col} {'-'*10} {'-'*8}")
     for name, r in sorted(results.items(), key=lambda x: x[1]["avg_latency_ms"]):
-        print(f"{name:<45} {r['avg_latency_ms']:>8.0f}ms {r['avg_tokens_per_sec']:>7.1f}")
+        display = name if len(name) <= col else (name[: col - 1] + "…")
+        print(f"{display:<{col}} {r['avg_latency_ms']:>8.0f}ms {r['avg_tokens_per_sec']:>7.1f}")
 
 
 def load_samples(path: str | None, limit: int) -> list[dict]:
     if not path or not os.path.exists(path):
         print(f"Error: Samples file not found: {path}")
         print("Provide a JSON file with test conversations, e.g.:")
-        print("  python demo.py local --samples ../social_reply_test_samples_26.json")
+        print(
+            "  python demo.py local --samples "
+            "../Sample_dialogue_data/social_reply_test_samples_26.json"
+        )
         sys.exit(1)
 
     try:
@@ -315,7 +387,13 @@ def main():
     p_local = sub.add_parser("local", help="Run with local GGUF model")
     p_local.add_argument("--model", type=str, help="Path to .gguf model (default: auto-detect)")
     p_local.add_argument("--samples", type=str, default=DEFAULT_SAMPLES, help="Path to test samples JSON")
-    p_local.add_argument("--limit", type=int, default=3, help="Max samples (0 = entire JSON file)")
+    p_local.add_argument(
+        "--limit",
+        type=int,
+        default=3,
+        metavar="N",
+        help="Max samples per run (default: 3). Use 0 to load the entire JSON array.",
+    )
     p_local.add_argument("--max-tokens", type=int, default=512)
     p_local.add_argument("--temperature", type=float, default=0.7)
     p_local.add_argument(
@@ -325,6 +403,26 @@ def main():
         metavar="NAME",
         help="llama-cpp-python chat_format (e.g. gemma). Default: auto — gemma* GGUF uses gemma",
     )
+    p_local.add_argument(
+        "--lora",
+        type=str,
+        default=None,
+        metavar="PATH",
+        help="Path to LoRA adapter .gguf (llama.cpp / llama-cpp-python). Base model is --model (e.g. Llama-3.2-3B-Instruct-Q4_K_M.gguf).",
+    )
+    p_local.add_argument(
+        "--lora-base",
+        type=str,
+        default=None,
+        metavar="PATH",
+        help="Optional lora_base path (advanced; almost always omit).",
+    )
+    p_local.add_argument(
+        "--lora-scale",
+        type=float,
+        default=1.0,
+        help="LoRA strength (default: 1.0).",
+    )
 
     # --- cloud mode ---
     p_cloud = sub.add_parser("cloud", help="Run with cloud API")
@@ -333,14 +431,29 @@ def main():
     p_cloud.add_argument("--list-models", action="store_true", help="Show available models per provider")
     p_cloud.add_argument("--model", type=str, default=None, help="Model name (default: provider's default)")
     p_cloud.add_argument("--samples", type=str, default=DEFAULT_SAMPLES, help="Path to test samples JSON")
-    p_cloud.add_argument("--limit", type=int, default=3, help="Max samples (0 = entire JSON file)")
+    p_cloud.add_argument(
+        "--limit",
+        type=int,
+        default=3,
+        metavar="N",
+        help="Max samples per run (default: 3). Use 0 to load the entire JSON array.",
+    )
     p_cloud.add_argument("--max-tokens", type=int, default=512)
     p_cloud.add_argument("--temperature", type=float, default=0.7)
 
     # --- benchmark mode ---
-    p_bench = sub.add_parser("benchmark", help="Run all local models and compare")
+    p_bench = sub.add_parser(
+        "benchmark",
+        help="Run all local full-model GGUFs + Llama 3.2 3B+LoRA when reply_sft_lora_v1.gguf is beside the 3B base",
+    )
     p_bench.add_argument("--samples", type=str, default=DEFAULT_SAMPLES, help="Path to test samples JSON")
-    p_bench.add_argument("--limit", type=int, default=3, help="Max samples (0 = entire JSON file)")
+    p_bench.add_argument(
+        "--limit",
+        type=int,
+        default=3,
+        metavar="N",
+        help="Max samples per model (default: 3). Use 0 to run every dialogue in the JSON for each model.",
+    )
     p_bench.add_argument(
         "--models-dir",
         action="append",
@@ -397,12 +510,38 @@ def main():
             else:
                 print(f"Error: Model file not found: {model_path}")
                 sys.exit(1)
+
+        lora_path = getattr(args, "lora", None)
+        if lora_path:
+            if not os.path.isfile(lora_path):
+                alt = os.path.join(MODELS_DIR, os.path.basename(lora_path))
+                if os.path.isfile(alt):
+                    lora_path = alt
+            if not os.path.isfile(lora_path):
+                print(f"Error: LoRA GGUF not found: {args.lora}")
+                sys.exit(1)
+            if not os.path.isfile(model_path):
+                print(f"Error: Base model GGUF not found: {model_path}")
+                sys.exit(1)
+
+        lora_base = getattr(args, "lora_base", None)
+        if lora_base and not os.path.isfile(lora_base):
+            alt_b = os.path.join(MODELS_DIR, os.path.basename(lora_base))
+            if os.path.isfile(alt_b):
+                lora_base = alt_b
+            elif not os.path.isfile(lora_base):
+                print(f"Error: lora_base file not found: {args.lora_base}")
+                sys.exit(1)
+
         run_local(
             model_path,
             samples,
             args.max_tokens,
             args.temperature,
             chat_format=args.chat_format,
+            lora_path=lora_path,
+            lora_base=lora_base,
+            lora_scale=float(getattr(args, "lora_scale", 1.0)),
         )
 
     elif args.mode == "cloud":

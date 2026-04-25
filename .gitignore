@@ -2,6 +2,9 @@
 *.gguf
 models/*.gguf
 */Backend/*.gguf
+
+# Local LoRA training outputs (large checkpoints; keep on disk, do not push)
+lora_reply_sft/
 results/
 .venv/
 __pycache__/

@@ -39,6 +39,22 @@ struct SettingsScreen: View {
                         Text("Applies when Backend is Local. Switching model unloads the previous one on next generation.")
                             .font(.footnote)
                             .foregroundStyle(.secondary)
+
+                        if settingsStore.bundledLlamaModel.supportsReplyLoRA {
+                            Toggle(isOn: $settingsStore.loraAdapterEnabled) {
+                                VStack(alignment: .leading, spacing: 2) {
+                                    Text("Reply SFT LoRA")
+                                    Text("reply_sft_lora_v1 · fine-tuned on social replies")
+                                        .font(.caption)
+                                        .foregroundStyle(.secondary)
+                                }
+                            }
+                            if settingsStore.loraAdapterEnabled {
+                                Text("LoRA adapter will be applied on the next generation. Adapter GGUF must be included in the app bundle.")
+                                    .font(.footnote)
+                                    .foregroundStyle(.secondary)
+                            }
+                        }
                     }
                 }
 

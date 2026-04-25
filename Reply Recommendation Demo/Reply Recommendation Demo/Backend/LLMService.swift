@@ -11,6 +11,8 @@ final class LLMService {
     private var vocab: OpaquePointer?
     /// Native llama.cpp sampler chain (`llama_sampler *` in C).
     private var sampler: UnsafeMutablePointer<llama_sampler>?
+    /// Loaded LoRA adapter, if any (`llama_adapter_lora *` in C).
+    private var loraAdapter: OpaquePointer?
     private let modelName: String
     private let contextSize: Int32
 
@@ -21,12 +23,20 @@ final class LLMService {
 
     init(
         modelPath path: String,
+        loraPath: String? = nil,
+        loraScale: Float = 1.0,
         contextSize: UInt32 = 2048,
         gpuLayers: Int32 = -1,
         defaultProfile: Profile? = nil
     ) throws {
         self.defaultProfile = defaultProfile
-        self.modelName = (path as NSString).lastPathComponent.replacingOccurrences(of: ".gguf", with: "")
+        let baseName = (path as NSString).lastPathComponent.replacingOccurrences(of: ".gguf", with: "")
+        if let loraPath {
+            let loraName = (loraPath as NSString).lastPathComponent.replacingOccurrences(of: ".gguf", with: "")
+            self.modelName = "\(baseName)+\(loraName)"
+        } else {
+            self.modelName = baseName
+        }
         self.contextSize = Int32(contextSize)
 
         llama_backend_init()
@@ -56,6 +66,21 @@ final class LLMService {
         }
         self.context = ctx
 
+        // Apply LoRA adapter if a path was provided.
+        if let loraPath {
+            guard let adapter = llama_adapter_lora_init(loadedModel, loraPath) else {
+                llama_free(ctx)
+                llama_model_free(loadedModel)
+                throw LLMError.loraLoadFailed(loraPath)
+            }
+            self.loraAdapter = adapter
+            // llama_set_adapters_lora expects `llama_adapter_lora **` (array of pointers),
+            // so we pass a mutable local OpaquePointer? that Swift bridges to the C double-pointer.
+            var adapterRef: OpaquePointer? = adapter
+            var scale: Float = loraScale
+            _ = llama_set_adapters_lora(ctx, &adapterRef, 1, &scale)
+        }
+
         // Build llama.cpp native sampler chain: top_k → top_p → temperature → dist
         // This runs entirely in C, avoiding per-token Swift loops over the full vocab.
         var sparams = llama_sampler_chain_default_params()
@@ -71,6 +96,7 @@ final class LLMService {
     deinit {
         if let sampler { llama_sampler_free(sampler) }
         if let context { llama_free(context) }
+        if let loraAdapter { llama_adapter_lora_free(loraAdapter) }
         if let model { llama_model_free(model) }
         llama_backend_free()
     }
@@ -254,6 +280,7 @@ enum LLMError: LocalizedError {
     case invalidInput
     case promptTooLong(promptTokens: Int, contextSize: Int)
     case decodeFailed
+    case loraLoadFailed(String)
 
     var errorDescription: String? {
         switch self {
@@ -264,6 +291,7 @@ enum LLMError: LocalizedError {
         case .promptTooLong(let promptTokens, let contextSize):
             return "Prompt is too long for local inference (\(promptTokens) tokens, max \(contextSize - 1))."
         case .decodeFailed: return "Token decoding failed"
+        case .loraLoadFailed(let path): return "Failed to load LoRA adapter: \(path)"
         }
     }
 }

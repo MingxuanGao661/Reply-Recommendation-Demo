@@ -21,6 +21,7 @@ final class ChatViewModel: ObservableObject {
     private let settingsStore: AppSettingsStore
     private var cachedLocalEngine: LocalReplyEngine?
     private var cachedLocalModelResource: String?
+    private var cachedLocalLoraEnabled: Bool?
     private let mockEngine = MockReplyEngine()
     private var cancellables = Set<AnyCancellable>()
     private var hasBootstrapped = false
@@ -59,12 +60,28 @@ final class ChatViewModel: ObservableObject {
         )
 
         let initialModelName = settingsStore.bundledLlamaModel.resourceName
-        let initialLocalEngine = LocalReplyEngine(modelResourceName: initialModelName)
+        let initialLoraEnabled = settingsStore.loraAdapterEnabled
+        let initialLocalEngine = LocalReplyEngine(
+            modelResourceName: initialModelName,
+            loraResourceName: (initialLoraEnabled && settingsStore.bundledLlamaModel.supportsReplyLoRA)
+                ? BundledLoraAdapterOption.replySFT_v1.resourceName : nil
+        )
         cachedLocalEngine = initialLocalEngine
         cachedLocalModelResource = initialModelName
+        cachedLocalLoraEnabled = initialLoraEnabled
         engineStatusText = initialLocalEngine.statusDescription
 
         settingsStore.$bundledLlamaModel
+            .dropFirst()
+            .receive(on: DispatchQueue.main)
+            .sink { [weak self] _ in
+                guard let self else { return }
+                self.invalidateLocalEngineCache()
+                self.refreshEngineStatus()
+            }
+            .store(in: &cancellables)
+
+        settingsStore.$loraAdapterEnabled
             .dropFirst()
             .receive(on: DispatchQueue.main)
             .sink { [weak self] _ in
@@ -386,18 +403,25 @@ final class ChatViewModel: ObservableObject {
 
     private func localEngineForCurrentSettings() -> LocalReplyEngine {
         let name = settingsStore.bundledLlamaModel.resourceName
-        if cachedLocalModelResource == name, let cached = cachedLocalEngine {
+        let loraEnabled = settingsStore.loraAdapterEnabled
+        if cachedLocalModelResource == name,
+           cachedLocalLoraEnabled == loraEnabled,
+           let cached = cachedLocalEngine {
             return cached
         }
-        let engine = LocalReplyEngine(modelResourceName: name)
+        let loraName = (loraEnabled && settingsStore.bundledLlamaModel.supportsReplyLoRA)
+            ? BundledLoraAdapterOption.replySFT_v1.resourceName : nil
+        let engine = LocalReplyEngine(modelResourceName: name, loraResourceName: loraName)
         cachedLocalEngine = engine
         cachedLocalModelResource = name
+        cachedLocalLoraEnabled = loraEnabled
         return engine
     }
 
     private func invalidateLocalEngineCache() {
         cachedLocalEngine = nil
         cachedLocalModelResource = nil
+        cachedLocalLoraEnabled = nil
     }
 
     private func resolveEngine() -> any ReplySuggestionEngine {

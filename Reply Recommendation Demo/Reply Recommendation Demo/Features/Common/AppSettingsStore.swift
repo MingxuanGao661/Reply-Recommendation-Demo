@@ -113,6 +113,26 @@ enum BundledLlamaModelOption: String, CaseIterable, Identifiable {
     }
 
     var resourceName: String { rawValue }
+
+    /// Whether this model is compatible with the reply SFT LoRA adapter.
+    var supportsReplyLoRA: Bool {
+        self == .instruct3B_Q4
+    }
+}
+
+/// Bundled LoRA adapter `.gguf` names (no extension) — must match files in **Copy Bundle Resources**.
+enum BundledLoraAdapterOption: String, CaseIterable, Identifiable {
+    case replySFT_v1 = "reply_sft_lora_v1"
+
+    var id: String { rawValue }
+
+    var displayName: String {
+        switch self {
+        case .replySFT_v1: return "reply_sft_lora_v1"
+        }
+    }
+
+    var resourceName: String { rawValue }
 }
 
 @MainActor
@@ -149,6 +169,12 @@ final class AppSettingsStore: ObservableObject {
         didSet { persist() }
     }
 
+    /// Whether to apply the bundled reply SFT LoRA adapter during local inference.
+    /// Only has effect when `bundledLlamaModel` is the 3B model (the only compatible base).
+    @Published var loraAdapterEnabled: Bool {
+        didSet { persist() }
+    }
+
     private let defaults: UserDefaults
     let isRunningInXcodePreview: Bool
 
@@ -174,6 +200,7 @@ final class AppSettingsStore: ObservableObject {
         bundledLlamaModel = BundledLlamaModelOption(
             rawValue: defaults.string(forKey: Keys.bundledLlamaModel) ?? ""
         ) ?? .instruct3B_Q4
+        loraAdapterEnabled = defaults.object(forKey: Keys.loraAdapterEnabled) as? Bool ?? false
 
         if isRunningInXcodePreview {
             backendMode = .mock
@@ -199,6 +226,7 @@ final class AppSettingsStore: ObservableObject {
         defaults.set(cloudAPIKey, forKey: Keys.cloudAPIKey)
         defaults.set(safeDemoModeEnabled, forKey: Keys.safeDemoModeEnabled)
         defaults.set(bundledLlamaModel.rawValue, forKey: Keys.bundledLlamaModel)
+        defaults.set(loraAdapterEnabled, forKey: Keys.loraAdapterEnabled)
     }
 
     private enum Keys {
@@ -210,5 +238,6 @@ final class AppSettingsStore: ObservableObject {
         static let cloudAPIKey = "replyDemo.cloudAPIKey"
         static let safeDemoModeEnabled = "replyDemo.safeDemoModeEnabled"
         static let bundledLlamaModel = "replyDemo.bundledLlamaModel"
+        static let loraAdapterEnabled = "replyDemo.loraAdapterEnabled"
     }
 }

@@ -198,6 +198,10 @@ final class CloudReplyEngine: ReplySuggestionEngine {
 
 final class LocalReplyEngine: ReplySuggestionEngine {
     private let modelResourceName: String
+    /// Resource name (no extension) of the bundled LoRA adapter GGUF, if any.
+    private let loraResourceName: String?
+    /// Scale applied to the LoRA adapter weights (1.0 = full strength).
+    private let loraScale: Float
     private let bundle: Bundle
     private let inferenceQueue = DispatchQueue(
         label: "reply-demo.local-inference",
@@ -208,25 +212,38 @@ final class LocalReplyEngine: ReplySuggestionEngine {
 
     init(
         modelResourceName: String = "Llama-3.2-3B-Instruct-Q4_K_M",
+        loraResourceName: String? = nil,
+        loraScale: Float = 1.0,
         bundle: Bundle = .main
     ) {
         self.modelResourceName = modelResourceName
+        self.loraResourceName = loraResourceName
+        self.loraScale = loraScale
         self.bundle = bundle
     }
 
     var statusDescription: String {
         if service != nil {
+            let loraNote = loraResourceName != nil ? " + LoRA" : ""
 #if targetEnvironment(simulator)
-            return "Local model loaded on Simulator (CPU mode)."
+            return "Local model\(loraNote) loaded on Simulator (CPU mode)."
 #else
-            return "Local model loaded and ready."
+            return "Local model\(loraNote) loaded and ready."
 #endif
         }
         if modelPathInBundle() != nil {
+            let loraNote: String
+            if let loraResourceName {
+                loraNote = loraPathInBundle() != nil
+                    ? " + LoRA adapter found."
+                    : " (LoRA adapter \(loraResourceName).gguf not found in bundle.)"
+            } else {
+                loraNote = ""
+            }
 #if targetEnvironment(simulator)
-            return "Model found in bundle. First Simulator Local run will initialize CPU inference."
+            return "Model found in bundle\(loraNote) First Simulator Local run will initialize CPU inference."
 #else
-            return "Model found in bundle. First Local generation will initialize it."
+            return "Model found in bundle\(loraNote) First Local generation will initialize it."
 #endif
         }
         return "Local GGUF not found in the app bundle."
@@ -338,8 +355,11 @@ final class LocalReplyEngine: ReplySuggestionEngine {
             )
         }
 
+        let resolvedLoraPath = loraPathInBundle()
         let service = try LLMService(
             modelPath: modelPath,
+            loraPath: resolvedLoraPath,
+            loraScale: loraScale,
             defaultProfile: defaultProfile
         )
         self.service = service
@@ -348,6 +368,11 @@ final class LocalReplyEngine: ReplySuggestionEngine {
 
     private func modelPathInBundle() -> String? {
         bundle.path(forResource: modelResourceName, ofType: "gguf")
+    }
+
+    private func loraPathInBundle() -> String? {
+        guard let name = loraResourceName else { return nil }
+        return bundle.path(forResource: name, ofType: "gguf")
     }
 }
 

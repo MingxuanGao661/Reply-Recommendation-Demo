@@ -42,20 +42,32 @@ class LocalEngine:
         n_ctx: int = 2048,
         n_gpu_layers: int = -1,
         chat_format: str | None = None,
+        lora_path: str | None = None,
+        lora_base: str | None = None,
+        lora_scale: float = 1.0,
     ):
         """Load a GGUF model for local inference.
 
         Args:
-            model_path: Path to the .gguf file.
+            model_path: Path to the base ``.gguf`` weights (e.g. Llama-3.2-3B-Instruct-Q4_K_M.gguf).
             n_ctx: Context window size.
             n_gpu_layers: Layers to offload to GPU (-1 = all available).
             chat_format: Optional ``llama-cpp-python`` chat format override (e.g. ``\"gemma\"``, ``\"chatml\"``).
                 If None, model family is auto-detected by filename:
                   gemma* → chat_format="gemma",  message builder merges system→user
                   qwen*  → chat_format="chatml", message builder appends /no_think to user turn
+            lora_path: Optional path to a **LoRA adapter** in GGUF form (``llama-cpp-python`` merges at runtime).
+            lora_base: Optional second base path (rare; see ``Llama`` docs — leave ``None`` for base+LoRA GGUF).
+            lora_scale: LoRA blend strength (default ``1.0``).
         """
         self.model_path = model_path
-        self.model_name = model_path.rsplit("/", 1)[-1].replace(".gguf", "")
+        self.lora_path = lora_path
+        base_name = model_path.rsplit("/", 1)[-1].replace(".gguf", "")
+        if lora_path:
+            lora_name = lora_path.rsplit("/", 1)[-1].replace(".gguf", "")
+            self.model_name = f"{base_name}+{lora_name}"
+        else:
+            self.model_name = base_name
 
         model_lower = self.model_name.lower()
         self.use_grammar = not any(skip in model_lower for skip in GRAMMAR_SKIP_MODELS)
@@ -77,6 +89,11 @@ class LocalEngine:
         )
         if self.chat_format:
             llama_kwargs["chat_format"] = self.chat_format
+        if lora_path:
+            llama_kwargs["lora_path"] = lora_path
+            llama_kwargs["lora_scale"] = lora_scale
+            if lora_base:
+                llama_kwargs["lora_base"] = lora_base
 
         self.llm = Llama(**llama_kwargs)
         self.grammar = LlamaGrammar.from_string(SUGGESTIONS_GRAMMAR) if self.use_grammar else None

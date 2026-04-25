@@ -1,0 +1,574 @@
+[
+    {
+      "conversation": [
+        {
+          "speaker": "other",
+          "text": "hey are you still coming to dinner tonight?"
+        },
+        {
+          "speaker": "me",
+          "text": "yeah i think so"
+        },
+        {
+          "speaker": "other",
+          "text": "cool, what time should i expect you?"
+        }
+      ],
+      "draft": "maybe 20 mins late traffic bad",
+      "profile": {
+        "tone": "warm",
+        "length": "short",
+        "style": "casual"
+      }
+    },
+    {
+      "conversation": [
+        {
+          "speaker": "other",
+          "text": "want to grab lunch tomorrow?"
+        },
+        {
+          "speaker": "me",
+          "text": "maybe, depends on work"
+        },
+        {
+          "speaker": "other",
+          "text": "no worries, just let me know later tonight"
+        }
+      ],
+      "draft": "kind of tired dont really want go",
+      "profile": {
+        "tone": "polite",
+        "length": "short",
+        "style": "casual"
+      }
+    },
+    {
+      "conversation": [
+        {
+          "speaker": "other",
+          "text": "i honestly think i messed everything up"
+        },
+        {
+          "speaker": "me",
+          "text": "what happened?"
+        },
+        {
+          "speaker": "other",
+          "text": "i said the wrong thing and now everyone is upset with me"
+        }
+      ],
+      "draft": "its okay not all your fault",
+      "profile": {
+        "tone": "gentle",
+        "length": "medium",
+        "style": "supportive"
+      }
+    },
+    {
+      "conversation": [
+        {
+          "speaker": "other",
+          "text": "could you send me the revised slides by tonight?"
+        },
+        {
+          "speaker": "me",
+          "text": "yes, i'm still working on them"
+        },
+        {
+          "speaker": "other",
+          "text": "thank you, that would really help"
+        }
+      ],
+      "draft": "yes i can send before 9",
+      "profile": {
+        "tone": "professional",
+        "length": "short",
+        "style": "formal"
+      }
+    },
+    {
+      "conversation": [
+        {
+          "speaker": "other",
+          "text": "bro where are you"
+        },
+        {
+          "speaker": "me",
+          "text": "on the way"
+        },
+        {
+          "speaker": "other",
+          "text": "you said that ten minutes ago lol"
+        }
+      ],
+      "draft": "5 mins away i swear",
+      "profile": {
+        "tone": "playful",
+        "length": "short",
+        "style": "chill"
+      }
+    },
+    {
+      "conversation": [
+        {
+          "speaker": "other",
+          "text": "did you make it home okay?"
+        },
+        {
+          "speaker": "me",
+          "text": "just got in"
+        },
+        {
+          "speaker": "other",
+          "text": "good, i was a little worried after how late it got"
+        }
+      ],
+      "draft": "yeah im good thanks for checking",
+      "profile": {
+        "tone": "warm",
+        "length": "short",
+        "style": "casual"
+      }
+    },
+    {
+      "conversation": [
+        {
+          "speaker": "other",
+          "text": "i'm outside your building"
+        },
+        {
+          "speaker": "me",
+          "text": "coming down now"
+        },
+        {
+          "speaker": "other",
+          "text": "take your time, it's freezing out here though"
+        }
+      ],
+      "draft": "sorry elevator slow",
+      "profile": {
+        "tone": "friendly",
+        "length": "short",
+        "style": "relaxed"
+      }
+    },
+    {
+      "conversation": [
+        {
+          "speaker": "other",
+          "text": "can you cover my shift on saturday?"
+        },
+        {
+          "speaker": "me",
+          "text": "what time is it?"
+        },
+        {
+          "speaker": "other",
+          "text": "2 to 7, i have a family thing"
+        }
+      ],
+      "draft": "cant i already promised parents",
+      "profile": {
+        "tone": "apologetic",
+        "length": "medium",
+        "style": "casual"
+      }
+    },
+    {
+      "conversation": [
+        {
+          "speaker": "other",
+          "text": "you've been kind of quiet today"
+        },
+        {
+          "speaker": "me",
+          "text": "yeah sorry"
+        },
+        {
+          "speaker": "other",
+          "text": "everything okay?"
+        }
+      ],
+      "draft": "just a little overwhelmed today",
+      "profile": {
+        "tone": "honest",
+        "length": "short",
+        "style": "casual"
+      }
+    },
+    {
+      "conversation": [
+        {
+          "speaker": "other",
+          "text": "i got the internship!"
+        },
+        {
+          "speaker": "me",
+          "text": "no way"
+        },
+        {
+          "speaker": "other",
+          "text": "yes!! i literally screamed when i saw the email"
+        }
+      ],
+      "draft": "thats amazing proud of you",
+      "profile": {
+        "tone": "enthusiastic",
+        "length": "short",
+        "style": "casual"
+      }
+    },
+    {
+      "conversation": [
+        {
+          "speaker": "other",
+          "text": "do you want to come over and watch a movie later?"
+        },
+        {
+          "speaker": "me",
+          "text": "maybe"
+        },
+        {
+          "speaker": "other",
+          "text": "i can pick something easy and low-key if you're tired"
+        }
+      ],
+      "draft": "that sounds nice maybe a little later",
+      "profile": {
+        "tone": "soft",
+        "length": "short",
+        "style": "warm"
+      }
+    },
+    {
+      "conversation": [
+        {
+          "speaker": "other",
+          "text": "hey, just checking in about the group project"
+        },
+        {
+          "speaker": "me",
+          "text": "yeah i've started my part"
+        },
+        {
+          "speaker": "other",
+          "text": "awesome, do you think you'll have a draft by tomorrow morning?"
+        }
+      ],
+      "draft": "probably by noon not morning",
+      "profile": {
+        "tone": "clear",
+        "length": "short",
+        "style": "academic"
+      }
+    },
+    {
+      "conversation": [
+        {
+          "speaker": "other",
+          "text": "i'm sorry for how i acted earlier"
+        },
+        {
+          "speaker": "me",
+          "text": "thanks for saying that"
+        },
+        {
+          "speaker": "other",
+          "text": "i was stressed, but that's not an excuse"
+        }
+      ],
+      "draft": "i appreciate it lets talk later",
+      "profile": {
+        "tone": "calm",
+        "length": "short",
+        "style": "mature"
+      }
+    },
+    {
+      "conversation": [
+        {
+          "speaker": "other",
+          "text": "happy birthday!! did you do anything fun today?"
+        },
+        {
+          "speaker": "me",
+          "text": "haha thank you"
+        },
+        {
+          "speaker": "other",
+          "text": "you better have celebrated at least a little"
+        }
+      ],
+      "draft": "just dinner with family very chill",
+      "profile": {
+        "tone": "friendly",
+        "length": "short",
+        "style": "casual"
+      }
+    },
+    {
+      "conversation": [
+        {
+          "speaker": "other",
+          "text": "are you mad at me?"
+        },
+        {
+          "speaker": "me",
+          "text": "no"
+        },
+        {
+          "speaker": "other",
+          "text": "it kind of feels like you are"
+        }
+      ],
+      "draft": "not mad just needed space",
+      "profile": {
+        "tone": "gentle",
+        "length": "medium",
+        "style": "careful"
+      }
+    },
+    {
+      "conversation": [
+        {
+          "speaker": "other",
+          "text": "can i call you right now?"
+        },
+        {
+          "speaker": "me",
+          "text": "in class rn"
+        },
+        {
+          "speaker": "other",
+          "text": "oh sorry, when are you free?"
+        }
+      ],
+      "draft": "after 3 should work",
+      "profile": {
+        "tone": "neutral",
+        "length": "short",
+        "style": "chill"
+      }
+    },
+    {
+      "conversation": [
+        {
+          "speaker": "other",
+          "text": "i left my charger at your place i think"
+        },
+        {
+          "speaker": "me",
+          "text": "what color was it?"
+        },
+        {
+          "speaker": "other",
+          "text": "white, kind of old and bent near the end"
+        }
+      ],
+      "draft": "yeah i found it bring tomorrow",
+      "profile": {
+        "tone": "helpful",
+        "length": "short",
+        "style": "casual"
+      }
+    },
+    {
+      "conversation": [
+        {
+          "speaker": "other",
+          "text": "thank you again for helping me yesterday"
+        },
+        {
+          "speaker": "me",
+          "text": "of course"
+        },
+        {
+          "speaker": "other",
+          "text": "seriously, i would have been so lost without you"
+        }
+      ],
+      "draft": "anytime glad it worked out",
+      "profile": {
+        "tone": "warm",
+        "length": "short",
+        "style": "friendly"
+      }
+    },
+    {
+      "conversation": [
+        {
+          "speaker": "other",
+          "text": "want to go to the beach this weekend?"
+        },
+        {
+          "speaker": "me",
+          "text": "that actually sounds fun"
+        },
+        {
+          "speaker": "other",
+          "text": "we'd probably leave pretty early on saturday"
+        }
+      ],
+      "draft": "im down if i finish work friday night",
+      "profile": {
+        "tone": "positive",
+        "length": "short",
+        "style": "casual"
+      }
+    },
+    {
+      "conversation": [
+        {
+          "speaker": "other",
+          "text": "did i say something weird last night?"
+        },
+        {
+          "speaker": "me",
+          "text": "why?"
+        },
+        {
+          "speaker": "other",
+          "text": "i keep replaying the whole conversation in my head"
+        }
+      ],
+      "draft": "no youre overthinking it",
+      "profile": {
+        "tone": "reassuring",
+        "length": "short",
+        "style": "casual"
+      }
+    },
+    {
+      "conversation": [
+        {
+          "speaker": "other",
+          "text": "i'm at the airport and my flight got delayed again"
+        },
+        {
+          "speaker": "me",
+          "text": "ugh no"
+        },
+        {
+          "speaker": "other",
+          "text": "yeah, i've been sitting here for three hours already"
+        }
+      ],
+      "draft": "thats awful hope they board soon",
+      "profile": {
+        "tone": "empathetic",
+        "length": "short",
+        "style": "casual"
+      }
+    },
+    {
+      "conversation": [
+        {
+          "speaker": "other",
+          "text": "hey, are we still good for tomorrow?"
+        },
+        {
+          "speaker": "me",
+          "text": "i think so"
+        },
+        {
+          "speaker": "other",
+          "text": "okay just making sure because i haven't heard much from you"
+        }
+      ],
+      "draft": "yes sorry been slammed today",
+      "profile": {
+        "tone": "apologetic",
+        "length": "short",
+        "style": "casual"
+      }
+    },
+    {
+      "conversation": [
+        {
+          "speaker": "other",
+          "text": "my interview is in an hour and i feel sick"
+        },
+        {
+          "speaker": "me",
+          "text": "you've got this"
+        },
+        {
+          "speaker": "other",
+          "text": "i know, i'm just really nervous"
+        }
+      ],
+      "draft": "take a breath youll do great",
+      "profile": {
+        "tone": "encouraging",
+        "length": "short",
+        "style": "supportive"
+      }
+    },
+    {
+      "conversation": [
+        {
+          "speaker": "other",
+          "text": "can you send me the address?"
+        },
+        {
+          "speaker": "me",
+          "text": "yeah one sec"
+        },
+        {
+          "speaker": "other",
+          "text": "thanks, i'm heading out now"
+        }
+      ],
+      "draft": "sending now",
+      "profile": {
+        "tone": "neutral",
+        "length": "short",
+        "style": "minimal"
+      }
+    },
+    {
+      "conversation": [
+        {
+          "speaker": "other",
+          "text": "i miss you"
+        },
+        {
+          "speaker": "me",
+          "text": "aw"
+        },
+        {
+          "speaker": "other",
+          "text": "when do i get to see you again?"
+        }
+      ],
+      "draft": "soon i hope this week maybe",
+      "profile": {
+        "tone": "affectionate",
+        "length": "short",
+        "style": "soft"
+      }
+    },
+    {
+      "conversation": [
+        {
+          "speaker": "other",
+          "text": "the food here is so bad lol"
+        },
+        {
+          "speaker": "me",
+          "text": "told you"
+        },
+        {
+          "speaker": "other",
+          "text": "you really did, i should have listened"
+        }
+      ],
+      "draft": "im never letting you forget this",
+      "profile": {
+        "tone": "teasing",
+        "length": "short",
+        "style": "chill"
+      }
+    }
+  ]
