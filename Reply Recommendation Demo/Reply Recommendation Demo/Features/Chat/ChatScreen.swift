@@ -12,118 +12,120 @@ struct ChatScreen: View {
 
     var body: some View {
         NavigationStack {
-            VStack(spacing: 0) {
-                ScrollViewReader { proxy in
-                    ScrollView {
-                        LazyVStack(spacing: 10) {
-                            ForEach(Array(viewModel.messages.enumerated()), id: \.element.id) { index, message in
-                                if shouldShowTimestamp(at: index) {
-                                    DemoTimestampBanner(date: message.createdAt)
-                                        .id("ts-\(message.id.uuidString)")
-                                }
-                                DemoChatMessageRow(
-                                    message: message,
-                                    showsSenderName: shouldShowSenderName(at: index)
-                                )
-                                .id(message.id)
+            ScrollViewReader { proxy in
+                ScrollView {
+                    LazyVStack(spacing: 10) {
+                        ForEach(Array(viewModel.messages.enumerated()), id: \.element.id) { index, message in
+                            if shouldShowTimestamp(at: index) {
+                                DemoTimestampBanner(date: message.createdAt)
+                                    .id("ts-\(message.id.uuidString)")
                             }
-                            Color.clear
-                                .frame(height: 1)
-                                .id(bottomAnchorId)
-                        }
-                        .padding(.top, 12)
-                        .padding(.bottom, 8)
-                    }
-                    .simultaneousGesture(
-                        TapGesture().onEnded {
-                            UIApplication.shared.sendAction(
-                                #selector(UIResponder.resignFirstResponder),
-                                to: nil,
-                                from: nil,
-                                for: nil
+                            DemoChatMessageRow(
+                                message: message,
+                                showsSenderName: shouldShowSenderName(at: index)
                             )
+                            .id(message.id)
                         }
-                    )
-                    .onAppear {
-                        scrollToBottom(proxy: proxy, animated: false)
+                        Color.clear
+                            .frame(height: 1)
+                            .id(bottomAnchorId)
                     }
-                    .onChange(of: viewModel.messages.count) { _, _ in
-                        scrollToBottom(proxy: proxy, animated: true)
-                    }
-                    .onChange(of: viewModel.suggestions.count) { _, _ in
-                        scrollToBottom(proxy: proxy, animated: true)
-                    }
+                    .padding(.top, 12)
+                    .padding(.bottom, 8)
                 }
-
-                Divider()
-
-                SuggestionShelf(
-                    suggestions: viewModel.suggestions,
-                    isLoading: viewModel.isGenerating,
-                    metricsSummary: viewModel.metricsSummary,
-                    onPickSuggestion: { suggestion in
-                        viewModel.insertSuggestion(suggestion)
-                    },
-                    onRegenerate: {
-                        Task { await viewModel.generateSuggestions() }
+                .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
+                .simultaneousGesture(
+                    TapGesture().onEnded {
+                        UIApplication.shared.sendAction(
+                            #selector(UIResponder.resignFirstResponder),
+                            to: nil,
+                            from: nil,
+                            for: nil
+                        )
                     }
                 )
+                .onAppear {
+                    scrollToBottom(proxy: proxy, animated: false)
+                }
+                .onChange(of: viewModel.messages.count) { _, _ in
+                    scrollToBottom(proxy: proxy, animated: true)
+                }
+                .onChange(of: viewModel.suggestions.count) { _, _ in
+                    scrollToBottom(proxy: proxy, animated: true)
+                }
+                .safeAreaInset(edge: .bottom, spacing: 0) {
+                    VStack(spacing: 0) {
+                        Divider()
 
-                Divider()
+                        SuggestionShelf(
+                            suggestions: viewModel.suggestions,
+                            isLoading: viewModel.isGenerating,
+                            metricsSummary: viewModel.metricsSummary,
+                            onPickSuggestion: { suggestion in
+                                viewModel.insertSuggestion(suggestion)
+                            },
+                            onRegenerate: {
+                                Task { await viewModel.generateSuggestions() }
+                            }
+                        )
 
-                DemoMessageComposer(
-                    text: $viewModel.draftText,
-                    isSendEnabled: viewModel.canSendDraft,
-                    onGenerate: {
-                        Task { await viewModel.generateSuggestions() }
-                    },
-                    onSend: {
-                        withAnimation(.easeOut(duration: 0.2)) {
-                            viewModel.sendDraft()
+                        Divider()
+
+                        DemoMessageComposer(
+                            text: $viewModel.draftText,
+                            isSendEnabled: viewModel.canSendDraft,
+                            onGenerate: {
+                                Task { await viewModel.generateSuggestions() }
+                            },
+                            onSend: {
+                                withAnimation(.easeOut(duration: 0.2)) {
+                                    viewModel.sendDraft()
+                                }
+                            }
+                        )
+                    }
+                    .background(Color(uiColor: .systemBackground))
+                }
+                .background {
+                    Color(uiColor: .systemBackground)
+                        .ignoresSafeArea()
+                }
+                .navigationBarTitleDisplayMode(.inline)
+                .toolbar {
+                    ToolbarItem(placement: .principal) {
+                        ChatHeaderView(
+                            title: viewModel.threadTitle,
+                            subtitle: viewModel.threadSubtitle,
+                            badgeText: viewModel.backendBadgeText
+                        )
+                    }
+                    ToolbarItem(placement: .topBarTrailing) {
+                        Button {
+                            isShowingSettings = true
+                        } label: {
+                            Image(systemName: "gearshape")
                         }
+                        .accessibilityLabel("Open Settings")
                     }
-                )
-            }
-            .frame(maxWidth: .infinity, maxHeight: .infinity)
-            .background {
-                Color(uiColor: .systemBackground)
-                    .ignoresSafeArea()
-            }
-            .navigationBarTitleDisplayMode(.inline)
-            .toolbar {
-                ToolbarItem(placement: .principal) {
-                    ChatHeaderView(
-                        title: viewModel.threadTitle,
-                        subtitle: viewModel.threadSubtitle,
-                        badgeText: viewModel.backendBadgeText
+                }
+                .task {
+                    await viewModel.bootstrapIfNeeded()
+                }
+                .sheet(isPresented: $isShowingSettings) {
+                    SettingsScreen(viewModel: viewModel)
+                        .environmentObject(settingsStore)
+                }
+                .alert(
+                    "Suggestion Engine",
+                    isPresented: Binding(
+                        get: { viewModel.errorMessage != nil },
+                        set: { if !$0 { viewModel.clearError() } }
                     )
+                ) {
+                    Button("OK", role: .cancel) { }
+                } message: {
+                    Text(viewModel.errorMessage ?? "")
                 }
-                ToolbarItem(placement: .topBarTrailing) {
-                    Button {
-                        isShowingSettings = true
-                    } label: {
-                        Image(systemName: "gearshape")
-                    }
-                    .accessibilityLabel("Open Settings")
-                }
-            }
-            .task {
-                await viewModel.bootstrapIfNeeded()
-            }
-            .sheet(isPresented: $isShowingSettings) {
-                SettingsScreen(viewModel: viewModel)
-                    .environmentObject(settingsStore)
-            }
-            .alert(
-                "Suggestion Engine",
-                isPresented: Binding(
-                    get: { viewModel.errorMessage != nil },
-                    set: { if !$0 { viewModel.clearError() } }
-                )
-            ) {
-                Button("OK", role: .cancel) { }
-            } message: {
-                Text(viewModel.errorMessage ?? "")
             }
         }
     }

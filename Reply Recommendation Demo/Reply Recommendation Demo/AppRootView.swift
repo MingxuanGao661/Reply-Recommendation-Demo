@@ -15,6 +15,7 @@ struct AppRootView: View {
     var body: some View {
         ChatScreen(viewModel: chatViewModel)
             .environmentObject(settingsStore)
+            .dynamicTypeSize(.xSmall ... .large)
             .frame(maxWidth: .infinity, maxHeight: .infinity)
             .background {
                 Color(uiColor: .systemBackground)

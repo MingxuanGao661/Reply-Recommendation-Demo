@@ -1,6 +1,7 @@
 # Python / ML 
 *.gguf
 models/*.gguf
+*/Backend/*.gguf
 results/
 .venv/
 __pycache__/
