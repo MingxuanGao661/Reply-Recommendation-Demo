@@ -2,7 +2,7 @@ import Foundation
 import QuartzCore
 import llama
 
-/// Local LLM inference service using llama.cpp (`On_Device_Fine_Tuning/llama.xcframework`).
+/// Local LLM inference service using llama.cpp (`Vendor/QVAC/llama.xcframework`).
 /// Input/output are JSON strings — same format as the Python demo.
 final class LLMService {
     private static let backendLifecycleQueue = DispatchQueue(label: "reply-demo.llama-backend-lifecycle")

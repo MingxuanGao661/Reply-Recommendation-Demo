@@ -3,8 +3,34 @@
 models/*.gguf
 */Backend/*.gguf
 
-# Local LoRA training outputs (large checkpoints; keep on disk, do not push)
+# Local LoRA training outputs + LoRA "plugin" weights (GGUF / HF; keep on disk, do not push)
 lora_reply_sft/
+Experiments_Benchmarks/lora_reply_sft_v1/
+**/lora_out/
+**/lora_outputs/
+**/lora_adapter/
+**/lora_adapters/
+**/checkpoint-*/
+*.safetensors
+**/adapter_model.bin
+optimizer.pt
+rng_state.pth
+scheduler.pt
+training_args.bin
+# LoRA merged adapters as .gguf (*.gguf is ignored globally above; names here for clarity / tooling)
+**/*lora*.gguf
+**/reply-lora*.gguf
+**/reply_sft_lora*.gguf
+
+# Large sample / distillation data (regenerate or download locally)
+sample_dialogue_data/data/
+sample_dialogue_data/data.zip
+Distillation/out/
+
+# Prebuilt Apple frameworks (llama / QVAC; large — keep local, see INFERENCE_RUNTIME.md)
+**/*.xcframework/
+On_Device_Fine_Tuning/build/
+
 results/
 .venv/
 __pycache__/

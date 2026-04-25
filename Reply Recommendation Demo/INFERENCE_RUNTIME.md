@@ -4,7 +4,7 @@
 
 ## 变更动机
 
-- 使用与 **On_Device_Fine_Tuning** 一致的预编译 `llama.xcframework`，便于与端上构建管线、版本和功能（含 LoRA / 训练相关头文件与符号）对齐。
+- 使用 vendored QVAC `llama.xcframework`，便于与端上构建管线、版本和功能（含 LoRA / 训练相关头文件与符号）对齐。
 - 减少对远程 SPM（`llama.swift`）版本的耦合，由仓库内二进制统一来源。
 
 ## 架构概览（未改动的分层）
@@ -32,17 +32,17 @@
 **之后**
 
 - 移除 SwiftPM 中对 `LlamaSwift` 的引用（`project.pbxproj` 中不再包含 `XCRemoteSwiftPackageReference` / `XCSwiftPackageProductDependency`）。
-- 将 **`On_Device_Fine_Tuning/llama.xcframework`** 加入主 App Target：
+- 将 **`Vendor/QVAC/llama.xcframework`** 加入主 App Target：
   - **Link Binary With Libraries**：链接该 xcframework。
   - **Embed Frameworks**：`CodeSignOnCopy`、`RemoveHeadersOnCopy`，保证真机与分发时动态库随 App 嵌入并可被加载。
 
 当前工程内 xcframework 的引用路径（相对包含 `.xcodeproj` 的目录）为：
 
 ```text
-../On_Device_Fine_Tuning/llama.xcframework
+Vendor/QVAC/llama.xcframework
 ```
 
-若需将 Demo 目录单独拷贝到其他仓库，应把整个 `llama.xcframework` 一并拷贝到工程内，并在 Xcode 中更新该引用路径。
+该 framework 已随 Demo 项目 vendored 进仓库目录，不再依赖兄弟目录或本机绝对路径。
 
 ### 2. `LLMService.swift`
 
@@ -58,7 +58,7 @@
 
 ## 明确不需要做的事
 
-- **`On_Device_Fine_Tuning/build/bin` 下的 `.dylib`**：面向 macOS 等本机构建产物，**不应**复制或链接进本 iOS Demo；iOS 应只使用 **xcframework 内各 slice 的 `llama.framework`**。
+- **QVAC build 输出目录下的 `.dylib`**：面向 macOS 等本机构建产物，**不应**复制或链接进本 iOS Demo；iOS 应只使用 **xcframework 内各 slice 的 `llama.framework`**。
 - **不必**为「能跑 iOS 本地推理」而额外拷贝 `build` 目录中的 dylib；与 `llama.xcframework` 重复且易混淆平台。
 
 ## 后续可扩展方向（同一 xcframework）
@@ -117,7 +117,7 @@
    - 替换 Demo 当前引用的：
 
      ```text
-     /Users/William/LA-Hacks/On_Device_Fine_Tuning/llama.xcframework
+     Vendor/QVAC/llama.xcframework
      ```
 
    旧版本备份为：
