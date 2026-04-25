@@ -165,6 +165,14 @@ final class AppSettingsStore: ObservableObject {
         didSet { persist() }
     }
 
+    @Published var localTrainingEnabled: Bool {
+        didSet { persist() }
+    }
+
+    @Published var localTrainingOnboardingCompleted: Bool {
+        didSet { persist() }
+    }
+
     @Published var bundledLlamaModel: BundledLlamaModelOption {
         didSet { persist() }
     }
@@ -194,6 +202,22 @@ final class AppSettingsStore: ObservableObject {
 
     /// Absolute path to a user-trained LoRA `.gguf` (e.g. `report.outputAdapterPath` from `LLMTrainingService`).
     @Published var userTrainedLoraAdapterPath: String {
+        didSet { persist() }
+    }
+
+    @Published var lastTrainingFinalLoss: Double? {
+        didSet { persist() }
+    }
+
+    @Published var lastTrainingDurationMs: Double? {
+        didSet { persist() }
+    }
+
+    @Published var lastTrainingPeakMemoryMB: Double? {
+        didSet { persist() }
+    }
+
+    @Published var lastTrainingCompletedAt: Date? {
         didSet { persist() }
     }
 
@@ -232,6 +256,10 @@ final class AppSettingsStore: ObservableObject {
         cloudModelName = defaults.string(forKey: Keys.cloudModelName) ?? ""
         cloudAPIKey = defaults.string(forKey: Keys.cloudAPIKey) ?? ""
         safeDemoModeEnabled = defaults.object(forKey: Keys.safeDemoModeEnabled) as? Bool ?? true
+        localTrainingEnabled = defaults.object(forKey: Keys.localTrainingEnabled) as? Bool ?? false
+        localTrainingOnboardingCompleted = defaults.object(
+            forKey: Keys.localTrainingOnboardingCompleted
+        ) as? Bool ?? false
         bundledLlamaModel = BundledLlamaModelOption(
             rawValue: defaults.string(forKey: Keys.bundledLlamaModel) ?? ""
         ) ?? .instruct3B_Q4
@@ -240,6 +268,10 @@ final class AppSettingsStore: ObservableObject {
             forKey: Keys.userTrainedLoraAdapterEnabled
         ) as? Bool ?? false
         userTrainedLoraAdapterPath = defaults.string(forKey: Keys.userTrainedLoraAdapterPath) ?? ""
+        lastTrainingFinalLoss = Self.optionalDouble(forKey: Keys.lastTrainingFinalLoss, defaults: defaults)
+        lastTrainingDurationMs = Self.optionalDouble(forKey: Keys.lastTrainingDurationMs, defaults: defaults)
+        lastTrainingPeakMemoryMB = Self.optionalDouble(forKey: Keys.lastTrainingPeakMemoryMB, defaults: defaults)
+        lastTrainingCompletedAt = defaults.object(forKey: Keys.lastTrainingCompletedAt) as? Date
         demoComposerParticipantIDs = Self.loadDemoComposerParticipantIDs(from: defaults)
 
         if userTrainedLoraAdapterEnabled, loraAdapterEnabled {
@@ -259,14 +291,18 @@ final class AppSettingsStore: ObservableObject {
     /// Resolved LoRA for `LocalReplyEngine`: user-trained path wins when enabled and file exists; otherwise optional bundled adapter.
     func resolvedLocalLoraConfiguration() -> (bundledResourceName: String?, userAdapterPath: String?) {
         let trimmedPath = userTrainedLoraAdapterPath.trimmingCharacters(in: .whitespacesAndNewlines)
-        let userOn = userTrainedLoraAdapterEnabled && !trimmedPath.isEmpty
-            && FileManager.default.fileExists(atPath: trimmedPath)
+        let userOn = userTrainedLoraAdapterEnabled && userTrainedLoraAdapterAvailable
         if userOn {
             return (bundledResourceName: nil, userAdapterPath: trimmedPath)
         }
         let bundledOn = loraAdapterEnabled && bundledLlamaModel.supportsReplyLoRA
         let bundledName = bundledOn ? BundledLoraAdapterOption.replySFT_v1.resourceName : nil
         return (bundledResourceName: bundledName, userAdapterPath: nil)
+    }
+
+    var userTrainedLoraAdapterAvailable: Bool {
+        let trimmedPath = userTrainedLoraAdapterPath.trimmingCharacters(in: .whitespacesAndNewlines)
+        return !trimmedPath.isEmpty && FileManager.default.fileExists(atPath: trimmedPath)
     }
 
     var availableBackendModes: [ReplyBackendMode] {
@@ -281,6 +317,14 @@ final class AppSettingsStore: ObservableObject {
         demoComposerParticipantIDs[threadID.uuidString] = participantID
     }
 
+    func recordLocalTrainingReport(_ report: LLMTrainingReport) {
+        userTrainedLoraAdapterPath = report.outputAdapterPath
+        lastTrainingFinalLoss = report.stepMetrics.last?.loss
+        lastTrainingDurationMs = report.durationMs
+        lastTrainingPeakMemoryMB = report.peakMemoryMB
+        lastTrainingCompletedAt = Date()
+    }
+
     private func persist() {
         guard !isRunningInXcodePreview else { return }
         defaults.set(backendMode.rawValue, forKey: Keys.backendMode)
@@ -290,10 +334,20 @@ final class AppSettingsStore: ObservableObject {
         defaults.set(cloudModelName, forKey: Keys.cloudModelName)
         defaults.set(cloudAPIKey, forKey: Keys.cloudAPIKey)
         defaults.set(safeDemoModeEnabled, forKey: Keys.safeDemoModeEnabled)
+        defaults.set(localTrainingEnabled, forKey: Keys.localTrainingEnabled)
+        defaults.set(localTrainingOnboardingCompleted, forKey: Keys.localTrainingOnboardingCompleted)
         defaults.set(bundledLlamaModel.rawValue, forKey: Keys.bundledLlamaModel)
         defaults.set(loraAdapterEnabled, forKey: Keys.loraAdapterEnabled)
         defaults.set(userTrainedLoraAdapterEnabled, forKey: Keys.userTrainedLoraAdapterEnabled)
         defaults.set(userTrainedLoraAdapterPath, forKey: Keys.userTrainedLoraAdapterPath)
+        Self.persist(lastTrainingFinalLoss, forKey: Keys.lastTrainingFinalLoss, defaults: defaults)
+        Self.persist(lastTrainingDurationMs, forKey: Keys.lastTrainingDurationMs, defaults: defaults)
+        Self.persist(lastTrainingPeakMemoryMB, forKey: Keys.lastTrainingPeakMemoryMB, defaults: defaults)
+        if let lastTrainingCompletedAt {
+            defaults.set(lastTrainingCompletedAt, forKey: Keys.lastTrainingCompletedAt)
+        } else {
+            defaults.removeObject(forKey: Keys.lastTrainingCompletedAt)
+        }
     }
 
     private func persistDemoComposerParticipantIDs() {
@@ -310,6 +364,19 @@ final class AppSettingsStore: ObservableObject {
         return decoded
     }
 
+    private static func optionalDouble(forKey key: String, defaults: UserDefaults) -> Double? {
+        guard defaults.object(forKey: key) != nil else { return nil }
+        return defaults.double(forKey: key)
+    }
+
+    private static func persist(_ value: Double?, forKey key: String, defaults: UserDefaults) {
+        if let value {
+            defaults.set(value, forKey: key)
+        } else {
+            defaults.removeObject(forKey: key)
+        }
+    }
+
     private enum Keys {
         static let backendMode = "replyDemo.backendMode"
         static let defaultTone = "replyDemo.defaultTone"
@@ -318,10 +385,16 @@ final class AppSettingsStore: ObservableObject {
         static let cloudModelName = "replyDemo.cloudModelName"
         static let cloudAPIKey = "replyDemo.cloudAPIKey"
         static let safeDemoModeEnabled = "replyDemo.safeDemoModeEnabled"
+        static let localTrainingEnabled = "replyDemo.localTrainingEnabled"
+        static let localTrainingOnboardingCompleted = "replyDemo.localTrainingOnboardingCompleted"
         static let bundledLlamaModel = "replyDemo.bundledLlamaModel"
         static let loraAdapterEnabled = "replyDemo.loraAdapterEnabled"
         static let userTrainedLoraAdapterEnabled = "replyDemo.userTrainedLoraAdapterEnabled"
         static let userTrainedLoraAdapterPath = "replyDemo.userTrainedLoraAdapterPath"
+        static let lastTrainingFinalLoss = "replyDemo.lastTrainingFinalLoss"
+        static let lastTrainingDurationMs = "replyDemo.lastTrainingDurationMs"
+        static let lastTrainingPeakMemoryMB = "replyDemo.lastTrainingPeakMemoryMB"
+        static let lastTrainingCompletedAt = "replyDemo.lastTrainingCompletedAt"
         static let demoSenderDeviceID = "replyDemo.demoSenderDeviceID"
         static let demoComposerParticipantIDs = "replyDemo.demoComposerParticipantIDs"
     }

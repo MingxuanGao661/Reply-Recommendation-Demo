@@ -266,7 +266,7 @@ struct LLMTrainingOptions: Codable, Equatable, Sendable {
     var flashAttention: Bool
     var gpuLayers: Int32
 
-    static func conservativeLlama32OneB() -> Self {
+    nonisolated static func conservativeLlama32OneB() -> Self {
         Self(
             modelResourceName: "Llama-3.2-1B-Instruct-Q4_K_M",
             outputAdapterFileName: "reply-lora-smoke.gguf",
