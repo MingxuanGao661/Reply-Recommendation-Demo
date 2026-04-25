@@ -275,6 +275,10 @@ final class LocalReplyEngine: ReplySuggestionEngine {
 
     private var service: LLMService?
 
+    private static func logRuntime(_ message: String) {
+        NSLog("[runtime] %@", message)
+    }
+
     init(
         modelResourceName: String = "Llama-3.2-3B-Instruct-Q4_K_M",
         loraResourceName: String? = nil,
@@ -368,12 +372,16 @@ final class LocalReplyEngine: ReplySuggestionEngine {
                     return
                 }
                 do {
+                    let totalStart = Date()
                     let service = try self.prepareService(defaultProfile: defaultProfile)
                     service.defaultProfile = defaultProfile
                     let (jsonString, metrics) = try service.generate(input: input)
                     let result = try decodeGenerationResult(
                         outputJSON: jsonString,
                         metrics: metrics
+                    )
+                    Self.logRuntime(
+                        "generate total wallMs=\(Self.elapsedMs(since: totalStart)) inferenceMs=\(Int(metrics.latencyMs)) tokens=\(metrics.tokensGenerated)"
                     )
                     continuation.resume(returning: result)
                 } catch {
@@ -394,20 +402,31 @@ final class LocalReplyEngine: ReplySuggestionEngine {
                     return
                 }
                 do {
+                    let totalStart = Date()
                     let service = try self.prepareService(defaultProfile: defaultProfile)
                     service.defaultProfile = defaultProfile
 
                     // Copilot-style prompt: plain-text output, 3-message context, pre-filled draft prefix.
                     let draftPrefix = input.hasDraft ? input.resolvedDraft : ""
-                    let prompt = PromptBuilder.buildLlamaPromptInline(input: input)
+                    let promptParts = PromptBuilder.buildLlamaPromptInlineParts(input: input)
+                    let prompt = promptParts.cacheablePrefix + promptParts.requestSuffix
+                    let cacheKey = self.inlineKVCacheKey(prefix: promptParts.cacheablePrefix)
                     Self.logInlineDebug(
                         "engine start draftChars=\(draftPrefix.count) promptChars=\(prompt.count) model=\(self.modelResourceName)"
                     )
 
                     // Tiny token budget for inline: speed matters more than perfect wording here.
-                    let (rawOutput, metrics) = try service.generateRaw(prompt: prompt, tokenLimit: 15)
+                    let (rawOutput, metrics) = try service.generateRaw(
+                        prefix: promptParts.cacheablePrefix,
+                        suffix: promptParts.requestSuffix,
+                        cacheKey: cacheKey,
+                        tokenLimit: 15
+                    )
                     Self.logInlineDebug(
                         "engine output latencyMs=\(Int(metrics.latencyMs)) tokens=\(metrics.tokensGenerated) raw=\(Self.preview(rawOutput))"
+                    )
+                    Self.logRuntime(
+                        "inline total wallMs=\(Self.elapsedMs(since: totalStart)) inferenceMs=\(Int(metrics.latencyMs)) tokens=\(metrics.tokensGenerated)"
                     )
 
                     // Output is the continuation after the pre-filled draft.
@@ -461,6 +480,10 @@ final class LocalReplyEngine: ReplySuggestionEngine {
 
     private static func logInlineDebug(_ message: String) {
         NSLog("[inline-debug] %@", message)
+    }
+
+    private static func elapsedMs(since start: Date) -> Int {
+        Int(Date().timeIntervalSince(start) * 1000)
     }
 
     private static func preview(_ text: String, limit: Int = 180) -> String {
@@ -556,6 +579,28 @@ final class LocalReplyEngine: ReplySuggestionEngine {
         return suffix.isEmpty ? nil : suffix
     }
 
+    private func inlineKVCacheKey(prefix: String) -> String {
+        [
+            "inline-v1",
+            modelResourceName,
+            loraResourceName ?? "-",
+            loraAdapterFilePath ?? "-",
+            usePersonalLoraGeneralInference ? "personal" : "standard",
+            String(prefix.hashValue),
+        ].joined(separator: "|")
+    }
+
+    private func progressiveKVCacheKey(prefix: String) -> String {
+        [
+            "progressive-v1",
+            modelResourceName,
+            loraResourceName ?? "-",
+            loraAdapterFilePath ?? "-",
+            usePersonalLoraGeneralInference ? "personal" : "standard",
+            String(prefix.hashValue),
+        ].joined(separator: "|")
+    }
+
     /// Progressive: runs three separate single-tone LLM calls in serial.
     /// Each card is delivered via `onSuggestionReady` as soon as it finishes,
     /// so the UI can animate cards in one by one.
@@ -571,6 +616,7 @@ final class LocalReplyEngine: ReplySuggestionEngine {
                     return
                 }
                 do {
+                    let totalStart = Date()
                     let service = try self.prepareService(defaultProfile: defaultProfile)
                     service.defaultProfile = defaultProfile
 
@@ -579,11 +625,15 @@ final class LocalReplyEngine: ReplySuggestionEngine {
                     if self.usePersonalLoraGeneralInference {
                         switch input.suggestionThemeSet {
                         case .replyStyles:
+                            let toneStart = Date()
                             let (jsonString, metrics) = try service.generate(input: input)
                             combined.tokensGenerated += metrics.tokensGenerated
                             combined.totalTokens += metrics.totalTokens
                             combined.latencyMs += metrics.latencyMs
                             combined.modelName = metrics.modelName
+                            Self.logRuntime(
+                                "progressive tone=PersonalLoRA wallMs=\(Self.elapsedMs(since: toneStart)) inferenceMs=\(Int(metrics.latencyMs)) tokens=\(metrics.tokensGenerated)"
+                            )
 
                             let result = try decodeGenerationResult(
                                 outputJSON: jsonString,
@@ -592,6 +642,9 @@ final class LocalReplyEngine: ReplySuggestionEngine {
                             for suggestion in result.suggestions {
                                 onSuggestionReady(suggestion)
                             }
+                            Self.logRuntime(
+                                "progressive total wallMs=\(Self.elapsedMs(since: totalStart)) inferenceMs=\(Int(combined.latencyMs)) tones=\(result.suggestions.count) tokens=\(combined.tokensGenerated)"
+                            )
                             continuation.resume(returning: combined)
                             return
                         case .decisionReply:
@@ -600,12 +653,20 @@ final class LocalReplyEngine: ReplySuggestionEngine {
                     }
 
                     for toneLabel in input.suggestionThemeSet.labels {
-                        let prompt = PromptBuilder.buildLlamaPromptSingle(
+                        let toneStart = Date()
+                        let promptParts = PromptBuilder.buildLlamaPromptSingleParts(
                             input: input,
                             userDefaultProfile: defaultProfile,
                             toneLabel: toneLabel
                         )
-                        let (jsonString, metrics) = try service.generate(prompt: prompt)
+                        let (jsonString, metrics) = try service.generate(
+                            prefix: promptParts.cacheablePrefix,
+                            suffix: promptParts.requestSuffix,
+                            cacheKey: self.progressiveKVCacheKey(prefix: promptParts.cacheablePrefix)
+                        )
+                        Self.logRuntime(
+                            "progressive tone=\(toneLabel) wallMs=\(Self.elapsedMs(since: toneStart)) inferenceMs=\(Int(metrics.latencyMs)) promptTokens=\(metrics.promptTokens) tokens=\(metrics.tokensGenerated)"
+                        )
 
                         combined.tokensGenerated += metrics.tokensGenerated
                         combined.totalTokens    += metrics.totalTokens
@@ -620,6 +681,9 @@ final class LocalReplyEngine: ReplySuggestionEngine {
                         }
                     }
 
+                    Self.logRuntime(
+                        "progressive total wallMs=\(Self.elapsedMs(since: totalStart)) inferenceMs=\(Int(combined.latencyMs)) tones=\(input.suggestionThemeSet.labels.count) tokens=\(combined.tokensGenerated)"
+                    )
                     continuation.resume(returning: combined)
                 } catch {
                     continuation.resume(throwing: error)
@@ -642,6 +706,10 @@ final class LocalReplyEngine: ReplySuggestionEngine {
         }
 
         let resolvedLoraPath = resolvedLoraPathForLoad()
+        let loadStart = Date()
+        Self.logRuntime(
+            "loading start model=\(modelResourceName) lora=\(resolvedLoraPath == nil ? "none" : "enabled")"
+        )
         let service = try LLMService(
             modelPath: modelPath,
             loraPath: resolvedLoraPath,
@@ -652,6 +720,9 @@ final class LocalReplyEngine: ReplySuggestionEngine {
         )
         service.inferPersonalLoraGeneralAsPlainText = usePersonalLoraGeneralInference
         self.service = service
+        Self.logRuntime(
+            "loading complete wallMs=\(Self.elapsedMs(since: loadStart)) model=\(modelResourceName) lora=\(resolvedLoraPath == nil ? "none" : "enabled")"
+        )
         return service
     }
 

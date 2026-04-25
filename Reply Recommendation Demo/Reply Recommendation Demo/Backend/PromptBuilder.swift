@@ -235,6 +235,11 @@ enum PromptBuilder {
     ///
     /// Caller should use `tokenLimit: 15` and strip everything after `\n` in the output.
     static func buildLlamaPromptInline(input: ConversationInput) -> String {
+        let parts = buildLlamaPromptInlineParts(input: input)
+        return parts.cacheablePrefix + parts.requestSuffix
+    }
+
+    static func buildLlamaPromptInlineParts(input: ConversationInput) -> (cacheablePrefix: String, requestSuffix: String) {
         // Keep inline extremely small: one prior message plus the partial draft.
         var contextLines: [String] = []
         for msg in input.conversation.suffix(1) {
@@ -245,8 +250,7 @@ enum PromptBuilder {
 
         if input.hasDraft {
             let draft = input.resolvedDraft
-            // Pre-fill the assistant turn so llama continues exactly after the draft.
-            return """
+            let prefix = """
             <|begin_of_text|><|start_header_id|>system<|end_header_id|>
 
             Continue only a few words.<|eot_id|><|start_header_id|>user<|end_header_id|>
@@ -254,8 +258,9 @@ enum PromptBuilder {
             \(contextBlock)
             Draft:<|eot_id|><|start_header_id|>assistant<|end_header_id|>
 
-            \(draft)
             """
+            // Pre-fill the assistant turn so llama continues exactly after the draft.
+            return (prefix, draft)
         } else {
             let targetLine: String
             if let name = input.replyTargetName {
@@ -263,7 +268,7 @@ enum PromptBuilder {
             } else {
                 targetLine = "Reply:"
             }
-            return """
+            let prefix = """
             <|begin_of_text|><|start_header_id|>system<|end_header_id|>
 
             Write one short text reply.<|eot_id|><|start_header_id|>user<|end_header_id|>
@@ -273,6 +278,7 @@ enum PromptBuilder {
             \(targetLine)<|eot_id|><|start_header_id|>assistant<|end_header_id|>
 
             """
+            return (prefix, "")
         }
     }
 
@@ -283,26 +289,85 @@ enum PromptBuilder {
         userDefaultProfile: Profile?,
         toneLabel: String
     ) -> String {
-        let systemPrompt = buildSystemPromptSingle(
+        let parts = buildLlamaPromptSingleParts(
             input: input,
             userDefaultProfile: userDefaultProfile,
-            hasDraft: input.hasDraft,
-            replyTargetName: input.replyTargetName,
             toneLabel: toneLabel
         )
+        return parts.cacheablePrefix + parts.requestSuffix
+    }
+
+    /// Builds a single-tone prompt as a stable common prefix plus a small tone-specific suffix.
+    /// Progressive generation can keep the prefix KV cache and only swap the suffix per card.
+    static func buildLlamaPromptSingleParts(
+        input: ConversationInput,
+        userDefaultProfile: Profile?,
+        toneLabel: String
+    ) -> (cacheablePrefix: String, requestSuffix: String) {
+        let effective = input.effectiveProfile(userDefault: userDefaultProfile)
+        let target: String
+        if let name = input.replyTargetName {
+            target = "\(name)'s message"
+        } else {
+            target = "the last message in the conversation"
+        }
+        let styleBlock = styleRulesBlock(
+            userDefault: userDefaultProfile,
+            conversation: input.conversationProfile,
+            effective: effective
+        )
+        let commonSystemPrompt: String
+        if input.hasDraft {
+            commonSystemPrompt = """
+            Complete "Me (typing)" into ONE send-ready message for \(target).
+
+            \(styleBlock)
+
+            Rules:
+            - "Me (typing)" is YOUR OWN partial text — output a polished version of it. Do NOT reply to it; it is not someone else's message.
+            - Keep the core meaning: same yes/no, same times/dates, same intent. Do NOT flip or reverse the draft's answer.
+            - Style for this message: see the request below.
+
+            Output: one JSON object only, no markdown. Keys: "label" and "text".
+            """
+        } else {
+            commonSystemPrompt = """
+            Suggest ONE text Me can send. Answer the OTHER person's last message.
+
+            \(styleBlock)
+            \(themeRulesBlock(for: input.suggestionThemeSet))
+
+            Rules:
+            - Address \(target) directly. If they asked a question, answer it; do not only repeat what they said.
+            - Obey the Style rules above. Short, casual, real person texting unless length is long.
+            - Style: see the request below.
+
+            Output format: one JSON object only, no markdown. Keys: "label" and "text" (Me's real reply for THIS chat).
+
+            Do NOT default to "yeah sounds good" or "down" unless they truly fit the thread.
+            """
+        }
         let userPrompt = buildUserPrompt(input: input)
 
-        return """
+        let prefix = """
         <|begin_of_text|>\
         <|start_header_id|>system<|end_header_id|>
 
-        \(systemPrompt)<|eot_id|>\
+        \(commonSystemPrompt)<|eot_id|>\
         <|start_header_id|>user<|end_header_id|>
 
-        \(userPrompt)<|eot_id|>\
+        \(userPrompt)
+
+        Style request:
+        """
+        let suffix = """
+        - Label: "\(toneLabel)"
+        - Style: \(themeDescription(for: toneLabel))
+        Output exactly one JSON object with keys "label" and "text"; label must be "\(toneLabel)".<|eot_id|>\
         <|start_header_id|>assistant<|end_header_id|>
 
         """
+        return (prefix, suffix)
     }
 
     /// Builds a messages array (for OpenAI-compatible APIs / chat completion)

@@ -365,6 +365,20 @@ extern "C" enum llama_swift_finetune_error llama_swift_run_lora_finetune(
         }
     }
 
+    if (opts.n_batch % opts.n_ubatch != 0) {
+        const int32_t original_ubatch = opts.n_ubatch;
+        int32_t adjusted_ubatch = std::min(opts.n_ubatch, opts.n_batch);
+        while (adjusted_ubatch > 1 && opts.n_batch % adjusted_ubatch != 0) {
+            --adjusted_ubatch;
+        }
+        opts.n_ubatch = adjusted_ubatch;
+        logger.logf(
+            "Adjusting micro-batch size so n_batch %% n_ubatch == 0 (%d -> %d, batch=%d)\n",
+            original_ubatch,
+            opts.n_ubatch,
+            opts.n_batch);
+    }
+
     llama_backend_init();
 
     llama_model_params model_params = llama_model_default_params();

@@ -25,6 +25,8 @@ final class LLMService {
     /// Token cache for stable prompt prefixes (system + chat template) to reduce repeated tokenization cost.
     private var prefixTokenCache: [String: [llama_token]] = [:]
     private let prefixTokenCacheLimit = 12
+    private var activeKVCacheKey: String?
+    private var activeKVTokenCount: Int32 = 0
 
     /// User-level defaults per axis (`tone` / `length`). Merged in parallel with `conversation_profile` (see `Profile.mergedForPrompt`).
     var defaultProfile: Profile?
@@ -202,55 +204,105 @@ final class LLMService {
         return (outputJSON, metrics)
     }
 
+    /// Generate JSON from a cacheable prefix plus request-specific suffix.
+    func generate(
+        prefix: String,
+        suffix: String,
+        cacheKey: String,
+        tokenLimit: Int = 280
+    ) throws -> (outputJSON: String, metrics: InferenceMetrics) {
+        let (rawOutput, metrics) = try generateRaw(
+            prefix: prefix,
+            suffix: suffix,
+            cacheKey: cacheKey,
+            tokenLimit: tokenLimit
+        )
+        let output = OutputParser.parse(raw: rawOutput)
+        let outputJSON = output.toJSON() ?? "{\"suggestions\": []}"
+        return (outputJSON, metrics)
+    }
+
     /// Generate from a pre-built prompt and return the model text verbatim.
     /// Used by inline completion, where JSON parsing would destroy the continuation.
     func generateRaw(prompt: String, tokenLimit: Int = 280) throws -> (rawOutput: String, metrics: InferenceMetrics) {
+        try generateRaw(prefix: nil, suffix: prompt, cacheKey: nil, tokenLimit: tokenLimit)
+    }
+
+    /// Generate from a cacheable prefix plus request-specific suffix.
+    /// The service keeps at most one active KV prefix to avoid cross-thread/cache ownership bugs.
+    func generateRaw(
+        prefix: String?,
+        suffix: String,
+        cacheKey: String?,
+        tokenLimit: Int = 280
+    ) throws -> (rawOutput: String, metrics: InferenceMetrics) {
         guard model != nil, let context, let vocab, let sampler else {
             throw LLMError.modelNotLoaded
         }
 
         var metrics = InferenceMetrics(modelName: modelName)
 
-        resetContextMemory(context)
-
         metrics.memoryBeforeMB = Self.getMemoryMB()
         let startTime = CACurrentMediaTime()
 
-        // Tokenize
-        let promptTokens = tokenizePromptWithPrefixCache(prompt: prompt, vocab: vocab)
-        guard !promptTokens.isEmpty else {
+        let prefixText = prefix ?? ""
+        let fullPrompt = prefixText + suffix
+        let fullTokens = tokenizePromptWithPrefixCache(prompt: fullPrompt, vocab: vocab)
+        guard !fullTokens.isEmpty else {
             throw LLMError.invalidInput
         }
-        guard promptTokens.count < Int(contextSize) else {
+        guard fullTokens.count < Int(contextSize) else {
             throw LLMError.promptTooLong(
-                promptTokens: promptTokens.count,
+                promptTokens: fullTokens.count,
                 contextSize: Int(contextSize)
             )
         }
-        metrics.promptTokens = promptTokens.count
+        metrics.promptTokens = fullTokens.count
 
-        // Create and fill batch with prompt tokens
-        var batch = llama_batch_init(Int32(promptTokens.count), 0, 1)
-        defer { llama_batch_free(batch) }
+        let prefixTokens: [llama_token]
+        if prefixText.isEmpty {
+            prefixTokens = []
+        } else {
+            prefixTokens = tokenizePromptWithPrefixCache(prompt: prefixText, vocab: vocab)
+        }
+        let prefixTokenCount = prefixTokens.count
+        let usePrefixCache = cacheKey != nil && prefixTokenCount > 0 && prefixTokenCount < fullTokens.count
 
-        batch.n_tokens = Int32(promptTokens.count)
-        for i in 0..<promptTokens.count {
-            batch.token[i] = promptTokens[i]
-            batch.pos[i] = Int32(i)
-            batch.n_seq_id[i] = 1
-            if let seqIds = batch.seq_id, let seqId = seqIds[i] {
-                seqId[0] = 0
+        let promptTokens: [llama_token]
+        let promptStartPosition: Int32
+        if usePrefixCache,
+           activeKVCacheKey == cacheKey,
+           activeKVTokenCount == Int32(prefixTokenCount) {
+            if trimContextMemory(from: activeKVTokenCount) {
+                promptTokens = Array(fullTokens.dropFirst(prefixTokenCount))
+                promptStartPosition = activeKVTokenCount
+                logKVCache("hit key=\(cacheKey ?? "-") prefixTokens=\(prefixTokenCount) suffixTokens=\(promptTokens.count)")
+            } else {
+                try decodePromptTokens(prefixTokens, startPosition: 0, requestLogits: false, context: context)
+                activeKVCacheKey = cacheKey
+                activeKVTokenCount = Int32(prefixTokenCount)
+                promptTokens = Array(fullTokens.dropFirst(prefixTokenCount))
+                promptStartPosition = activeKVTokenCount
+                logKVCache("rebuild key=\(cacheKey ?? "-") prefixTokens=\(prefixTokenCount) suffixTokens=\(promptTokens.count)")
             }
-            batch.logits[i] = 0
-        }
-        if batch.n_tokens > 0 {
-            batch.logits[Int(batch.n_tokens) - 1] = 1
+        } else if usePrefixCache {
+            resetContextMemory(context)
+            try decodePromptTokens(prefixTokens, startPosition: 0, requestLogits: false, context: context)
+            activeKVCacheKey = cacheKey
+            activeKVTokenCount = Int32(prefixTokenCount)
+            promptTokens = Array(fullTokens.dropFirst(prefixTokenCount))
+            promptStartPosition = activeKVTokenCount
+            logKVCache("miss key=\(cacheKey ?? "-") prefixTokens=\(prefixTokenCount) suffixTokens=\(promptTokens.count)")
+        } else {
+            resetContextMemory(context)
+            activeKVCacheKey = nil
+            activeKVTokenCount = 0
+            promptTokens = fullTokens
+            promptStartPosition = 0
+            logKVCache("disabled promptTokens=\(promptTokens.count)")
         }
 
-        // Decode prompt
-        guard llama_decode(context, batch) == 0 else {
-            throw LLMError.decodeFailed
-        }
+        try decodePromptTokens(promptTokens, startPosition: promptStartPosition, requestLogits: true, context: context)
 
         // Reset sampler state so each generation starts fresh (no stale repetition context).
         llama_sampler_reset(sampler)
@@ -259,15 +311,17 @@ final class LLMService {
         // This avoids a per-token Swift loop over the full vocab, which was the main CPU bottleneck.
         let maxNewTokens = min(
             tokenLimit,
-            max(0, Int(contextSize) - promptTokens.count)
+            max(0, Int(contextSize) - fullTokens.count)
         )
         var outputTokens: [llama_token] = []
         let eosToken = llama_vocab_eos(vocab)
-        var nCur = batch.n_tokens
+        var nCur = promptStartPosition + Int32(promptTokens.count)
+        var batch = llama_batch_init(1, 0, 1)
+        defer { llama_batch_free(batch) }
 
         for _ in 0..<maxNewTokens {
             // llama_sampler_sample reads logits from the context internally — no Swift logit copy.
-            let nextToken = llama_sampler_sample(sampler, context, batch.n_tokens - 1)
+            let nextToken = llama_sampler_sample(sampler, context, -1)
             llama_sampler_accept(sampler, nextToken)
 
             if nextToken == eosToken { break }
@@ -298,7 +352,7 @@ final class LLMService {
         metrics.memoryAfterMB = Self.getMemoryMB()
         metrics.memoryDeltaMB = metrics.memoryAfterMB - metrics.memoryBeforeMB
         metrics.tokensGenerated = outputTokens.count
-        metrics.totalTokens = promptTokens.count + outputTokens.count
+        metrics.totalTokens = fullTokens.count + outputTokens.count
         if elapsed > 0 {
             metrics.tokensPerSec = Double(outputTokens.count) / elapsed
         }
@@ -350,6 +404,36 @@ final class LLMService {
         }
     }
 
+    private func decodePromptTokens(
+        _ tokens: [llama_token],
+        startPosition: Int32,
+        requestLogits: Bool,
+        context: OpaquePointer
+    ) throws {
+        guard !tokens.isEmpty else { return }
+
+        var batch = llama_batch_init(Int32(tokens.count), 0, 1)
+        defer { llama_batch_free(batch) }
+
+        batch.n_tokens = Int32(tokens.count)
+        for i in 0..<tokens.count {
+            batch.token[i] = tokens[i]
+            batch.pos[i] = startPosition + Int32(i)
+            batch.n_seq_id[i] = 1
+            if let seqIds = batch.seq_id, let seqId = seqIds[i] {
+                seqId[0] = 0
+            }
+            batch.logits[i] = 0
+        }
+        if requestLogits, batch.n_tokens > 0 {
+            batch.logits[Int(batch.n_tokens) - 1] = 1
+        }
+
+        guard llama_decode(context, batch) == 0 else {
+            throw LLMError.decodeFailed
+        }
+    }
+
     private func detokenize(tokens: [llama_token], vocab: OpaquePointer) -> String {
         var result = ""
         var buffer = [CChar](repeating: 0, count: 256)
@@ -368,6 +452,26 @@ final class LLMService {
     private func resetContextMemory(_ context: OpaquePointer) {
         guard let memory = llama_get_memory(context) else { return }
         llama_memory_clear(memory, true)
+        activeKVCacheKey = nil
+        activeKVTokenCount = 0
+    }
+
+    private func trimContextMemory(from position: Int32) -> Bool {
+        guard let memory = llama_get_memory(context) else { return false }
+        if !llama_memory_seq_rm(memory, 0, position, -1) {
+            llama_memory_clear(memory, true)
+            activeKVCacheKey = nil
+            activeKVTokenCount = 0
+            logKVCache("trim failed; cleared memory")
+            return false
+        }
+        return true
+    }
+
+    private func logKVCache(_ message: String) {
+        #if DEBUG
+        NSLog("[kv-cache] %@", message)
+        #endif
     }
 
     static func getMemoryMB() -> Double {

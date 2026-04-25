@@ -271,17 +271,17 @@ struct LLMTrainingOptions: Codable, Equatable, Sendable {
             modelResourceName: "Llama-3.2-1B-Instruct-Q4_K_M",
             outputAdapterFileName: "reply-lora-smoke-LoRA.gguf",
             contextSize: 256,
-            threadCount:4,
-            batchSize: 24,
-            microBatchSize: 12,
+            threadCount:2,
+            batchSize: 32,
+            microBatchSize: 16,
             epochs: 1,
-            loraRank: 8,
-            loraAlpha: 16,
+            loraRank: 4,
+            loraAlpha: 8,
             learningRate: 0.00002,
             validationSplit: 0,
             targetModules: 0,
             seed: 42,
-            flashAttention: true,
+            flashAttention: false,
             gpuLayers: 999
         )
     }
