@@ -24,7 +24,7 @@ struct ChatScreen: View {
                                 message: message,
                                 showsSenderName: shouldShowSenderName(at: index),
                                 isTrailing: viewModel.isTrailingMessage(message),
-                                bubbleFill: DemoChatPalette.bubbleFill(
+                                profileColors: DemoChatPalette.profileColors(
                                     speakerId: message.speakerId,
                                     selfId: viewModel.activeComposerParticipantID,
                                     orderedParticipantIds: viewModel.participants.map(\.id)

@@ -1,27 +1,155 @@
 import SwiftUI
 import UIKit
 
-// MARK: - Pastel palette (reference: soft pink / sky blue conversation + mint / butter accents)
+// MARK: - Muted participant palette
 
 enum DemoChatPalette {
-    private static let bubblePink = Color(red: 0.949, green: 0.835, blue: 0.875)
-    private static let bubbleBlue = Color(red: 0.839, green: 0.910, blue: 0.965)
-    private static let mint = Color(red: 0.851, green: 0.922, blue: 0.827)
-    private static let butter = Color(red: 0.996, green: 0.953, blue: 0.824)
-    private static let lilac = Color(red: 0.925, green: 0.910, blue: 0.976)
-    private static let peach = Color(red: 0.99, green: 0.88, blue: 0.82)
-    private static let iceBlue = Color(red: 0.88, green: 0.94, blue: 0.99)
+    private static let selfProfile = DemoParticipantColorProfile(
+        bubbleFill: adaptiveColor(
+            light: (0.902, 0.949, 0.980),
+            dark: (0.160, 0.282, 0.365)
+        ),
+        avatarFill: adaptiveColor(
+            light: (0.765, 0.875, 0.941),
+            dark: (0.204, 0.361, 0.475)
+        ),
+        avatarForeground: adaptiveColor(
+            light: (0.204, 0.361, 0.475),
+            dark: (0.752, 0.878, 0.949)
+        )
+    )
 
-    /// Stable pastel per **speaker** in multi-person threads: Me = blue; others cycle by roster order.
-    static func bubbleFill(speakerId: String, selfId: String, orderedParticipantIds: [String]) -> Color {
-        if speakerId == selfId { return bubbleBlue }
+    private static let participantProfiles: [DemoParticipantColorProfile] = [
+        DemoParticipantColorProfile(
+            bubbleFill: adaptiveColor(
+                light: (0.965, 0.918, 0.933),
+                dark: (0.361, 0.218, 0.263)
+            ),
+            avatarFill: adaptiveColor(
+                light: (0.902, 0.765, 0.804),
+                dark: (0.494, 0.251, 0.318)
+            ),
+            avatarForeground: adaptiveColor(
+                light: (0.494, 0.251, 0.318),
+                dark: (0.965, 0.816, 0.859)
+            )
+        ),
+        DemoParticipantColorProfile(
+            bubbleFill: adaptiveColor(
+                light: (0.922, 0.953, 0.902),
+                dark: (0.220, 0.333, 0.192)
+            ),
+            avatarFill: adaptiveColor(
+                light: (0.788, 0.875, 0.729),
+                dark: (0.275, 0.420, 0.235)
+            ),
+            avatarForeground: adaptiveColor(
+                light: (0.275, 0.420, 0.235),
+                dark: (0.820, 0.933, 0.776)
+            )
+        ),
+        DemoParticipantColorProfile(
+            bubbleFill: adaptiveColor(
+                light: (0.973, 0.949, 0.875),
+                dark: (0.384, 0.314, 0.165)
+            ),
+            avatarFill: adaptiveColor(
+                light: (0.910, 0.827, 0.639),
+                dark: (0.506, 0.392, 0.173)
+            ),
+            avatarForeground: adaptiveColor(
+                light: (0.506, 0.392, 0.173),
+                dark: (0.949, 0.871, 0.667)
+            )
+        ),
+        DemoParticipantColorProfile(
+            bubbleFill: adaptiveColor(
+                light: (0.941, 0.925, 0.973),
+                dark: (0.286, 0.247, 0.392)
+            ),
+            avatarFill: adaptiveColor(
+                light: (0.820, 0.780, 0.910),
+                dark: (0.361, 0.302, 0.510)
+            ),
+            avatarForeground: adaptiveColor(
+                light: (0.361, 0.302, 0.510),
+                dark: (0.855, 0.816, 0.980)
+            )
+        ),
+        DemoParticipantColorProfile(
+            bubbleFill: adaptiveColor(
+                light: (0.969, 0.929, 0.902),
+                dark: (0.365, 0.263, 0.204)
+            ),
+            avatarFill: adaptiveColor(
+                light: (0.890, 0.780, 0.694),
+                dark: (0.494, 0.314, 0.235)
+            ),
+            avatarForeground: adaptiveColor(
+                light: (0.494, 0.314, 0.235),
+                dark: (0.949, 0.827, 0.745)
+            )
+        ),
+        DemoParticipantColorProfile(
+            bubbleFill: adaptiveColor(
+                light: (0.902, 0.957, 0.965),
+                dark: (0.176, 0.333, 0.361)
+            ),
+            avatarFill: adaptiveColor(
+                light: (0.737, 0.859, 0.878),
+                dark: (0.196, 0.408, 0.443)
+            ),
+            avatarForeground: adaptiveColor(
+                light: (0.196, 0.408, 0.443),
+                dark: (0.784, 0.925, 0.941)
+            )
+        ),
+    ]
+
+    /// Stable muted profile per speaker: Me = blue; others cycle by roster order.
+    static func profileColors(
+        speakerId: String,
+        selfId: String,
+        orderedParticipantIds: [String]
+    ) -> DemoParticipantColorProfile {
+        if speakerId == selfId { return selfProfile }
         let others = orderedParticipantIds.filter { $0 != selfId }
-        let palette: [Color] = [bubblePink, mint, butter, lilac, peach, iceBlue]
         guard let idx = others.firstIndex(of: speakerId) else {
-            return bubblePink
+            return participantProfiles[0]
         }
-        return palette[idx % palette.count]
+        return participantProfiles[idx % participantProfiles.count]
     }
+
+    static func bubbleFill(speakerId: String, selfId: String, orderedParticipantIds: [String]) -> Color {
+        profileColors(
+            speakerId: speakerId,
+            selfId: selfId,
+            orderedParticipantIds: orderedParticipantIds
+        ).bubbleFill
+    }
+
+    private static func adaptiveColor(
+        light: (Double, Double, Double),
+        dark: (Double, Double, Double)
+    ) -> Color {
+        Color(
+            uiColor: UIColor { traits in
+                let components = traits.userInterfaceStyle == .dark ? dark : light
+                return UIColor(
+                    red: components.0,
+                    green: components.1,
+                    blue: components.2,
+                    alpha: 1
+                )
+            }
+        )
+    }
+}
+
+struct DemoParticipantColorProfile {
+    let bubbleFill: Color
+    let avatarFill: Color
+    let avatarForeground: Color
 }
 
 struct DemoMessageBubble: View {
@@ -55,7 +183,7 @@ struct DemoChatMessageRow: View {
     let message: ChatMessageItem
     let showsSenderName: Bool
     let isTrailing: Bool
-    let bubbleFill: Color
+    let profileColors: DemoParticipantColorProfile
     var isSelected: Bool = false
     var onTap: (() -> Void)? = nil
 
@@ -76,7 +204,11 @@ struct DemoChatMessageRow: View {
                     Spacer(minLength: 44)
                     DemoMessageBubble(text: message.text, fill: bubbleFill)
                 } else {
-                    DemoAvatarBadge(name: message.speakerName)
+                    DemoAvatarBadge(
+                        name: message.speakerName,
+                        fill: profileColors.avatarFill,
+                        foreground: profileColors.avatarForeground
+                    )
                     bubbleWithHighlight
                     Spacer(minLength: 44)
                 }
@@ -100,6 +232,10 @@ struct DemoChatMessageRow: View {
             )
             .scaleEffect(isSelected ? 1.02 : 1.0)
             .animation(.spring(response: 0.25, dampingFraction: 0.7), value: isSelected)
+    }
+
+    private var bubbleFill: Color {
+        profileColors.bubbleFill
     }
 }
 
@@ -443,15 +579,21 @@ struct DemoTimestampBanner: View {
 
 private struct DemoAvatarBadge: View {
     let name: String
+    let fill: Color
+    let foreground: Color
 
     var body: some View {
         Circle()
-            .fill(Color.accentColor.opacity(0.2))
+            .fill(fill)
             .frame(width: 30, height: 30)
+            .overlay(
+                Circle()
+                    .stroke(Color.primary.opacity(0.06), lineWidth: 1)
+            )
             .overlay {
                 Text(initials)
                     .font(.caption.weight(.semibold))
-                    .foregroundStyle(Color.accentColor)
+                    .foregroundStyle(foreground)
             }
     }
 

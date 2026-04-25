@@ -80,7 +80,10 @@ private struct ThreadSidebar: View {
 
             Section {
                 ForEach(threads) { thread in
-                    ThreadRow(thread: thread)
+                    ThreadRow(
+                        thread: thread,
+                        isSelected: selectedThreadID == thread.id
+                    )
                         .tag(thread.id)
                 }
             }
@@ -106,15 +109,21 @@ private struct ThreadSidebar: View {
 
 private struct ThreadRow: View {
     let thread: DemoThreadListItem
+    let isSelected: Bool
 
     var body: some View {
         HStack(spacing: 12) {
-            DemoThreadAvatar(title: thread.title, unreadCount: thread.unreadCount)
+            DemoThreadAvatar(
+                title: thread.title,
+                unreadCount: thread.unreadCount,
+                profileColors: profileColors
+            )
 
             VStack(alignment: .leading, spacing: 4) {
                 HStack(spacing: 8) {
                     Text(thread.title)
                         .font(.subheadline.weight(.semibold))
+                        .foregroundStyle(primaryTextColor)
                         .lineLimit(1)
 
                     Spacer(minLength: 8)
@@ -122,19 +131,19 @@ private struct ThreadRow: View {
                     if let lastAt = thread.lastMessage?.createdAt {
                         Text(lastAt.formatted(date: .omitted, time: .shortened))
                             .font(.caption2)
-                            .foregroundStyle(.secondary)
+                            .foregroundStyle(secondaryTextColor)
                             .lineLimit(1)
                     }
                 }
 
                 Text(thread.subtitle)
                     .font(.caption)
-                    .foregroundStyle(.secondary)
+                    .foregroundStyle(secondaryTextColor)
                     .lineLimit(1)
 
                 Text(thread.lastMessage?.content ?? "No messages yet")
                     .font(.caption)
-                    .foregroundStyle(.secondary)
+                    .foregroundStyle(secondaryTextColor)
                     .lineLimit(2)
             }
             .frame(maxWidth: .infinity, alignment: .leading)
@@ -142,21 +151,58 @@ private struct ThreadRow: View {
         .padding(.vertical, 6)
         .contentShape(Rectangle())
     }
+
+    private var profileColors: DemoParticipantColorProfile {
+        DemoChatPalette.profileColors(
+            speakerId: representativeParticipantID,
+            selfId: thread.thread.defaultComposerParticipantID,
+            orderedParticipantIds: orderedParticipantIDs
+        )
+    }
+
+    private var representativeParticipantID: String {
+        if let replyTo = thread.thread.replyToParticipantID {
+            return replyTo
+        }
+        return thread.participants
+            .sorted { $0.sortOrder < $1.sortOrder }
+            .first { !$0.isSelf }?
+            .participantID ?? thread.thread.defaultComposerParticipantID
+    }
+
+    private var orderedParticipantIDs: [String] {
+        thread.participants
+            .sorted { $0.sortOrder < $1.sortOrder }
+            .map(\.participantID)
+    }
+
+    private var primaryTextColor: Color {
+        isSelected ? .white : .primary
+    }
+
+    private var secondaryTextColor: Color {
+        isSelected ? Color.white.opacity(0.78) : Color.secondary
+    }
 }
 
 private struct DemoThreadAvatar: View {
     let title: String
     let unreadCount: Int
+    let profileColors: DemoParticipantColorProfile
 
     var body: some View {
         ZStack(alignment: .topTrailing) {
             Circle()
-                .fill(Color.accentColor.opacity(0.16))
+                .fill(profileColors.avatarFill)
                 .frame(width: 42, height: 42)
+                .overlay(
+                    Circle()
+                        .stroke(Color.primary.opacity(0.06), lineWidth: 1)
+                )
                 .overlay {
                     Text(initials)
                         .font(.subheadline.weight(.bold))
-                        .foregroundStyle(Color.accentColor)
+                        .foregroundStyle(profileColors.avatarForeground)
                 }
 
             if unreadCount > 0 {
