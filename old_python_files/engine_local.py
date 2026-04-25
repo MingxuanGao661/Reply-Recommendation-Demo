@@ -55,6 +55,9 @@ class LocalEngine:
         }
         if self.grammar:
             call_kwargs["grammar"] = self.grammar
+            # 1B models often over-copy prompts or ramble to max_tokens; cap + repeat penalty helps.
+            call_kwargs["max_tokens"] = min(call_kwargs["max_tokens"], 280)
+            call_kwargs["repeat_penalty"] = 1.15
         else:
             call_kwargs["response_format"] = {"type": "json_object"}
 

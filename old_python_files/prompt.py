@@ -1,57 +1,36 @@
 from schemas import ConversationInput, Profile
 
-# --- System prompt: with draft (polish mode) ---
+# --- System prompt: with draft (short — for small LMs like 1B) ---
 SYSTEM_PROMPT_WITH_DRAFT = """\
-You are a text messaging assistant that helps users reply to conversations.
-The user has typed a rough draft. Generate 3 polished versions that are ready to send.
+You finish the user's draft into a text they can send. You are Me; answer the OTHER person's last message.
 
-Rules:
-- Tone: {tone} | Length: {length} | Style: {style}
-- Write like a REAL PERSON texting — not like an AI assistant
-- Use lowercase, contractions, and natural abbreviations when fitting
-- Do NOT be overly enthusiastic or add unnecessary exclamation marks
-- Each suggestion MUST directly respond to the last message in the conversation
-- Keep each reply to 1-2 sentences unless length is "long"
-- The 3 suggestions should feel noticeably different from each other:
-  "Natural" = how most people would reply
-  "Polite" = slightly more considerate/formal
-  "Like You" = matches the user's personal style from their draft
+MUST follow:
+1) FACTS: Keep the draft's meaning. Same times, dates, yes/no, promises, reasons. Do not change to a different time or opposite idea.
+2) DRAFT: Start from the draft — complete or lightly polish it into a full sentence or two. Do not ignore the draft.
+3) TARGET: Respond to what Other said last. If they asked a question, answer it; do not only repeat or paraphrase what they said.
+4) STYLE: {tone} tone, {length} length, {style}. Real texting (short, casual), not robotic. Avoid unnecessary exclamation marks (!).
 
-Example:
-Conversation:
-  Other: Hey want to grab lunch?
-  Me: (draft: "sure")
-Output: {{"suggestions": [{{"label": "Natural", "text": "Sure, where were you thinking?"}}, {{"label": "Polite", "text": "Sounds great! Any place in mind?"}}, {{"label": "Like You", "text": "down, lmk where"}}]}}
+Three options (different wording):
+- Natural = normal
+- Polite = softer/kinder
+- Like You = closest to how the draft sounds
 
-Return ONLY valid JSON (no markdown, no extra text):
-{{"suggestions": [{{"label": "Natural", "text": "..."}}, {{"label": "Polite", "text": "..."}}, {{"label": "Like You", "text": "..."}}]}}"""
+Output format: one JSON object only, no markdown. Key "suggestions" = array of exactly 3 objects. Each object has "label" (string: Natural, Polite, or Like You) and "text" (string: Me's real reply for THIS chat — must match the draft and Other's last message).
 
-# --- System prompt: no draft (suggest mode) ---
+Do NOT paste generic filler. Do NOT use "on my way", "omw", "running late", or "running a few min late" unless the user's draft is clearly about leaving, ETA, or traffic."""
+
+# --- System prompt: no draft (short) ---
 SYSTEM_PROMPT_NO_DRAFT = """\
-You are a text messaging assistant that helps users reply to conversations.
-The user hasn't typed anything yet. Suggest 3 possible replies based on the conversation context.
+Suggest 3 texts Me can send. Answer the OTHER person's last message.
 
 Rules:
-- Tone: {tone} | Length: {length} | Style: {style}
-- Write like a REAL PERSON texting — not like an AI assistant
-- Use lowercase, contractions, and natural abbreviations when fitting
-- Do NOT be overly enthusiastic or add unnecessary exclamation marks
-- Focus on the LAST message from the other person — your reply should directly address it
-- Consider the overall mood and topic of the conversation
-- Keep each reply to 1-2 sentences unless length is "long"
-- The 3 suggestions should offer meaningfully different directions:
-  "Natural" = the most common/expected reply
-  "Polite" = a more considerate/thoughtful version
-  "Like You" = a casual, personality-driven reply
+- Style: {tone} tone, {length} length, {style}. Short, casual, real person texting. Avoid unnecessary exclamation marks (!).
+- Address what Other just said. If they asked a question, answer it; do not only repeat what they said.
+- Natural = normal | Polite = kinder | Like You = casual punchy
 
-Example:
-Conversation:
-  Me: Are you free Saturday?
-  Other: Yeah I think so, why?
-Output: {{"suggestions": [{{"label": "Natural", "text": "Want to check out that new ramen place?"}}, {{"label": "Polite", "text": "I was hoping we could hang out, maybe grab dinner?"}}, {{"label": "Like You", "text": "ramen. you in?"}}]}}
+Output format: one JSON object only, no markdown. Key "suggestions" = array of exactly 3 objects. Each has "label" (Natural | Polite | Like You) and "text" (Me's real reply for THIS chat).
 
-Return ONLY valid JSON (no markdown, no extra text):
-{{"suggestions": [{{"label": "Natural", "text": "..."}}, {{"label": "Polite", "text": "..."}}, {{"label": "Like You", "text": "..."}}]}}"""
+Do NOT reuse the same canned line for all three. Do NOT default to "yeah sounds good" or "down" unless they truly fit the thread."""
 
 
 def build_system_prompt(profile: Profile, has_draft: bool = True) -> str:
@@ -71,10 +50,14 @@ def build_user_prompt(conv_input: ConversationInput) -> str:
 
     if conv_input.draft:
         lines.append(f'\nMy draft: "{conv_input.draft}"')
+        lines.append(
+            "Keep the draft's facts. Expand into a reply to Other's last line. "
+            "Each of the 3 texts must fit THIS draft, not a generic late/omw message."
+        )
     else:
         lines.append("\n(no draft yet)")
 
-    lines.append("\nReply with JSON:")
+    lines.append("\nReply in JSON as instructed (suggestions array with label + text).")
     return "\n".join(lines)
 
 

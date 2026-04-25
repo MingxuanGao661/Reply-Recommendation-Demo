@@ -11,20 +11,64 @@ from datetime import datetime
 from dotenv import load_dotenv
 from schemas import ConversationInput, SuggestionOutput, EvalMetrics
 
+#How you could run the inference locally:
+#python demo.py local 
+#python demo.py local --model Qwen3.5-0.8B-Q4_K_M.gguf
+#python demo.py benchmark --limit 3
 
-load_dotenv()
 
 PROJECT_DIR = os.path.dirname(os.path.abspath(__file__))
+# Load .env from this folder first so cloud keys work even if shell cwd is elsewhere.
+load_dotenv(os.path.join(PROJECT_DIR, ".env"))
+load_dotenv()
+REPO_ROOT = os.path.dirname(PROJECT_DIR)
 MODELS_DIR = os.path.join(PROJECT_DIR, "models")
+REPO_MODELS_DIR = os.path.join(REPO_ROOT, "models")
 REPLY_DIR = os.path.join(PROJECT_DIR, "results", "Reply")
 EVAL_DIR = os.path.join(PROJECT_DIR, "results", "Eval")
 DEFAULT_MODEL = "Llama-3.2-1B-Instruct-Q4_K_M.gguf"
+DEFAULT_MODEL_PATH = os.path.join(
+    REPO_ROOT,
+    "Reply Recommendation Demo",
+    "Reply Recommendation Demo",
+    DEFAULT_MODEL,
+)
+DEFAULT_SAMPLES = os.path.join(REPO_ROOT, "social_reply_test_samples_26.json")
 
 
-def find_local_models() -> list[str]:
-    models = glob.glob(os.path.join(MODELS_DIR, "*.gguf"))
-    models += glob.glob(os.path.join(PROJECT_DIR, "*.gguf"))
-    return sorted(set(models))
+def _model_scan_dirs(extra_dirs: list[str] | None) -> list[str]:
+    demo_bundle = os.path.join(REPO_ROOT, "Reply Recommendation Demo", "Reply Recommendation Demo")
+    dirs = [
+        MODELS_DIR,
+        REPO_MODELS_DIR,
+        PROJECT_DIR,
+        demo_bundle,
+    ]
+    if extra_dirs:
+        dirs.extend(extra_dirs)
+    return dirs
+
+
+def find_local_models(extra_dirs: list[str] | None = None) -> list[str]:
+    """Collect *.gguf paths.
+
+    Dedupes by basename first (same model in models/ and Xcode bundle → one run;
+    prefers earlier dirs: old_python_files/models, repo models/, …).
+    Also skips same realpath duplicates.
+    """
+    seen_base: set[str] = set()
+    seen_real: set[str] = set()
+    out: list[str] = []
+    for d in _model_scan_dirs(extra_dirs):
+        for p in sorted(glob.glob(os.path.join(d, "*.gguf"))):
+            base = os.path.basename(p)
+            r = os.path.realpath(p)
+            if base in seen_base or r in seen_real:
+                continue
+            seen_base.add(base)
+            seen_real.add(r)
+            out.append(p)
+    return sorted(out, key=os.path.basename)
 
 
 def save_results(model_name: str, sample_results: list[dict], all_metrics: list[EvalMetrics]):
@@ -195,11 +239,18 @@ def run_cloud(provider: str, samples: list[dict], max_tokens: int, temperature: 
     return all_metrics
 
 
-def run_benchmark(samples: list[dict], max_tokens: int, temperature: float):
+def run_benchmark(
+    samples: list[dict],
+    max_tokens: int,
+    temperature: float,
+    models_dirs: list[str] | None = None,
+):
     """Run all local models and compare results."""
-    models = find_local_models()
+    models = find_local_models(extra_dirs=models_dirs)
     if not models:
-        print("No .gguf models found in project directory.")
+        print("No .gguf models found. Scanned these directories:")
+        for d in _model_scan_dirs(models_dirs):
+            print(f"  - {d}")
         return
 
     print(f"\nFound {len(models)} local models:")
@@ -228,7 +279,7 @@ def load_samples(path: str | None, limit: int) -> list[dict]:
     if not path or not os.path.exists(path):
         print(f"Error: Samples file not found: {path}")
         print("Provide a JSON file with test conversations, e.g.:")
-        print("  python demo.py local --samples test_samples.json")
+        print("  python demo.py local --samples ../social_reply_test_samples_26.json")
         sys.exit(1)
 
     try:
@@ -242,6 +293,8 @@ def load_samples(path: str | None, limit: int) -> list[dict]:
         print("Error: Samples file must be a non-empty JSON array.")
         sys.exit(1)
 
+    if limit <= 0:
+        return samples
     return samples[:limit]
 
 
@@ -252,8 +305,8 @@ def main():
     # --- local mode ---
     p_local = sub.add_parser("local", help="Run with local GGUF model")
     p_local.add_argument("--model", type=str, help="Path to .gguf model (default: auto-detect)")
-    p_local.add_argument("--samples", type=str, default="test_samples.json", help="Path to test samples JSON")
-    p_local.add_argument("--limit", type=int, default=3, help="Max number of samples to run")
+    p_local.add_argument("--samples", type=str, default=DEFAULT_SAMPLES, help="Path to test samples JSON")
+    p_local.add_argument("--limit", type=int, default=3, help="Max samples (0 = entire JSON file)")
     p_local.add_argument("--max-tokens", type=int, default=512)
     p_local.add_argument("--temperature", type=float, default=0.7)
 
@@ -263,15 +316,23 @@ def main():
                          choices=["openai", "anthropic", "gemini", "groq", "together", "openrouter"])
     p_cloud.add_argument("--list-models", action="store_true", help="Show available models per provider")
     p_cloud.add_argument("--model", type=str, default=None, help="Model name (default: provider's default)")
-    p_cloud.add_argument("--samples", type=str, default="test_samples.json", help="Path to test samples JSON")
-    p_cloud.add_argument("--limit", type=int, default=3, help="Max number of samples to run")
+    p_cloud.add_argument("--samples", type=str, default=DEFAULT_SAMPLES, help="Path to test samples JSON")
+    p_cloud.add_argument("--limit", type=int, default=3, help="Max samples (0 = entire JSON file)")
     p_cloud.add_argument("--max-tokens", type=int, default=512)
     p_cloud.add_argument("--temperature", type=float, default=0.7)
 
     # --- benchmark mode ---
     p_bench = sub.add_parser("benchmark", help="Run all local models and compare")
-    p_bench.add_argument("--samples", type=str, default="test_samples.json", help="Path to test samples JSON")
-    p_bench.add_argument("--limit", type=int, default=3, help="Max number of samples to run")
+    p_bench.add_argument("--samples", type=str, default=DEFAULT_SAMPLES, help="Path to test samples JSON")
+    p_bench.add_argument("--limit", type=int, default=3, help="Max samples (0 = entire JSON file)")
+    p_bench.add_argument(
+        "--models-dir",
+        action="append",
+        default=None,
+        dest="models_dirs",
+        metavar="DIR",
+        help="Extra folder to scan for *.gguf (repeatable). Default: old_python_files/models, repo-root models/, project dir, Reply Demo bundle",
+    )
     p_bench.add_argument("--max-tokens", type=int, default=512)
     p_bench.add_argument("--temperature", type=float, default=0.7)
 
@@ -293,24 +354,30 @@ def main():
     if args.mode == "local":
         model_path = args.model
         if not model_path:
-            default_path = os.path.join(MODELS_DIR, DEFAULT_MODEL)
-            if os.path.exists(default_path):
-                model_path = default_path
-                print(f"Using default model: {DEFAULT_MODEL}")
+            if os.path.exists(DEFAULT_MODEL_PATH):
+                model_path = DEFAULT_MODEL_PATH
+                print(f"Using default model: {DEFAULT_MODEL_PATH}")
             else:
-                models = find_local_models()
-                if not models:
-                    print("No .gguf models found. Place models in the models/ directory.")
-                    sys.exit(1)
-                print("Available models:")
-                for i, m in enumerate(models):
-                    print(f"  [{i}] {os.path.basename(m)}")
-                choice = input(f"Select model [0-{len(models)-1}]: ").strip()
-                model_path = models[int(choice)]
+                default_path = os.path.join(MODELS_DIR, DEFAULT_MODEL)
+                if os.path.exists(default_path):
+                    model_path = default_path
+                    print(f"Using default model: {DEFAULT_MODEL}")
+        if not model_path:
+            models = find_local_models()
+            if not models:
+                print("No .gguf models found. Put .gguf files in old_python_files/models/ or LA-Hacks/models/.")
+                sys.exit(1)
+            print("Available models:")
+            for i, m in enumerate(models):
+                print(f"  [{i}] {os.path.basename(m)}")
+            choice = input(f"Select model [0-{len(models)-1}]: ").strip()
+            model_path = models[int(choice)]
         elif not os.path.exists(model_path):
             full_path = os.path.join(MODELS_DIR, model_path)
             if os.path.exists(full_path):
                 model_path = full_path
+            elif os.path.basename(model_path) == DEFAULT_MODEL and os.path.exists(DEFAULT_MODEL_PATH):
+                model_path = DEFAULT_MODEL_PATH
             else:
                 print(f"Error: Model file not found: {model_path}")
                 sys.exit(1)
@@ -320,7 +387,7 @@ def main():
         run_cloud(args.provider, samples, args.max_tokens, args.temperature, model=args.model)
 
     elif args.mode == "benchmark":
-        run_benchmark(samples, args.max_tokens, args.temperature)
+        run_benchmark(samples, args.max_tokens, args.temperature, models_dirs=args.models_dirs)
 
 
 if __name__ == "__main__":

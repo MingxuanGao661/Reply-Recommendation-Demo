@@ -72,7 +72,11 @@ def make_charts(data: dict, output_dir: str, evals: list[dict] = None):
     n = len(data["models"])
     x = np.arange(n)
     bar_w = 0.55
-    colors = ["#4C78A8", "#F58518", "#E45756", "#72B7B2", "#54A24B"][:n]
+    _palette = [
+        "#4C78A8", "#F58518", "#E45756", "#72B7B2", "#54A24B",
+        "#B279A2", "#FF9DA6", "#9D755D", "#DDA0A0", "#AB6B51",
+    ]
+    colors = [_palette[i % len(_palette)] for i in range(n)]
 
     fig, axes = plt.subplots(2, 2, figsize=(14, 10))
     fig.suptitle("Model Evaluation Comparison", fontsize=16, fontweight="bold", y=0.98)
