@@ -42,6 +42,7 @@ final class TrainingSettingsViewModel: ObservableObject {
     @Published private(set) var report: LLMTrainingReport?
     @Published private(set) var errorMessage: String?
     @Published private(set) var startedAt: Date?
+    @Published private(set) var sampleCount: Int = 0
 
     private let settingsStore: AppSettingsStore
     private let trainingService: LocalTrainingServiceProtocol
@@ -67,6 +68,35 @@ final class TrainingSettingsViewModel: ObservableObject {
     var elapsedText: String {
         guard let startedAt else { return "Not started" }
         let seconds = max(0, Int(Date().timeIntervalSince(startedAt)))
+        return Self.durationText(seconds: seconds)
+    }
+
+    var etaText: String {
+        guard let startedAt, let progress, progress > 0 else { return "--" }
+        let elapsed = max(0, Date().timeIntervalSince(startedAt))
+        let remaining = max(0, Int((elapsed / progress) - elapsed))
+        return Self.durationText(seconds: remaining)
+    }
+
+    var stepText: String {
+        guard let latestStep else { return "Step -- / --" }
+        return "Step \(latestStep.step) / \(latestStep.totalSteps)"
+    }
+
+    var chunkText: String {
+        guard let latestStep else {
+            return sampleCount > 0 ? "Chunk 0 / \(sampleCount)" : "Chunk -- / --"
+        }
+        let total = max(latestStep.totalSteps, sampleCount)
+        let current = min(max(latestStep.step, 0), total)
+        return "Chunk \(current) / \(total)"
+    }
+
+    var thermalState: String? {
+        latestStep?.thermalState ?? report?.thermalSamples.last?.state
+    }
+
+    private static func durationText(seconds: Int) -> String {
         let minutes = seconds / 60
         let remainder = seconds % 60
         return minutes > 0 ? "\(minutes)m \(remainder)s" : "\(remainder)s"
@@ -87,6 +117,7 @@ final class TrainingSettingsViewModel: ObservableObject {
         errorMessage = nil
         startedAt = Date()
         let dataset = Self.resolvedSmokeTrainingSamples()
+        sampleCount = dataset.samples.count
         logs = [
             "[dataset] source=\(dataset.source) samples=\(dataset.samples.count)"
         ]
@@ -118,7 +149,11 @@ final class TrainingSettingsViewModel: ObservableObject {
         case .started(let runID, let message, _):
             status = .running
             self.runID = runID
-            logs.append(message)
+            if logs.first?.hasPrefix("[dataset]") == true {
+                logs = [logs[0], message]
+            } else {
+                logs = [message]
+            }
             latestStep = nil
             report = nil
             errorMessage = nil

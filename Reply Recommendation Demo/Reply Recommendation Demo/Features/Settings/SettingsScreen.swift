@@ -269,6 +269,7 @@ private struct LocalTrainingSettingsView: View {
     @ObservedObject private var settingsStore: AppSettingsStore
     @StateObject private var trainingViewModel: TrainingSettingsViewModel
     @State private var isShowingOnboarding = false
+    @State private var isShowingTrainingCover = false
 
     init(settingsStore: AppSettingsStore) {
         self.settingsStore = settingsStore
@@ -281,8 +282,42 @@ private struct LocalTrainingSettingsView: View {
     }
 
     var body: some View {
+        LocalTrainingScreen(
+            settingsStore: settingsStore,
+            trainingViewModel: trainingViewModel,
+            isShowingOnboarding: $isShowingOnboarding,
+            isShowingTrainingCover: $isShowingTrainingCover
+        )
+        .navigationTitle("Local Training")
+        .navigationBarTitleDisplayMode(.inline)
+        .sheet(isPresented: $isShowingOnboarding) {
+            TrainingOnboardingView {
+                settingsStore.localTrainingOnboardingCompleted = true
+            }
+        }
+        .fullScreenCover(isPresented: $isShowingTrainingCover) {
+            TrainingFullScreenCover(
+                viewModel: trainingViewModel,
+                onExit: { isShowingTrainingCover = false }
+            )
+        }
+        .onChange(of: trainingViewModel.status) { _, status in
+            if status.isActive {
+                isShowingTrainingCover = true
+            }
+        }
+    }
+}
+
+struct LocalTrainingScreen: View {
+    @ObservedObject var settingsStore: AppSettingsStore
+    @ObservedObject var trainingViewModel: TrainingSettingsViewModel
+    @Binding var isShowingOnboarding: Bool
+    @Binding var isShowingTrainingCover: Bool
+
+    var body: some View {
         Form {
-            Section("Local Training") {
+            Section {
                 Toggle(
                     "Enable on-device training",
                     isOn: Binding(
@@ -295,41 +330,79 @@ private struct LocalTrainingSettingsView: View {
                         }
                     )
                 )
+            }
+
+            Section {
+                Button {
+                    startTraining()
+                } label: {
+                    HStack {
+                        Spacer()
+                        Text(trainingViewModel.status.isActive ? "Training in Progress" : "Start Training")
+                            .font(.headline)
+                        Spacer()
+                    }
+                }
+                .buttonStyle(.borderedProminent)
+                .controlSize(.large)
+                .disabled(!settingsStore.localTrainingEnabled || trainingViewModel.status.isActive)
+                .listRowInsets(EdgeInsets(top: 8, leading: 16, bottom: 8, trailing: 16))
+                .listRowBackground(Color.clear)
 
                 Button("Learn about local training") {
                     isShowingOnboarding = true
                 }
+                .font(.footnote)
+                .frame(maxWidth: .infinity)
+                .listRowBackground(Color.clear)
             }
 
-            if settingsStore.localTrainingEnabled {
-                TrainingReadinessChecklist()
-
-                Section {
-                    TrainingStatusCard(viewModel: trainingViewModel)
+            if trainingViewModel.status == .completed || trainingViewModel.status == .failed {
+                Section("Last Run") {
+                    CompactTrainingResultView(viewModel: trainingViewModel)
                 }
-
-                Section {
-                    Button {
-                        Task { await trainingViewModel.startTraining() }
-                    } label: {
-                        Label(
-                            trainingViewModel.status.isActive ? "Training in progress" : "Start Training",
-                            systemImage: "play.circle"
-                        )
-                    }
-                    .disabled(trainingViewModel.status.isActive)
-                }
-
-                TrainingLogsView(logs: trainingViewModel.recentLogs)
             }
         }
-        .navigationTitle("Local Training")
-        .navigationBarTitleDisplayMode(.inline)
-        .sheet(isPresented: $isShowingOnboarding) {
-            TrainingOnboardingView {
-                settingsStore.localTrainingOnboardingCompleted = true
+    }
+
+    private func startTraining() {
+        isShowingTrainingCover = true
+        Task { await trainingViewModel.startTraining() }
+    }
+}
+
+private struct CompactTrainingResultView: View {
+    @ObservedObject var viewModel: TrainingSettingsViewModel
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            Label(
+                viewModel.status == .completed ? "Training completed" : "Training failed",
+                systemImage: viewModel.status == .completed ? "checkmark.circle" : "exclamationmark.triangle"
+            )
+            .font(.subheadline.weight(.semibold))
+
+            if let report = viewModel.report {
+                LabeledContent("Duration", value: durationText(report.durationMs))
+                if let loss = report.stepMetrics.last?.loss {
+                    LabeledContent("Final loss", value: loss.formatted(.number.precision(.fractionLength(4))))
+                }
+            }
+
+            if let errorMessage = viewModel.errorMessage {
+                Text(errorMessage)
+                    .font(.footnote)
+                    .foregroundStyle(.red)
             }
         }
+        .font(.footnote)
+    }
+
+    private func durationText(_ durationMs: Double) -> String {
+        let seconds = Int((durationMs / 1000).rounded())
+        let minutes = seconds / 60
+        let remainder = seconds % 60
+        return minutes > 0 ? "\(minutes)m \(remainder)s" : "\(remainder)s"
     }
 }
 
@@ -423,131 +496,253 @@ private struct PrivacySettingsView: View {
     }
 }
 
-private struct TrainingReadinessChecklist: View {
+struct TrainingFullScreenCover: View {
+    @ObservedObject var viewModel: TrainingSettingsViewModel
+    let onExit: () -> Void
+    @State private var isDimmed = false
+    @State private var isShowingDetails = false
+
     var body: some View {
-        Section("Before You Start") {
-            Label("Connect power before training.", systemImage: "powerplug")
-            Label("Keep the app open and avoid locking the device.", systemImage: "iphone.gen3.radiowaves.left.and.right")
-            Label("Stop if the device gets uncomfortably warm.", systemImage: "thermometer.medium")
+        ZStack {
+            Color.black.ignoresSafeArea()
+
+            if isDimmed {
+                DimmedTrainingView(viewModel: viewModel)
+                    .contentShape(Rectangle())
+                    .onTapGesture {
+                        withAnimation(.easeInOut(duration: 0.2)) {
+                            isDimmed = false
+                        }
+                    }
+            } else {
+                VStack(spacing: 0) {
+                    TrainingFullScreenHeader(
+                        onDim: {
+                            withAnimation(.easeInOut(duration: 0.25)) {
+                                isDimmed = true
+                            }
+                        },
+                        onExit: onExit
+                    )
+
+                    Spacer(minLength: 36)
+
+                    ProgressRingView(
+                        progress: viewModel.progress,
+                        percentText: viewModel.progressPercentText,
+                        elapsedText: viewModel.elapsedText,
+                        etaText: viewModel.etaText
+                    )
+
+                    VStack(spacing: 8) {
+                        Text(viewModel.stepText)
+                        Text(viewModel.chunkText)
+                    }
+                    .font(.title3.weight(.regular))
+                    .foregroundStyle(.white.opacity(0.62))
+                    .monospacedDigit()
+                    .padding(.top, 42)
+
+                    Spacer(minLength: 28)
+
+                    VStack(spacing: 22) {
+                        TemperatureIndicatorView(thermalState: viewModel.thermalState)
+
+                        Button {
+                            withAnimation(.easeInOut(duration: 0.2)) {
+                                isShowingDetails.toggle()
+                            }
+                        } label: {
+                            Label(isShowingDetails ? "Hide Details" : "More Info", systemImage: isShowingDetails ? "chevron.down" : "chevron.up")
+                                .font(.footnote.weight(.medium))
+                        }
+                        .buttonStyle(.plain)
+                        .foregroundStyle(.white.opacity(0.74))
+
+                        if isShowingDetails {
+                            TrainingDetailsView(viewModel: viewModel)
+                                .transition(.opacity.combined(with: .move(edge: .bottom)))
+                        }
+                    }
+                    .padding(.horizontal, 28)
+                    .padding(.bottom, 26)
+                }
+            }
         }
-        .font(.footnote)
-        .foregroundStyle(.secondary)
+        .preferredColorScheme(.dark)
     }
 }
 
-struct TrainingStatusCard: View {
+private struct TrainingFullScreenHeader: View {
+    let onDim: () -> Void
+    let onExit: () -> Void
+
+    var body: some View {
+        HStack {
+            Button("Exit Training", action: onExit)
+                .font(.body.weight(.medium))
+                .foregroundStyle(.white.opacity(0.86))
+
+            Spacer()
+
+            Button(action: onDim) {
+                Label("Dim Screen", systemImage: "sun.max")
+                    .labelStyle(.iconOnly)
+                    .font(.title2)
+            }
+            .foregroundStyle(.white.opacity(0.82))
+            .accessibilityLabel("Dim Screen")
+        }
+        .padding(.horizontal, 28)
+        .padding(.top, 24)
+    }
+}
+
+private struct DimmedTrainingView: View {
     @ObservedObject var viewModel: TrainingSettingsViewModel
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 16) {
-            HStack(spacing: 18) {
-                TrainingProgressRing(
-                    progress: viewModel.progress,
-                    status: viewModel.status,
-                    percentText: viewModel.progressPercentText
-                )
-
-                VStack(alignment: .leading, spacing: 6) {
-                    Text(viewModel.status.displayName)
-                        .font(.headline)
-                    Text(viewModel.runID ?? "No active run")
-                        .font(.caption)
-                        .foregroundStyle(.secondary)
-                        .lineLimit(1)
-                    Text("Elapsed \(viewModel.elapsedText)")
-                        .font(.caption)
-                        .foregroundStyle(.secondary)
-                }
-            }
-
-            TrainingMetricsGrid(
-                latestStep: viewModel.latestStep,
-                report: viewModel.report
+        VStack(spacing: 12) {
+            ProgressRingView(
+                progress: viewModel.progress,
+                percentText: viewModel.progressPercentText,
+                elapsedText: "",
+                etaText: "",
+                ringSize: 128,
+                lineWidth: 4,
+                isDimmed: true
             )
-
-            if let errorMessage = viewModel.errorMessage {
-                Text(errorMessage)
-                    .font(.footnote)
-                    .foregroundStyle(.red)
-            }
-
-            if let report = viewModel.report, report.success {
-                VStack(alignment: .leading, spacing: 4) {
-                    Text("Adapter saved")
-                        .font(.subheadline.weight(.semibold))
-                    Text(report.outputAdapterPath)
-                        .font(.caption2)
-                        .foregroundStyle(.secondary)
-                        .lineLimit(3)
-                }
-            }
+            Text(viewModel.stepText)
+                .font(.caption)
+                .foregroundStyle(.white.opacity(0.16))
         }
-        .padding(.vertical, 4)
     }
 }
 
-struct TrainingProgressRing: View {
+struct ProgressRingView: View {
     let progress: Double?
-    let status: TrainingRunStatus
     let percentText: String
+    let elapsedText: String
+    let etaText: String
+    var ringSize: CGFloat = 276
+    var lineWidth: CGFloat = 4
+    var isDimmed = false
 
     var body: some View {
         ZStack {
             Circle()
-                .stroke(Color.secondary.opacity(0.18), lineWidth: 8)
+                .stroke(Color.white.opacity(isDimmed ? 0.10 : 0.28), lineWidth: lineWidth)
 
             if let progress {
                 Circle()
                     .trim(from: 0, to: progress)
-                    .stroke(Color.accentColor, style: StrokeStyle(lineWidth: 8, lineCap: .round))
+                    .stroke(Color.white.opacity(isDimmed ? 0.28 : 0.95), style: StrokeStyle(lineWidth: lineWidth, lineCap: .round))
                     .rotationEffect(.degrees(-90))
             } else {
                 Circle()
-                    .trim(from: 0, to: status.isActive ? 0.68 : 0)
-                    .stroke(Color.accentColor.opacity(status.isActive ? 0.8 : 0.25), style: StrokeStyle(lineWidth: 8, lineCap: .round))
+                    .trim(from: 0, to: 0.68)
+                    .stroke(Color.white.opacity(isDimmed ? 0.20 : 0.70), style: StrokeStyle(lineWidth: lineWidth, lineCap: .round))
                     .rotationEffect(.degrees(-90))
             }
 
-            Text(status.isActive || progress != nil ? percentText : "--")
-                .font(.caption.weight(.bold))
-                .monospacedDigit()
+            VStack(spacing: isDimmed ? 0 : 14) {
+                Text(percentText)
+                    .font(.system(size: isDimmed ? 30 : 80, weight: .light, design: .default))
+                    .foregroundStyle(.white.opacity(isDimmed ? 0.24 : 0.96))
+                    .monospacedDigit()
+
+                if !isDimmed {
+                    VStack(spacing: 8) {
+                        Text("\(elapsedText) elapsed")
+                        Text("ETA \(etaText)")
+                    }
+                    .font(.title3.weight(.regular))
+                    .foregroundStyle(.white.opacity(0.55))
+                    .monospacedDigit()
+                }
+            }
         }
-        .frame(width: 72, height: 72)
+        .frame(width: ringSize, height: ringSize)
         .accessibilityLabel("Training progress")
         .accessibilityValue(percentText)
     }
 }
 
-struct TrainingMetricsGrid: View {
-    let latestStep: LLMTrainingStepMetric?
-    let report: LLMTrainingReport?
+struct TemperatureIndicatorView: View {
+    let thermalState: String?
 
     var body: some View {
-        LazyVGrid(columns: [GridItem(.flexible()), GridItem(.flexible())], alignment: .leading, spacing: 10) {
-            TrainingMetricCell(title: "Loss", value: lossText)
-            TrainingMetricCell(title: "Memory", value: memoryText)
-            TrainingMetricCell(title: "Thermal", value: latestStep?.thermalState ?? report?.thermalSamples.last?.state ?? "--")
-            TrainingMetricCell(title: "App State", value: latestStep?.appState ?? report?.appStateEvents.last?.state ?? "--")
-            TrainingMetricCell(title: "Protected Data", value: protectedDataText)
-            TrainingMetricCell(title: "Main Stalls", value: "\(report?.mainThreadStalls.count ?? 0)")
+        GeometryReader { proxy in
+            ZStack(alignment: .leading) {
+                Capsule()
+                    .fill(
+                        LinearGradient(
+                            colors: [
+                                Color(red: 0.52, green: 0.68, blue: 0.88),
+                                Color(red: 0.80, green: 0.78, blue: 0.62),
+                                Color(red: 0.94, green: 0.64, blue: 0.28)
+                            ],
+                            startPoint: .leading,
+                            endPoint: .trailing
+                        )
+                    )
+                    .opacity(0.88)
+
+                Rectangle()
+                    .fill(Color.white.opacity(0.82))
+                    .frame(width: 2, height: 16)
+                    .offset(x: max(0, min(proxy.size.width - 2, proxy.size.width * indicatorPosition)))
+            }
         }
+        .frame(height: 4)
+        .accessibilityLabel("Phone temperature")
+    }
+
+    private var indicatorPosition: CGFloat {
+        switch thermalState {
+        case "critical": return 0.96
+        case "serious": return 0.76
+        case "fair": return 0.45
+        case "nominal": return 0.20
+        default: return 0.18
+        }
+    }
+}
+
+struct TrainingDetailsView: View {
+    @ObservedObject var viewModel: TrainingSettingsViewModel
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 18) {
+            LazyVGrid(columns: [GridItem(.flexible()), GridItem(.flexible())], alignment: .leading, spacing: 14) {
+                TrainingMetricCell(title: "Loss", value: lossText)
+                TrainingMetricCell(title: "Memory", value: memoryText)
+                TrainingMetricCell(title: "App State", value: viewModel.latestStep?.appState ?? viewModel.report?.appStateEvents.last?.state ?? "--")
+                TrainingMetricCell(title: "Protected Data", value: protectedDataText)
+                TrainingMetricCell(title: "Main Stalls", value: "\(viewModel.report?.mainThreadStalls.count ?? 0)")
+                TrainingMetricCell(title: "Run", value: viewModel.runID ?? "--")
+            }
+
+            TrainingLogsView(logs: viewModel.recentLogs)
+        }
+        .padding(.top, 2)
     }
 
     private var lossText: String {
-        if let loss = latestStep?.loss ?? report?.stepMetrics.last?.loss {
+        if let loss = viewModel.latestStep?.loss ?? viewModel.report?.stepMetrics.last?.loss {
             return loss.formatted(.number.precision(.fractionLength(4)))
         }
         return "--"
     }
 
     private var memoryText: String {
-        let value = latestStep?.memoryMB ?? report?.peakMemoryMB
+        let value = viewModel.latestStep?.memoryMB ?? viewModel.report?.peakMemoryMB
         guard let value else { return "--" }
         return "\(Int(value.rounded())) MB"
     }
 
     private var protectedDataText: String {
-        guard let value = latestStep?.protectedDataAvailable ?? report?.appStateEvents.last?.protectedDataAvailable else {
+        guard let value = viewModel.latestStep?.protectedDataAvailable ?? viewModel.report?.appStateEvents.last?.protectedDataAvailable else {
             return "--"
         }
         return value ? "Available" : "Unavailable"
@@ -559,14 +754,15 @@ private struct TrainingMetricCell: View {
     let value: String
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 2) {
+        VStack(alignment: .leading, spacing: 3) {
             Text(title)
                 .font(.caption2)
-                .foregroundStyle(.secondary)
+                .foregroundStyle(.white.opacity(0.42))
             Text(value)
-                .font(.caption.weight(.semibold))
+                .font(.caption.weight(.medium))
+                .foregroundStyle(.white.opacity(0.76))
                 .lineLimit(1)
-                .minimumScaleFactor(0.8)
+                .minimumScaleFactor(0.75)
         }
     }
 }
@@ -575,16 +771,21 @@ struct TrainingLogsView: View {
     let logs: [String]
 
     var body: some View {
-        Section("Recent Logs") {
+        VStack(alignment: .leading, spacing: 8) {
+            Text("Recent Logs")
+                .font(.caption.weight(.medium))
+                .foregroundStyle(.white.opacity(0.52))
+
             if logs.isEmpty {
                 Text("Logs will appear when training starts.")
                     .font(.footnote)
-                    .foregroundStyle(.secondary)
+                    .foregroundStyle(.white.opacity(0.42))
             } else {
                 ForEach(Array(logs.enumerated()), id: \.offset) { _, log in
                     Text(log)
                         .font(.caption.monospaced())
-                        .foregroundStyle(.secondary)
+                        .foregroundStyle(.white.opacity(0.50))
+                        .lineLimit(2)
                 }
             }
         }
