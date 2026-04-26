@@ -14,6 +14,7 @@ final class ChatViewModel: ObservableObject {
     @Published private(set) var metrics: InferenceMetrics?
     @Published private(set) var inlineSuggestion: ReplySuggestionItem?
     @Published private(set) var inlineMetrics: InferenceMetrics?
+    @Published private(set) var melangeDownloadProgress: Float?
     @Published private(set) var engineStatusText: String
     @Published var threadToneOverride: ThreadToneOverride
     @Published var threadLengthOverride: ThreadLengthOverride
@@ -31,6 +32,7 @@ final class ChatViewModel: ObservableObject {
     private var realtimeSubscription: DemoChatRealtimeSubscription?
     private var pollingTask: Task<Void, Never>?
     private var cachedLocalEngine: LocalReplyEngine?
+    private var melangeInlineEngine: MelangeInlineEngine?
     private var cachedLocalModelResource: String?
     /// Fingerprint of bundled vs user LoRA resolution so cache invalidates when either changes.
     private var cachedLocalLoraSignature: String?
@@ -70,6 +72,7 @@ final class ChatViewModel: ObservableObject {
         metrics = nil
         inlineSuggestion = nil
         inlineMetrics = nil
+        melangeDownloadProgress = nil
         activeComposerParticipantID = settingsStore.demoComposerParticipantID(for: resolvedThreadItem.id)
             ?? resolvedThreadItem.thread.defaultComposerParticipantID
         threadToneOverride = ThreadToneOverride(
@@ -151,6 +154,26 @@ final class ChatViewModel: ObservableObject {
                 }
             }
             .store(in: &cancellables)
+
+        settingsStore.$melangePersonalKey
+            .dropFirst()
+            .receive(on: DispatchQueue.main)
+            .sink { [weak self] _ in
+                guard let self else { return }
+                self.invalidateMelangeEngine()
+            }
+            .store(in: &cancellables)
+
+        settingsStore.$melangeInlineEnabled
+            .dropFirst()
+            .receive(on: DispatchQueue.main)
+            .sink { [weak self] enabled in
+                guard let self else { return }
+                if !enabled {
+                    self.invalidateMelangeEngine()
+                }
+            }
+            .store(in: &cancellables)
     }
 
     private static func localLoraSignature(
@@ -215,6 +238,7 @@ final class ChatViewModel: ObservableObject {
         startPollingForNewMessages()
         warmUpLocalEngineIfNeeded()
         warmUpInlineLocalEngineIfNeeded()
+        warmUpMelangeIfNeeded()
     }
 
     func teardown() {
@@ -224,6 +248,7 @@ final class ChatViewModel: ObservableObject {
         realtimeSubscription = nil
         pollingTask?.cancel()
         pollingTask = nil
+        invalidateMelangeEngine()
     }
 
     func loadMessages() async {
@@ -420,7 +445,14 @@ final class ChatViewModel: ObservableObject {
 
         switch resolvedBackendMode {
         case .local:
-            engineStatusText = localEngineForCurrentSettings().statusDescription
+            let base = localEngineForCurrentSettings().statusDescription
+            if settingsStore.melangeInlineEnabled,
+               !settingsStore.melangePersonalKey.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty,
+               settingsStore.localInlineCompletionEnabled {
+                engineStatusText = "\(base) Inline: Melange 1B (GPU)."
+            } else {
+                engineStatusText = base
+            }
         case .cloud:
             let provider = settingsStore.cloudProvider.displayName
             engineStatusText = settingsStore.cloudAPIKey.trimmingCharacters(
@@ -475,6 +507,11 @@ final class ChatViewModel: ObservableObject {
                 throw ReplySuggestionEngineError.emptySuggestions
             }
         } catch {
+            guard !Self.isCancellation(error) else {
+                suggestionSlots = []
+                metrics = nil
+                return
+            }
             guard settingsStore.safeDemoModeEnabled,
                   settingsStore.backendMode != .mock else {
                 suggestionSlots = []
@@ -496,6 +533,11 @@ final class ChatViewModel: ObservableObject {
                 }
                 errorMessage = "Fallback to Mock: \(error.localizedDescription)"
             } catch {
+                guard !Self.isCancellation(error) else {
+                    suggestionSlots = []
+                    metrics = nil
+                    return
+                }
                 suggestionSlots = []
                 metrics = nil
                 errorMessage = error.localizedDescription
@@ -537,6 +579,19 @@ final class ChatViewModel: ObservableObject {
               settingsStore.backendMode == .local,
               !settingsStore.isRunningInXcodePreview else { return }
         localEngineForCurrentSettings().warmUp()
+    }
+
+    func warmUpMelangeIfNeeded() {
+        guard let engine = resolvedMelangeInlineEngine() else { return }
+        Task {
+            do {
+                try await engine.warmUp()
+            } catch {
+                await MainActor.run {
+                    self.melangeDownloadProgress = nil
+                }
+            }
+        }
     }
 
     /// The suffix portion of the current inline suggestion that extends beyond the draft.
@@ -781,6 +836,45 @@ final class ChatViewModel: ObservableObject {
         inlineMetrics = nil
     }
 
+    private func invalidateMelangeEngine() {
+        inlineDebounceTask?.cancel()
+        inlineDebounceTask = nil
+        inlineSuggestion = nil
+        inlineMetrics = nil
+        melangeDownloadProgress = nil
+        let engine = melangeInlineEngine
+        melangeInlineEngine = nil
+        Task {
+            await engine?.release()
+        }
+    }
+
+    private func resolvedMelangeInlineEngine() -> MelangeInlineEngine? {
+        let key = settingsStore.melangePersonalKey.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard settingsStore.melangeInlineEnabled,
+              settingsStore.localInlineCompletionEnabled,
+              !settingsStore.isRunningInXcodePreview,
+              !key.isEmpty else {
+            return nil
+        }
+
+        if let melangeInlineEngine {
+            return melangeInlineEngine
+        }
+
+        let service = MelangeLLMService(
+            personalKey: key,
+            onDownloadProgress: { [weak self] progress in
+                Task { @MainActor in
+                    self?.melangeDownloadProgress = progress < 1 ? progress : nil
+                }
+            }
+        )
+        let engine = MelangeInlineEngine(service: service)
+        melangeInlineEngine = engine
+        return engine
+    }
+
     private func resolveEngine() -> any ReplySuggestionEngine {
         switch settingsStore.backendMode {
         case .mock:
@@ -798,6 +892,9 @@ final class ChatViewModel: ObservableObject {
     }
 
     private func resolveInlineEngine() -> any ReplySuggestionEngine {
+        if let melangeEngine = resolvedMelangeInlineEngine() {
+            return melangeEngine
+        }
         switch settingsStore.backendMode {
         case .mock:
             return mockEngine
@@ -884,6 +981,14 @@ final class ChatViewModel: ObservableObject {
         inlineSuggestion = nil
         inlineMetrics = nil
         errorMessage = nil
+    }
+
+    private static func isCancellation(_ error: Error) -> Bool {
+        if error is CancellationError {
+            return true
+        }
+        return (error as NSError).domain == NSCocoaErrorDomain
+            && (error as NSError).code == NSUserCancelledError
     }
 
     private func makeConversationInput() -> ConversationInput {
