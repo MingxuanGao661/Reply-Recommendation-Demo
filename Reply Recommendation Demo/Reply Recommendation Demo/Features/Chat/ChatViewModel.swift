@@ -43,6 +43,7 @@ final class ChatViewModel: ObservableObject {
     private let inlineIdleDelayNs: UInt64 = 200_000_000
     private var inlineDebounceTask: Task<Void, Never>?
     private var inlineRequestGeneration = 0
+    private var lifecycleGeneration = 0
 
     init(
         threadItem: DemoThreadListItem? = nil,
@@ -85,7 +86,14 @@ final class ChatViewModel: ObservableObject {
         let initialModelName = settingsStore.bundledLlamaModel.resourceName
         let initialLora = settingsStore.resolvedLocalLoraConfiguration()
         let initialPersonal = Self.personalGeneralInferenceEnabled(settingsStore: settingsStore)
-        let initialLocalEngine = LocalReplyEngine(
+        let initialSignature = Self.localLoraSignature(
+            model: initialModelName,
+            bundled: initialLora.bundledResourceName,
+            userPath: initialLora.userAdapterPath,
+            personalGeneral: initialPersonal
+        )
+        let initialLocalEngine = LocalReplyEngine.shared(
+            signature: initialSignature,
             modelResourceName: initialModelName,
             loraResourceName: initialLora.bundledResourceName,
             loraAdapterFilePath: initialLora.userAdapterPath,
@@ -93,12 +101,7 @@ final class ChatViewModel: ObservableObject {
         )
         cachedLocalEngine = initialLocalEngine
         cachedLocalModelResource = initialModelName
-        cachedLocalLoraSignature = Self.localLoraSignature(
-            model: initialModelName,
-            bundled: initialLora.bundledResourceName,
-            userPath: initialLora.userAdapterPath,
-            personalGeneral: initialPersonal
-        )
+        cachedLocalLoraSignature = initialSignature
         engineStatusText = initialLocalEngine.statusDescription
 
         settingsStore.$bundledLlamaModel
@@ -161,6 +164,7 @@ final class ChatViewModel: ObservableObject {
             .sink { [weak self] _ in
                 guard let self else { return }
                 self.invalidateMelangeEngine()
+                self.refreshEngineStatus()
             }
             .store(in: &cancellables)
 
@@ -172,6 +176,7 @@ final class ChatViewModel: ObservableObject {
                 if !enabled {
                     self.invalidateMelangeEngine()
                 }
+                self.refreshEngineStatus()
             }
             .store(in: &cancellables)
     }
@@ -242,6 +247,9 @@ final class ChatViewModel: ObservableObject {
     }
 
     func teardown() {
+        lifecycleGeneration += 1
+        inlineRequestGeneration += 1
+        hasBootstrapped = false
         inlineDebounceTask?.cancel()
         inlineDebounceTask = nil
         realtimeSubscription?.cancel()
@@ -249,6 +257,21 @@ final class ChatViewModel: ObservableObject {
         pollingTask?.cancel()
         pollingTask = nil
         invalidateMelangeEngine()
+        isGenerating = false
+        if let errorMessage,
+           Self.isCancellationMessage(errorMessage) {
+            self.errorMessage = nil
+        }
+    }
+
+    func suspendForBackgrounding() {
+        teardown()
+        invalidateLocalEngineCache()
+    }
+
+    func resumeAfterBackgrounding() async {
+        refreshEngineStatus()
+        await bootstrapIfNeeded()
     }
 
     func loadMessages() async {
@@ -467,6 +490,7 @@ final class ChatViewModel: ObservableObject {
 
     func generateSuggestions() async {
         guard !isGenerating else { return }
+        let generation = lifecycleGeneration
         inlineDebounceTask?.cancel()
         isGenerating = true
         suggestionSlots = SuggestionSlotItem.placeholderSlots(labels: currentSuggestionLabels)
@@ -482,6 +506,7 @@ final class ChatViewModel: ObservableObject {
         let appendSuggestion: (Suggestion) -> Void = { [weak self] suggestion in
             guard let self else { return }
             let applySuggestion = {
+                guard self.lifecycleGeneration == generation else { return }
                 if let item = self.normalizeSingleSuggestion(suggestion) {
                     self.replaceSuggestionSlot(with: item)
                 }
@@ -502,11 +527,21 @@ final class ChatViewModel: ObservableObject {
                 defaultProfile: settingsStore.defaultProfile,
                 onSuggestionReady: appendSuggestion
             )
+            guard generation == lifecycleGeneration else {
+                suggestionSlots = []
+                metrics = nil
+                return
+            }
             metrics = metricsResult
             if !hasReadySuggestion {
                 throw ReplySuggestionEngineError.emptySuggestions
             }
         } catch {
+            guard generation == lifecycleGeneration else {
+                suggestionSlots = []
+                metrics = nil
+                return
+            }
             guard !Self.isCancellation(error) else {
                 suggestionSlots = []
                 metrics = nil
@@ -516,7 +551,7 @@ final class ChatViewModel: ObservableObject {
                   settingsStore.backendMode != .mock else {
                 suggestionSlots = []
                 metrics = nil
-                errorMessage = error.localizedDescription
+                logSuggestionDebug("generation failed without fallback thread=\(threadID) error=\(Self.userFacingSuggestionError(error))")
                 return
             }
 
@@ -531,8 +566,13 @@ final class ChatViewModel: ObservableObject {
                 if !hasReadySuggestion {
                     throw ReplySuggestionEngineError.emptySuggestions
                 }
-                errorMessage = "Fallback to Mock: \(error.localizedDescription)"
+                logSuggestionDebug("fallback to mock thread=\(threadID) originalError=\(Self.userFacingSuggestionError(error))")
             } catch {
+                guard generation == lifecycleGeneration else {
+                    suggestionSlots = []
+                    metrics = nil
+                    return
+                }
                 guard !Self.isCancellation(error) else {
                     suggestionSlots = []
                     metrics = nil
@@ -540,7 +580,7 @@ final class ChatViewModel: ObservableObject {
                 }
                 suggestionSlots = []
                 metrics = nil
-                errorMessage = error.localizedDescription
+                logSuggestionDebug("fallback failed thread=\(threadID) error=\(Self.userFacingSuggestionError(error))")
             }
         }
     }
@@ -589,6 +629,7 @@ final class ChatViewModel: ObservableObject {
             } catch {
                 await MainActor.run {
                     self.melangeDownloadProgress = nil
+                    self.logMelangeDebug("warmup failed thread=\(self.threadID) error=\(error.localizedDescription)")
                 }
             }
         }
@@ -709,6 +750,10 @@ final class ChatViewModel: ObservableObject {
                 }
                 logInlineDebug("normalized empty engine=\(engineName) thread=\(threadID)")
             } catch {
+                guard !Self.isCancellation(error) else {
+                    logInlineDebug("engine cancelled thread=\(threadID)")
+                    return
+                }
                 logInlineDebug("engine failed thread=\(threadID) error=\(error.localizedDescription)")
                 // Try next engine in the fallback chain.
                 continue
@@ -719,6 +764,10 @@ final class ChatViewModel: ObservableObject {
 
     private func logInlineDebug(_ message: String) {
         NSLog("[inline-debug] %@", message)
+    }
+
+    private func logSuggestionDebug(_ message: String) {
+        NSLog("[suggestion-debug] %@", message)
     }
 
     private func visibleInlineSuffix(for suggestionText: String, draft: String) -> String? {
@@ -814,7 +863,8 @@ final class ChatViewModel: ObservableObject {
            let cached = cachedLocalEngine {
             return cached
         }
-        let engine = LocalReplyEngine(
+        let engine = LocalReplyEngine.shared(
+            signature: sig,
             modelResourceName: name,
             loraResourceName: lor.bundledResourceName,
             loraAdapterFilePath: lor.userAdapterPath,
@@ -997,8 +1047,23 @@ final class ChatViewModel: ObservableObject {
         if error is CancellationError {
             return true
         }
-        return (error as NSError).domain == NSCocoaErrorDomain
-            && (error as NSError).code == NSUserCancelledError
+        let nsError = error as NSError
+        return (nsError.domain == NSCocoaErrorDomain && nsError.code == NSUserCancelledError)
+            || nsError.domain == "Swift.CancellationError"
+            || isCancellationMessage(nsError.localizedDescription)
+    }
+
+    private static func isCancellationMessage(_ message: String) -> Bool {
+        message.localizedCaseInsensitiveContains("CancellationError")
+            || message.localizedCaseInsensitiveContains("cancelled")
+            || message.localizedCaseInsensitiveContains("canceled")
+    }
+
+    private static func userFacingSuggestionError(_ error: Error) -> String {
+        if case LLMError.modelLoadFailed = error {
+            return "Local model could not be loaded after the app resumed. Please try again; if it keeps happening, switch to Mock or Cloud mode in Settings."
+        }
+        return error.localizedDescription
     }
 
     private func makeConversationInput() -> ConversationInput {

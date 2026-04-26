@@ -36,10 +36,15 @@ struct AppRootView: View {
         guard settingsStore.backendMode == .local,
               !settingsStore.isRunningInXcodePreview else { return }
         let lor = settingsStore.resolvedLocalLoraConfiguration()
-        LocalReplyEngine(
-            modelResourceName: settingsStore.bundledLlamaModel.resourceName,
+        let modelName = settingsStore.bundledLlamaModel.resourceName
+        let personal = settingsStore.userTrainedLoraAdapterEnabled && lor.userAdapterPath != nil
+        let signature = "\(modelName)|\(lor.bundledResourceName ?? "-")|\(lor.userAdapterPath ?? "-")|pg:\(personal ? "1" : "0")"
+        LocalReplyEngine.shared(
+            signature: signature,
+            modelResourceName: modelName,
             loraResourceName: lor.bundledResourceName,
-            loraAdapterFilePath: lor.userAdapterPath
+            loraAdapterFilePath: lor.userAdapterPath,
+            usePersonalLoraGeneralInference: personal
         )
         .warmUp()
     }

@@ -22,6 +22,7 @@ final class LLMService {
     private var loraAdapter: OpaquePointer?
     private let modelName: String
     private let contextSize: Int32
+    private let batchSize: Int32
     /// Token cache for stable prompt prefixes (system + chat template) to reduce repeated tokenization cost.
     private var prefixTokenCache: [String: [llama_token]] = [:]
     private let prefixTokenCacheLimit = 12
@@ -56,6 +57,14 @@ final class LLMService {
             self.modelName = baseName
         }
         self.contextSize = Int32(contextSize)
+#if targetEnvironment(simulator) || targetEnvironment(macCatalyst)
+        let resolvedBatchSize = min(contextSize, 512)
+#elseif os(iOS)
+        let resolvedBatchSize = min(contextSize, 256)
+#else
+        let resolvedBatchSize = contextSize
+#endif
+        self.batchSize = Int32(resolvedBatchSize)
 
         Self.ensureBackendInitialized()
 
@@ -73,11 +82,7 @@ final class LLMService {
 
         var ctxParams = llama_context_default_params()
         ctxParams.n_ctx = contextSize
-        ctxParams.n_batch = contextSize
-#if targetEnvironment(simulator) || targetEnvironment(macCatalyst)
-        // Keep batch conservative on Simulator/Catalyst to avoid graph allocation asserts.
-        ctxParams.n_batch = min(contextSize, 512)
-#endif
+        ctxParams.n_batch = resolvedBatchSize
 
         guard let ctx = llama_init_from_model(loadedModel, ctxParams) else {
             if let ownedModel {
@@ -412,25 +417,35 @@ final class LLMService {
     ) throws {
         guard !tokens.isEmpty else { return }
 
-        var batch = llama_batch_init(Int32(tokens.count), 0, 1)
-        defer { llama_batch_free(batch) }
+        let maxChunkSize = max(1, Int(batchSize))
+        var cursor = 0
+        while cursor < tokens.count {
+            let chunkEnd = min(cursor + maxChunkSize, tokens.count)
+            let chunkCount = chunkEnd - cursor
+            let isFinalChunk = chunkEnd == tokens.count
 
-        batch.n_tokens = Int32(tokens.count)
-        for i in 0..<tokens.count {
-            batch.token[i] = tokens[i]
-            batch.pos[i] = startPosition + Int32(i)
-            batch.n_seq_id[i] = 1
-            if let seqIds = batch.seq_id, let seqId = seqIds[i] {
-                seqId[0] = 0
+            var batch = llama_batch_init(Int32(chunkCount), 0, 1)
+            defer { llama_batch_free(batch) }
+
+            batch.n_tokens = Int32(chunkCount)
+            for localIndex in 0..<chunkCount {
+                let tokenIndex = cursor + localIndex
+                batch.token[localIndex] = tokens[tokenIndex]
+                batch.pos[localIndex] = startPosition + Int32(tokenIndex)
+                batch.n_seq_id[localIndex] = 1
+                if let seqIds = batch.seq_id, let seqId = seqIds[localIndex] {
+                    seqId[0] = 0
+                }
+                batch.logits[localIndex] = 0
             }
-            batch.logits[i] = 0
-        }
-        if requestLogits, batch.n_tokens > 0 {
-            batch.logits[Int(batch.n_tokens) - 1] = 1
-        }
+            if requestLogits, isFinalChunk, batch.n_tokens > 0 {
+                batch.logits[Int(batch.n_tokens) - 1] = 1
+            }
 
-        guard llama_decode(context, batch) == 0 else {
-            throw LLMError.decodeFailed
+            guard llama_decode(context, batch) == 0 else {
+                throw LLMError.decodeFailed
+            }
+            cursor = chunkEnd
         }
     }
 
