@@ -28,9 +28,11 @@ protocol DemoChatServiceProtocol {
         senderDeviceID: String,
         clientMessageID: UUID
     ) async throws -> DemoChatMessageRecord
+    func deleteMessage(messageID: UUID) async throws
     func subscribeToMessages(
         threadID: UUID,
-        onMessage: @escaping (DemoChatMessageRecord) -> Void
+        onMessage: @escaping (DemoChatMessageRecord) -> Void,
+        onDelete: @escaping (UUID) -> Void
     ) async -> DemoChatRealtimeSubscription?
 }
 
@@ -254,7 +256,8 @@ final class DemoChatService: DemoChatServiceProtocol {
 
     func subscribeToMessages(
         threadID: UUID,
-        onMessage: @escaping (DemoChatMessageRecord) -> Void
+        onMessage: @escaping (DemoChatMessageRecord) -> Void,
+        onDelete: @escaping (UUID) -> Void
     ) async -> DemoChatRealtimeSubscription? {
         guard isConfigured else { return nil }
 
@@ -266,6 +269,11 @@ final class DemoChatService: DemoChatServiceProtocol {
             schema: "public",
             table: "demo_chat_messages"
         )
+        let deleteStream = channel.postgresChange(
+            DeleteAction.self,
+            schema: "public",
+            table: "demo_chat_messages"
+        )
 
         do {
             try await channel.subscribeWithError()
@@ -274,18 +282,34 @@ final class DemoChatService: DemoChatServiceProtocol {
         }
 
         let task = Task { [decoder] in
-            for await insertion in insertStream {
-                do {
-                    let message = try insertion.decodeRecord(
-                        as: DemoChatMessageRecord.self,
-                        decoder: decoder
-                    )
-                    guard message.threadID == threadID else { continue }
-                    await MainActor.run {
-                        onMessage(message)
+            await withTaskGroup(of: Void.self) { group in
+                group.addTask {
+                    for await insertion in insertStream {
+                        do {
+                            let message = try insertion.decodeRecord(
+                                as: DemoChatMessageRecord.self,
+                                decoder: decoder
+                            )
+                            guard message.threadID == threadID else { continue }
+                            await MainActor.run {
+                                onMessage(message)
+                            }
+                        } catch {
+                            continue
+                        }
                     }
-                } catch {
-                    continue
+                }
+
+                group.addTask {
+                    for await deletion in deleteStream {
+                        guard let idString = deletion.oldRecord["id"]?.stringValue,
+                              let messageID = UUID(uuidString: idString) else {
+                            continue
+                        }
+                        await MainActor.run {
+                            onDelete(messageID)
+                        }
+                    }
                 }
             }
         }
@@ -301,5 +325,14 @@ final class DemoChatService: DemoChatServiceProtocol {
 
     private func requireConfiguration() throws {
         guard isConfigured else { throw DemoChatServiceError.notConfigured }
+    }
+
+    func deleteMessage(messageID: UUID) async throws {
+        try requireConfiguration()
+        try await client
+            .from("demo_chat_messages")
+            .delete()
+            .eq("id", value: messageID.uuidString)
+            .execute()
     }
 }

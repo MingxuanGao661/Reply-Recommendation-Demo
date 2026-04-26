@@ -155,6 +155,8 @@ struct DemoParticipantColorProfile {
 struct DemoMessageBubble: View {
     let text: String
     let fill: Color
+    var canDelete = false
+    var onDelete: (() -> Void)?
 
     var body: some View {
         Text(text)
@@ -175,6 +177,13 @@ struct DemoMessageBubble: View {
                 Button("Copy") {
                     UIPasteboard.general.string = text
                 }
+                if canDelete, let onDelete {
+                    Button(role: .destructive) {
+                        onDelete()
+                    } label: {
+                        Label("Delete", systemImage: "trash")
+                    }
+                }
             }
     }
 }
@@ -186,6 +195,8 @@ struct DemoChatMessageRow: View {
     let profileColors: DemoParticipantColorProfile
     var isSelected: Bool = false
     var onTap: (() -> Void)? = nil
+    var canDelete: Bool = false
+    var onDelete: (() -> Void)? = nil
 
     var body: some View {
         VStack(
@@ -202,7 +213,12 @@ struct DemoChatMessageRow: View {
             HStack(alignment: .bottom, spacing: 8) {
                 if isTrailing {
                     Spacer(minLength: 44)
-                    DemoMessageBubble(text: message.text, fill: bubbleFill)
+                    DemoMessageBubble(
+                        text: message.text,
+                        fill: bubbleFill,
+                        canDelete: canDelete,
+                        onDelete: onDelete
+                    )
                 } else {
                     DemoAvatarBadge(
                         name: message.speakerName,
@@ -224,7 +240,12 @@ struct DemoChatMessageRow: View {
 
     @ViewBuilder
     private var bubbleWithHighlight: some View {
-        DemoMessageBubble(text: message.text, fill: bubbleFill)
+        DemoMessageBubble(
+            text: message.text,
+            fill: bubbleFill,
+            canDelete: canDelete,
+            onDelete: onDelete
+        )
             .overlay(
                 RoundedRectangle(cornerRadius: 20, style: .continuous)
                     .stroke(Color.accentColor, lineWidth: isSelected ? 2 : 0)

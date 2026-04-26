@@ -124,6 +124,45 @@ final class ChatViewModelTests: XCTestCase {
         XCTAssertEqual(inactiveThread?.unreadCount, 1)
     }
 
+    func testDeleteMessageRemovesLiveMessageAndServiceRow() async {
+        let item = DemoScenario.weekendPlans.offlineThreadListItem()
+        let service = MockDemoChatService(items: [item])
+        let viewModel = ChatViewModel(
+            threadItem: item,
+            settingsStore: makeSettingsStore(),
+            chatService: service,
+            senderDeviceID: "test-device"
+        )
+        viewModel.draftText = "delete me"
+        await viewModel.sendDraft()
+        let liveMessage = try? XCTUnwrap(viewModel.messages.last)
+
+        if let liveMessage {
+            await viewModel.deleteMessage(liveMessage)
+        }
+
+        XCTAssertEqual(service.deletedMessageIDs, liveMessage.map { [$0.id] } ?? [])
+        XCTAssertFalse(viewModel.messages.contains { $0.id == liveMessage?.id })
+    }
+
+    func testDeleteMessageIgnoresSeededMessage() async {
+        let item = DemoScenario.weekendPlans.offlineThreadListItem()
+        let service = MockDemoChatService(items: [item])
+        let viewModel = ChatViewModel(
+            threadItem: item,
+            settingsStore: makeSettingsStore(),
+            chatService: service
+        )
+        let seededMessage = try? XCTUnwrap(viewModel.messages.first)
+
+        if let seededMessage {
+            await viewModel.deleteMessage(seededMessage)
+        }
+
+        XCTAssertTrue(service.deletedMessageIDs.isEmpty)
+        XCTAssertTrue(viewModel.messages.contains { $0.id == seededMessage?.id })
+    }
+
     func testSmartReplyContextUsesSelectedThreadMessages() {
         let item = DemoScenario.groupHike.offlineThreadListItem()
         let viewModel = ChatViewModel(
@@ -178,9 +217,11 @@ private final class MockDemoChatService: DemoChatServiceProtocol {
     var isConfigured = true
     var sentTexts: [String] = []
     var lastClientMessageID: UUID?
+    var deletedMessageIDs: [UUID] = []
 
     private var items: [DemoThreadListItem]
     private var subscriptions: [UUID: [(DemoChatMessageRecord) -> Void]] = [:]
+    private var deleteSubscriptions: [UUID: [(UUID) -> Void]] = [:]
 
     init(items: [DemoThreadListItem]) {
         self.items = items
@@ -265,15 +306,32 @@ private final class MockDemoChatService: DemoChatServiceProtocol {
         return saved
     }
 
+    func deleteMessage(messageID: UUID) async throws {
+        deletedMessageIDs.append(messageID)
+        for index in items.indices {
+            if items[index].messages.contains(where: { $0.id == messageID }) {
+                items[index].messages.removeAll { $0.id == messageID }
+                deleteSubscriptions[items[index].id]?.forEach { $0(messageID) }
+                return
+            }
+        }
+    }
+
     func subscribeToMessages(
         threadID: UUID,
-        onMessage: @escaping (DemoChatMessageRecord) -> Void
+        onMessage: @escaping (DemoChatMessageRecord) -> Void,
+        onDelete: @escaping (UUID) -> Void
     ) async -> DemoChatRealtimeSubscription? {
         subscriptions[threadID, default: []].append(onMessage)
+        deleteSubscriptions[threadID, default: []].append(onDelete)
         return DemoChatRealtimeSubscription { }
     }
 
     func emit(_ message: DemoChatMessageRecord) {
         subscriptions[message.threadID]?.forEach { $0(message) }
+    }
+
+    func emitDelete(messageID: UUID, threadID: UUID) {
+        deleteSubscriptions[threadID]?.forEach { $0(messageID) }
     }
 }

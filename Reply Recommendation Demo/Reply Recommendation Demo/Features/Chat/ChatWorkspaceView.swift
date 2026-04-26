@@ -42,6 +42,9 @@ struct ChatWorkspaceView: View {
                         chatService: chatService,
                         onMessageReceived: { message in
                             threadListViewModel.ingest(message)
+                        },
+                        onMessageDeleted: { messageID in
+                            threadListViewModel.removeMessage(id: messageID)
                         }
                     )
                 )

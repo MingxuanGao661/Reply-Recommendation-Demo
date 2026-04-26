@@ -27,6 +27,7 @@ final class ChatViewModel: ObservableObject {
     private let chatService: DemoChatServiceProtocol
     private let senderDeviceID: String
     private let onMessageReceived: ((DemoChatMessageRecord) -> Void)?
+    private let onMessageDeleted: ((UUID) -> Void)?
     private var realtimeSubscription: DemoChatRealtimeSubscription?
     private var pollingTask: Task<Void, Never>?
     private var cachedLocalEngine: LocalReplyEngine?
@@ -46,7 +47,8 @@ final class ChatViewModel: ObservableObject {
         settingsStore: AppSettingsStore,
         chatService: DemoChatServiceProtocol,
         senderDeviceID: String? = nil,
-        onMessageReceived: ((DemoChatMessageRecord) -> Void)? = nil
+        onMessageReceived: ((DemoChatMessageRecord) -> Void)? = nil,
+        onMessageDeleted: ((UUID) -> Void)? = nil
     ) {
         let resolvedThreadItem = threadItem ?? DemoScenario.weekendPlans.offlineThreadListItem()
         self.thread = resolvedThreadItem.thread
@@ -55,6 +57,7 @@ final class ChatViewModel: ObservableObject {
         self.chatService = chatService
         self.senderDeviceID = senderDeviceID ?? settingsStore.demoSenderDeviceID
         self.onMessageReceived = onMessageReceived
+        self.onMessageDeleted = onMessageDeleted
 
         messages = resolvedThreadItem.messages.map(\.chatMessageItem)
         participants = resolvedThreadItem.participants.map(\.participant)
@@ -357,6 +360,57 @@ final class ChatViewModel: ObservableObject {
         }
     }
 
+    func canDeleteMessage(_ message: ChatMessageItem) -> Bool {
+        !message.isSeeded
+    }
+
+    func deleteMessage(_ message: ChatMessageItem) async {
+        guard canDeleteMessage(message) else { return }
+
+        let removedIndex = messages.firstIndex { $0.id == message.id }
+        let removedMessage = removedIndex.map { messages[$0] }
+        messages.removeAll { $0.id == message.id }
+        if selectedReplyMessageID == message.id {
+            selectedReplyMessageID = nil
+        }
+        clearSuggestionState()
+        onMessageDeleted?(message.id)
+
+        guard chatService.isConfigured else {
+            if let removedIndex, let removedMessage {
+                messages.insert(removedMessage, at: min(removedIndex, messages.count))
+            }
+            errorMessage = DemoChatServiceError.notConfigured.localizedDescription
+            return
+        }
+
+        do {
+            try await chatService.deleteMessage(messageID: message.id)
+            errorMessage = nil
+        } catch {
+            if let removedIndex, let removedMessage,
+               !messages.contains(where: { $0.id == removedMessage.id }) {
+                messages.insert(removedMessage, at: min(removedIndex, messages.count))
+                messages.sort { $0.createdAt < $1.createdAt }
+                onMessageReceived?(
+                    DemoChatMessageRecord(
+                        id: removedMessage.id,
+                        threadID: threadID,
+                        speakerID: removedMessage.speakerId,
+                        speakerName: removedMessage.speakerName,
+                        content: removedMessage.text,
+                        senderDeviceID: removedMessage.senderDeviceID,
+                        clientMessageID: removedMessage.clientMessageID,
+                        isSeeded: removedMessage.isSeeded,
+                        seedMessageOrder: nil,
+                        createdAt: removedMessage.createdAt
+                    )
+                )
+            }
+            errorMessage = error.localizedDescription
+        }
+    }
+
     func refreshEngineStatus() {
         if settingsStore.backendMode == .local,
            settingsStore.isRunningInXcodePreview {
@@ -624,10 +678,17 @@ final class ChatViewModel: ObservableObject {
 
     private func subscribeToRealtime() async {
         realtimeSubscription?.cancel()
-        realtimeSubscription = await chatService.subscribeToMessages(threadID: threadID) { [weak self] message in
-            guard let self else { return }
-            self.mergeMessageRecord(message)
-        }
+        realtimeSubscription = await chatService.subscribeToMessages(
+            threadID: threadID,
+            onMessage: { [weak self] message in
+                guard let self else { return }
+                self.mergeMessageRecord(message)
+            },
+            onDelete: { [weak self] messageID in
+                guard let self else { return }
+                self.removeMessage(id: messageID)
+            }
+        )
     }
 
     private func startPollingForNewMessages() {
@@ -664,6 +725,15 @@ final class ChatViewModel: ObservableObject {
             messages.append(item)
         }
         messages.sort { $0.createdAt < $1.createdAt }
+    }
+
+    private func removeMessage(id: UUID) {
+        messages.removeAll { $0.id == id }
+        if selectedReplyMessageID == id {
+            selectedReplyMessageID = nil
+        }
+        clearSuggestionState()
+        onMessageDeleted?(id)
     }
 
     private var hasReadySuggestion: Bool {

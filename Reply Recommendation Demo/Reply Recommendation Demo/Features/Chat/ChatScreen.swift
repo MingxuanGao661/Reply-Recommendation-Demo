@@ -30,7 +30,13 @@ struct ChatScreen: View {
                                     orderedParticipantIds: viewModel.participants.map(\.id)
                                 ),
                                 isSelected: viewModel.selectedReplyMessageID == message.id,
-                                onTap: { viewModel.selectReplyTarget(messageID: message.id) }
+                                onTap: { viewModel.selectReplyTarget(messageID: message.id) },
+                                canDelete: viewModel.canDeleteMessage(message),
+                                onDelete: {
+                                    Task<Void, Never> {
+                                        await viewModel.deleteMessage(message)
+                                    }
+                                }
                             )
                             .id(message.id)
                         }

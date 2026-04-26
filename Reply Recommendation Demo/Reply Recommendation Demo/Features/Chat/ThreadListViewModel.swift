@@ -90,6 +90,16 @@ final class ThreadListViewModel: ObservableObject {
         }
     }
 
+    func removeMessage(id messageID: UUID) {
+        guard let index = threads.firstIndex(where: { thread in
+            thread.messages.contains { $0.id == messageID }
+        }) else { return }
+        threads[index].messages.removeAll { $0.id == messageID }
+        if threads[index].id == selectedThreadID {
+            threads[index].unreadCount = 0
+        }
+    }
+
     private func markSelectedThreadRead() {
         guard let selectedThreadID,
               let index = threads.firstIndex(where: { $0.id == selectedThreadID }) else { return }
@@ -102,9 +112,15 @@ final class ThreadListViewModel: ObservableObject {
         guard service.isConfigured else { return }
 
         for thread in threads {
-            let subscription = await service.subscribeToMessages(threadID: thread.id) { [weak self] message in
-                self?.ingest(message)
-            }
+            let subscription = await service.subscribeToMessages(
+                threadID: thread.id,
+                onMessage: { [weak self] message in
+                    self?.ingest(message)
+                },
+                onDelete: { [weak self] messageID in
+                    self?.removeMessage(id: messageID)
+                }
+            )
             subscriptions[thread.id] = subscription
         }
     }
