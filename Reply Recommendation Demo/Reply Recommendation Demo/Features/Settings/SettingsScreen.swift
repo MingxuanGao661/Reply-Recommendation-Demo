@@ -22,7 +22,7 @@ struct SettingsScreen: View {
                         subtitle: localModelSubtitle,
                         systemImage: "cpu"
                     ) {
-                        LocalModelLoraSettingsView()
+                        LocalModelLoraSettingsView(viewModel: viewModel)
                     }
 
                     SettingsNavigationRow(
@@ -83,6 +83,12 @@ struct SettingsScreen: View {
                 viewModel.refreshEngineStatus()
             }
             .onChange(of: settingsStore.userTrainedLoraAdapterPath) { _, _ in
+                viewModel.refreshEngineStatus()
+            }
+            .onChange(of: settingsStore.melangeInlineEnabled) { _, _ in
+                viewModel.refreshEngineStatus()
+            }
+            .onChange(of: settingsStore.melangePersonalKey) { _, _ in
                 viewModel.refreshEngineStatus()
             }
             .task {
@@ -186,6 +192,7 @@ private struct ReplySettingsView: View {
 }
 
 private struct LocalModelLoraSettingsView: View {
+    @ObservedObject var viewModel: ChatViewModel
     @EnvironmentObject private var settingsStore: AppSettingsStore
 
     var body: some View {
@@ -209,6 +216,37 @@ private struct LocalModelLoraSettingsView: View {
                                 .foregroundStyle(.secondary)
                         }
                     }
+                }
+
+                Section("Melange SDK (ZETIC)") {
+                    SecureField("Personal Key", text: $settingsStore.melangePersonalKey)
+                        .textInputAutocapitalization(.never)
+                        .autocorrectionDisabled()
+
+                    Toggle(isOn: $settingsStore.melangeInlineEnabled) {
+                        VStack(alignment: .leading, spacing: 2) {
+                            Text("Use Melange for inline (LFM2.5 · GPU)")
+                            Text("Downloads LFM2.5-1.2B-Instruct on first use and falls back to local engine when unavailable.")
+                                .font(.caption)
+                                .foregroundStyle(.secondary)
+                        }
+                    }
+
+                    if let progress = viewModel.melangeDownloadProgress, progress < 1 {
+                        HStack {
+                            ProgressView(value: Double(progress))
+                            Text("\(Int(progress * 100))%")
+                                .font(.caption2)
+                                .foregroundStyle(.secondary)
+                                .monospacedDigit()
+                        }
+                    }
+
+                    Link(
+                        "Get Personal Key at melange.zetic.ai",
+                        destination: URL(string: "https://melange.zetic.ai")!
+                    )
+                    .font(.caption)
                 }
 
                 Section("LoRA") {

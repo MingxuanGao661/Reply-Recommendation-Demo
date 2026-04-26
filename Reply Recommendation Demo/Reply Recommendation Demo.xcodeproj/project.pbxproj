@@ -189,6 +189,7 @@
 			minimizedProjectReferenceProxies = 1;
 			packageReferences = (
 				6B68DC212F9C64E9006F700E /* XCRemoteSwiftPackageReference "supabase-swift" */,
+				AFD9487D2F9DAF8600D8EDA9 /* XCRemoteSwiftPackageReference "ZeticMLangeiOS" */,
 			);
 			preferredProjectObjectVersion = 77;
 			productRefGroup = 6B9E5B5A2F7F22DE00E3AEF6 /* Products */;
@@ -371,7 +372,7 @@
 				CODE_SIGN_IDENTITY = "Apple Development";
 				CODE_SIGN_STYLE = Automatic;
 				CURRENT_PROJECT_VERSION = 1;
-				DEVELOPMENT_TEAM = 586L2Q38YL;
+				DEVELOPMENT_TEAM = HAVU9YLM49;
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_KEY_NSHumanReadableCopyright = "";
@@ -536,6 +537,14 @@
 			requirement = {
 				kind = upToNextMajorVersion;
 				minimumVersion = 2.5.1;
+			};
+		};
+		AFD9487D2F9DAF8600D8EDA9 /* XCRemoteSwiftPackageReference "ZeticMLangeiOS" */ = {
+			isa = XCRemoteSwiftPackageReference;
+			repositoryURL = "https://github.com/zetic-ai/ZeticMLangeiOS";
+			requirement = {
+				kind = upToNextMajorVersion;
+				minimumVersion = 1.6.0;
 			};
 		};
 /* End XCRemoteSwiftPackageReference section */

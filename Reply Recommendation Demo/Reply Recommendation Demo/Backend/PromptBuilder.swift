@@ -282,6 +282,46 @@ enum PromptBuilder {
         }
     }
 
+    /// Lightweight inline prompt for Liquid AI LFM2.5 Instruct models.
+    /// LFM2.5 uses a ChatML-like template rather than Llama 3 `<|start_header_id|>` tokens.
+    static func buildLFM25PromptInline(input: ConversationInput) -> String {
+        var contextLines: [String] = []
+        for msg in input.conversation.suffix(1) {
+            let name = input.displayName(for: msg.speaker)
+            contextLines.append("\(name): \(msg.text)")
+        }
+        let contextBlock = contextLines.joined(separator: "\n")
+
+        if input.hasDraft {
+            let draft = input.resolvedDraft
+            return """
+            <|startoftext|><|im_start|>system
+            Continue the user's draft as a natural text message. Output only the continuation. No speaker name. No quotes. Few words only.<|im_end|>
+            <|im_start|>user
+            \(contextBlock)
+            Draft:<|im_end|>
+            <|im_start|>assistant
+            \(draft)
+            """
+        } else {
+            let targetLine: String
+            if let name = input.replyTargetName {
+                targetLine = "Reply to \(name):"
+            } else {
+                targetLine = "Reply:"
+            }
+            return """
+            <|startoftext|><|im_start|>system
+            Write one short natural text reply. No speaker name. No quotes.<|im_end|>
+            <|im_start|>user
+            \(contextBlock)
+
+            \(targetLine)<|im_end|>
+            <|im_start|>assistant
+            """
+        }
+    }
+
     /// Builds a llama.cpp prompt for a single specific tone label.
     /// Used by progressive generation to run one card at a time.
     static func buildLlamaPromptSingle(

@@ -182,6 +182,16 @@ final class AppSettingsStore: ObservableObject {
         didSet { persist() }
     }
 
+    /// Personal key for Melange SDK LLM model loading.
+    @Published var melangePersonalKey: String {
+        didSet { persist() }
+    }
+
+    /// When enabled, inline completion prefers the Melange LFM2.5 1.2B engine.
+    @Published var melangeInlineEnabled: Bool {
+        didSet { persist() }
+    }
+
     /// Whether to apply the bundled reply SFT LoRA adapter during local inference.
     /// Only has effect when `bundledLlamaModel` is the 3B model (the only compatible base).
     /// Mutually exclusive with `userTrainedLoraAdapterEnabled`: enabling one turns the other off.
@@ -269,6 +279,8 @@ final class AppSettingsStore: ObservableObject {
             rawValue: defaults.string(forKey: Keys.bundledLlamaModel) ?? ""
         ) ?? .instruct3B_Q4
         localInlineCompletionEnabled = defaults.object(forKey: Keys.localInlineCompletionEnabled) as? Bool ?? true
+        melangePersonalKey = defaults.string(forKey: Keys.melangePersonalKey) ?? "dev_a78a9975a9c64c27b5a92612af919ae8"
+        melangeInlineEnabled = defaults.object(forKey: Keys.melangeInlineEnabled) as? Bool ?? false
         loraAdapterEnabled = defaults.object(forKey: Keys.loraAdapterEnabled) as? Bool ?? false
         userTrainedLoraAdapterEnabled = defaults.object(
             forKey: Keys.userTrainedLoraAdapterEnabled
@@ -344,6 +356,8 @@ final class AppSettingsStore: ObservableObject {
         defaults.set(localTrainingOnboardingCompleted, forKey: Keys.localTrainingOnboardingCompleted)
         defaults.set(bundledLlamaModel.rawValue, forKey: Keys.bundledLlamaModel)
         defaults.set(localInlineCompletionEnabled, forKey: Keys.localInlineCompletionEnabled)
+        defaults.set(melangePersonalKey, forKey: Keys.melangePersonalKey)
+        defaults.set(melangeInlineEnabled, forKey: Keys.melangeInlineEnabled)
         defaults.set(loraAdapterEnabled, forKey: Keys.loraAdapterEnabled)
         defaults.set(userTrainedLoraAdapterEnabled, forKey: Keys.userTrainedLoraAdapterEnabled)
         defaults.set(userTrainedLoraAdapterPath, forKey: Keys.userTrainedLoraAdapterPath)
@@ -396,6 +410,8 @@ final class AppSettingsStore: ObservableObject {
         static let localTrainingOnboardingCompleted = "replyDemo.localTrainingOnboardingCompleted"
         static let bundledLlamaModel = "replyDemo.bundledLlamaModel"
         static let localInlineCompletionEnabled = "replyDemo.localInlineCompletionEnabled"
+        static let melangePersonalKey = "replyDemo.melangePersonalKey"
+        static let melangeInlineEnabled = "replyDemo.melangeInlineEnabled"
         static let loraAdapterEnabled = "replyDemo.loraAdapterEnabled"
         static let userTrainedLoraAdapterEnabled = "replyDemo.userTrainedLoraAdapterEnabled"
         static let userTrainedLoraAdapterPath = "replyDemo.userTrainedLoraAdapterPath"

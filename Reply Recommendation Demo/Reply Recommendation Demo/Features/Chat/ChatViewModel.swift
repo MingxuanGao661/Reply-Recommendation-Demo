@@ -449,7 +449,7 @@ final class ChatViewModel: ObservableObject {
             if settingsStore.melangeInlineEnabled,
                !settingsStore.melangePersonalKey.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty,
                settingsStore.localInlineCompletionEnabled {
-                engineStatusText = "\(base) Inline: Melange 1B (GPU)."
+                engineStatusText = "\(base) Inline: Melange LFM2.5 1.2B (GPU)."
             } else {
                 engineStatusText = base
             }
@@ -855,13 +855,18 @@ final class ChatViewModel: ObservableObject {
               settingsStore.localInlineCompletionEnabled,
               !settingsStore.isRunningInXcodePreview,
               !key.isEmpty else {
+            logMelangeDebug(
+                "skip enabled=\(settingsStore.melangeInlineEnabled) inline=\(settingsStore.localInlineCompletionEnabled) preview=\(settingsStore.isRunningInXcodePreview) keyEmpty=\(key.isEmpty)"
+            )
             return nil
         }
 
         if let melangeInlineEngine {
+            logMelangeDebug("reuse engine thread=\(threadID)")
             return melangeInlineEngine
         }
 
+        logMelangeDebug("create engine thread=\(threadID)")
         let service = MelangeLLMService(
             personalKey: key,
             onDownloadProgress: { [weak self] progress in
@@ -893,6 +898,7 @@ final class ChatViewModel: ObservableObject {
 
     private func resolveInlineEngine() -> any ReplySuggestionEngine {
         if let melangeEngine = resolvedMelangeInlineEngine() {
+            logMelangeDebug("resolve inline engine=Melange thread=\(threadID)")
             return melangeEngine
         }
         switch settingsStore.backendMode {
@@ -906,6 +912,10 @@ final class ChatViewModel: ObservableObject {
             if settingsStore.isRunningInXcodePreview { return mockEngine }
             return localEngineForCurrentSettings()
         }
+    }
+
+    private func logMelangeDebug(_ message: String) {
+        NSLog("[melange-debug] %@", message)
     }
 
     private func normalizeSingleSuggestion(_ suggestion: Suggestion) -> ReplySuggestionItem? {
