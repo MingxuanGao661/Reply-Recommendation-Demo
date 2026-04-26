@@ -1,10 +1,55 @@
-# Social Draft - A Personal Reply Assistant and On-Device Autopilot
+# Social-Draft - A Personal Reply Assistant and On-Device Autopilot
 
 Social Draft is a real-time communication copilot for the awkward moments when someone receives a message and does not know how to reply. It is not a chatbot. Instead of trying to become another person in the conversation, Social Draft stays beside the user, reads the recent context, understands the user's rough intent, and helps them navigate the moment with replies that feel natural, considerate, and easy to send.
 
 The iOS app is built around an on-device-first experience: the core communication copilot can run entirely on the user's device with a bundled GGUF model and optional LoRA adapter. For development and evaluation, the project also includes cloud and mock backends so model behavior can be compared safely.
 
 The repository also contains the supporting research pipeline: Python benchmarking tools, Claude-based data distillation scripts, sample dialogue data, and a LoRA/SFT training path that can feed adapters back into the app.
+
+
+## Screenshot Carousel
+
+<table>
+  <tr>
+    <td align="center" width="20%">
+      <a href="docs/screenshots/1.PNG">
+        <img src="docs/screenshots/1.PNG" alt="Social Draft smart replies for a project planning thread" width="180">
+      </a>
+      <br>
+      <sub>Context-aware smart replies</sub>
+    </td>
+    <td align="center" width="20%">
+      <a href="docs/screenshots/2.PNG">
+        <img src="docs/screenshots/2.PNG" alt="Social Draft inline ghost completion while replying to good news" width="180">
+      </a>
+      <br>
+      <sub>Inline ghost completion</sub>
+    </td>
+    <td align="center" width="20%">
+      <a href="docs/screenshots/3.PNG">
+        <img src="docs/screenshots/3.PNG" alt="Social Draft decision-style suggestions for an awkward invitation reply" width="180">
+      </a>
+      <br>
+      <sub>Decision-aware suggestions</sub>
+    </td>
+    <td align="center" width="20%">
+      <a href="docs/screenshots/4.PNG">
+        <img src="docs/screenshots/4.PNG" alt="Social Draft draft continuation for a camping planning conversation" width="180">
+      </a>
+      <br>
+      <sub>Draft continuation</sub>
+    </td>
+    <td align="center" width="20%">
+      <a href="docs/screenshots/5.PNG">
+        <img src="docs/screenshots/5.PNG" alt="Social Draft on-device LoRA training progress screen" width="180">
+      </a>
+      <br>
+      <sub>On-device LoRA training</sub>
+    </td>
+  </tr>
+</table>
+
+Click any screenshot to open the full-size image.
 
 ## What This Project Does
 
@@ -82,49 +127,6 @@ Social Draft is designed for moments that are common in real conversations:
 
 The app does not send autonomous messages and does not impersonate the user. It proposes options, keeps the user in control, and lets the final reply remain their choice.
 
-## Screenshot Carousel
-
-<table>
-  <tr>
-    <td align="center" width="20%">
-      <a href="docs/screenshots/1.PNG">
-        <img src="docs/screenshots/1.PNG" alt="Social Draft smart replies for a project planning thread" width="180">
-      </a>
-      <br>
-      <sub>Context-aware smart replies</sub>
-    </td>
-    <td align="center" width="20%">
-      <a href="docs/screenshots/2.PNG">
-        <img src="docs/screenshots/2.PNG" alt="Social Draft inline ghost completion while replying to good news" width="180">
-      </a>
-      <br>
-      <sub>Inline ghost completion</sub>
-    </td>
-    <td align="center" width="20%">
-      <a href="docs/screenshots/3.PNG">
-        <img src="docs/screenshots/3.PNG" alt="Social Draft decision-style suggestions for an awkward invitation reply" width="180">
-      </a>
-      <br>
-      <sub>Decision-aware suggestions</sub>
-    </td>
-    <td align="center" width="20%">
-      <a href="docs/screenshots/4.PNG">
-        <img src="docs/screenshots/4.PNG" alt="Social Draft draft continuation for a camping planning conversation" width="180">
-      </a>
-      <br>
-      <sub>Draft continuation</sub>
-    </td>
-    <td align="center" width="20%">
-      <a href="docs/screenshots/5.PNG">
-        <img src="docs/screenshots/5.PNG" alt="Social Draft on-device LoRA training progress screen" width="180">
-      </a>
-      <br>
-      <sub>On-device LoRA training</sub>
-    </td>
-  </tr>
-</table>
-
-Click any screenshot to open the full-size image.
 
 ## iOS App
 
@@ -321,13 +323,24 @@ This path is for full training experiments and adapter production outside the ap
 
 ### On-Device Training Smoke Test
 
-The iOS app also includes a conservative local LoRA smoke-test harness:
+The iOS app also includes a conservative local LoRA smoke-test harness. This is one of the most important parts of Social-Draft: the goal is not only to run reply generation locally, but also to explore whether a user's reply style can be adapted on device without sending private conversations to a remote training service.
 
 - Swift layer: `LLMTrainingService.swift`
 - Native bridge: `Backend/TrainingBridge/FinetuneBridge.h` and `.mm`
 - UI integration: Settings > Local Training
 
-The app writes training samples to a plain text dataset file, calls the native llama.cpp/QVAC training bridge off the main thread, streams logs and runtime events, and returns a report containing:
+The training path is built around a vendored QVAC/llama.cpp fine-tuning bridge. The native side is based on Tether Data's [`qvac-rnd-fabric-llm-finetune`](https://github.com/tetherto/qvac-rnd-fabric-llm-finetune) work, which presents an edge-first LoRA fine-tuning framework for heterogeneous GPUs, including iOS/macOS Apple Silicon, Android mobile GPUs, and desktop GPU backends. Their project describes the broader fine-tuning stack, prebuilt platform releases, evaluation datasets, LoRA tooling, and the `fabric-llm-finetune` branch used for cross-platform training support.
+
+Inside Social-Draft, that lower-level work is wrapped in an app-facing training flow:
+
+- The Swift layer accepts a small list of training samples from the UI.
+- JSONL social-reply records are converted into Llama-style system/user/assistant training text when possible.
+- Plain text samples still work for quick smoke tests.
+- Training runs off the main thread so the UI can keep updating.
+- Runtime events stream back into the app, including logs, memory, thermal state, and step metrics.
+- The final LoRA adapter is written into the app's Application Support directory and can be selected as a personal adapter for local inference.
+
+The report returned by the app includes:
 
 - run ID
 - dataset path
@@ -339,7 +352,7 @@ The app writes training samples to a plain text dataset file, calls the native l
 - step metrics
 - logs
 
-When a user-trained adapter is enabled, it is mutually exclusive with the bundled LoRA adapter. For general reply threads, personal LoRA inference can switch to a single natural-reply prompt and normalize the result into one suggestion card.
+When a user-trained adapter is enabled, it is mutually exclusive with the bundled LoRA adapter. For general reply threads, personal LoRA inference can switch to a single natural-reply prompt and normalize the result into one suggestion card. In product terms, this is the path toward a private communication copilot that gradually reflects the user's own phrasing without requiring their messages to leave the device.
 
 ## Sample Dialogue Data
 
