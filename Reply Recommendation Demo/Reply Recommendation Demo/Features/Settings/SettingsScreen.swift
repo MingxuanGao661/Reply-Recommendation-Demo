@@ -270,6 +270,7 @@ private struct LocalTrainingSettingsView: View {
     @StateObject private var trainingViewModel: TrainingSettingsViewModel
     @State private var isShowingOnboarding = false
     @State private var isShowingTrainingCover = false
+    @State private var suppressActiveTrainingPresentation = false
 
     init(settingsStore: AppSettingsStore) {
         self.settingsStore = settingsStore
@@ -286,7 +287,8 @@ private struct LocalTrainingSettingsView: View {
             settingsStore: settingsStore,
             trainingViewModel: trainingViewModel,
             isShowingOnboarding: $isShowingOnboarding,
-            isShowingTrainingCover: $isShowingTrainingCover
+            isShowingTrainingCover: $isShowingTrainingCover,
+            suppressActiveTrainingPresentation: $suppressActiveTrainingPresentation
         )
         .navigationTitle("Local Training")
         .navigationBarTitleDisplayMode(.inline)
@@ -298,11 +300,15 @@ private struct LocalTrainingSettingsView: View {
         .fullScreenCover(isPresented: $isShowingTrainingCover) {
             TrainingFullScreenCover(
                 viewModel: trainingViewModel,
-                onExit: { isShowingTrainingCover = false }
+                onExit: {
+                    suppressActiveTrainingPresentation = true
+                    trainingViewModel.cancelTraining()
+                    isShowingTrainingCover = false
+                }
             )
         }
         .onChange(of: trainingViewModel.status) { _, status in
-            if status.isActive {
+            if status.isActive && !suppressActiveTrainingPresentation {
                 isShowingTrainingCover = true
             }
         }
@@ -314,6 +320,7 @@ struct LocalTrainingScreen: View {
     @ObservedObject var trainingViewModel: TrainingSettingsViewModel
     @Binding var isShowingOnboarding: Bool
     @Binding var isShowingTrainingCover: Bool
+    @Binding var suppressActiveTrainingPresentation: Bool
 
     var body: some View {
         Form {
@@ -357,7 +364,7 @@ struct LocalTrainingScreen: View {
                 .listRowBackground(Color.clear)
             }
 
-            if trainingViewModel.status == .completed || trainingViewModel.status == .failed {
+            if trainingViewModel.status == .completed || trainingViewModel.status == .failed || trainingViewModel.status == .cancelled {
                 Section("Last Run") {
                     CompactTrainingResultView(viewModel: trainingViewModel)
                 }
@@ -366,6 +373,7 @@ struct LocalTrainingScreen: View {
     }
 
     private func startTraining() {
+        suppressActiveTrainingPresentation = false
         isShowingTrainingCover = true
         Task { await trainingViewModel.startTraining() }
     }
@@ -377,8 +385,8 @@ private struct CompactTrainingResultView: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 8) {
             Label(
-                viewModel.status == .completed ? "Training completed" : "Training failed",
-                systemImage: viewModel.status == .completed ? "checkmark.circle" : "exclamationmark.triangle"
+                titleText,
+                systemImage: systemImage
             )
             .font(.subheadline.weight(.semibold))
 
@@ -403,6 +411,22 @@ private struct CompactTrainingResultView: View {
         let minutes = seconds / 60
         let remainder = seconds % 60
         return minutes > 0 ? "\(minutes)m \(remainder)s" : "\(remainder)s"
+    }
+
+    private var titleText: String {
+        switch viewModel.status {
+        case .completed: return "Training completed"
+        case .cancelled: return "Training cancelled"
+        default: return "Training failed"
+        }
+    }
+
+    private var systemImage: String {
+        switch viewModel.status {
+        case .completed: return "checkmark.circle"
+        case .cancelled: return "xmark.circle"
+        default: return "exclamationmark.triangle"
+        }
     }
 }
 

@@ -34,27 +34,34 @@ final class LLMTrainingService {
     func runConservativeLoRATest(
         samples: [String],
         options: LLMTrainingOptions = .conservativeLlama32OneB(),
+        cancellationToken: LLMTrainingCancellationToken = LLMTrainingCancellationToken(),
         onEvent: EventHandler? = nil
     ) async throws -> LLMTrainingReport {
-        try await withCheckedThrowingContinuation { continuation in
-            trainingQueue.async {
-                do {
-                    let report = try self.runBlocking(
-                        samples: samples,
-                        options: options,
-                        onEvent: onEvent
-                    )
-                    continuation.resume(returning: report)
-                } catch {
-                    continuation.resume(throwing: error)
+        try await withTaskCancellationHandler {
+            try await withCheckedThrowingContinuation { continuation in
+                trainingQueue.async {
+                    do {
+                        let report = try self.runBlocking(
+                            samples: samples,
+                            options: options,
+                            cancellationToken: cancellationToken,
+                            onEvent: onEvent
+                        )
+                        continuation.resume(returning: report)
+                    } catch {
+                        continuation.resume(throwing: error)
+                    }
                 }
             }
+        } onCancel: {
+            cancellationToken.cancel()
         }
     }
 
     private func runBlocking(
         samples: [String],
         options: LLMTrainingOptions,
+        cancellationToken: LLMTrainingCancellationToken,
         onEvent: EventHandler?
     ) throws -> LLMTrainingReport {
         guard !Thread.isMainThread else {
@@ -106,6 +113,7 @@ final class LLMTrainingService {
 
         let startTime = CACurrentMediaTime()
         let unmanaged = Unmanaged.passRetained(logBox)
+        let cancellationPointer = Unmanaged.passUnretained(cancellationToken).toOpaque()
         let result = modelPath.withCString { modelCString in
             datasetURL.path.withCString { datasetCString in
                 adapterURL.path.withCString { adapterCString in
@@ -122,7 +130,15 @@ final class LLMTrainingService {
                             let line = message.map(String.init(cString:)) ?? ""
                             box.receiveLog(line)
                         },
-                        unmanaged.toOpaque()
+                        unmanaged.toOpaque(),
+                        { userData in
+                            guard let userData else { return false }
+                            let token = Unmanaged<LLMTrainingCancellationToken>
+                                .fromOpaque(userData)
+                                .takeUnretainedValue()
+                            return token.isCancelled
+                        },
+                        cancellationPointer
                     )
                 }
             }
@@ -152,6 +168,9 @@ final class LLMTrainingService {
         if success {
             onEvent?(.completed(report))
             return report
+        } else if result == LLAMA_SWIFT_FINETUNE_CANCELLED {
+            onEvent?(.cancelled(report))
+            throw LLMTrainingError.cancelled(report: report)
         } else {
             onEvent?(.failed(report))
             throw LLMTrainingError.nativeTrainingFailed(
@@ -249,6 +268,23 @@ final class LLMTrainingService {
     }
 }
 
+nonisolated final class LLMTrainingCancellationToken: @unchecked Sendable {
+    private let lock = NSLock()
+    private var cancelled = false
+
+    var isCancelled: Bool {
+        lock.lock()
+        defer { lock.unlock() }
+        return cancelled
+    }
+
+    func cancel() {
+        lock.lock()
+        cancelled = true
+        lock.unlock()
+    }
+}
+
 struct LLMTrainingOptions: Codable, Equatable, Sendable {
     var modelResourceName: String
     var outputAdapterFileName: String
@@ -292,6 +328,7 @@ enum LLMTrainingEvent: Codable, Sendable {
     case log(runID: String, message: String, latestStep: LLMTrainingStepMetric?)
     case completed(LLMTrainingReport)
     case failed(LLMTrainingReport)
+    case cancelled(LLMTrainingReport)
 }
 
 struct LLMTrainingReport: Codable, Sendable {
@@ -363,6 +400,7 @@ enum LLMTrainingError: Error, LocalizedError {
     case modelMissing(String)
     case refusingToTrainOnMainThread
     case nativeTrainingFailed(code: Int32, report: LLMTrainingReport)
+    case cancelled(report: LLMTrainingReport)
 
     var errorDescription: String? {
         switch self {
@@ -374,6 +412,8 @@ enum LLMTrainingError: Error, LocalizedError {
             return "Refusing to run LoRA training on the main thread."
         case .nativeTrainingFailed(let code, _):
             return "Native LoRA training failed with code \(code)."
+        case .cancelled:
+            return "Training was cancelled."
         }
     }
 }

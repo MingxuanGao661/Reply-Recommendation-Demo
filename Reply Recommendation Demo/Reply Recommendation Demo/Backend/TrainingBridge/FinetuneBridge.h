@@ -17,6 +17,7 @@ enum llama_swift_finetune_error {
     LLAMA_SWIFT_FINETUNE_ERROR_DATASET = 4,
     LLAMA_SWIFT_FINETUNE_ERROR_TRAINING_INIT = 5,
     LLAMA_SWIFT_FINETUNE_ERROR_SAVE = 6,
+    LLAMA_SWIFT_FINETUNE_CANCELLED = 7,
 };
 
 struct llama_swift_finetune_options {
@@ -36,6 +37,7 @@ struct llama_swift_finetune_options {
 };
 
 typedef void (*llama_swift_finetune_log_callback)(const char * message, void * user_data);
+typedef bool (*llama_swift_finetune_cancel_callback)(void * user_data);
 
 enum llama_swift_finetune_error llama_swift_run_lora_finetune(
     const char * model_path,
@@ -43,7 +45,9 @@ enum llama_swift_finetune_error llama_swift_run_lora_finetune(
     const char * output_adapter_path,
     const struct llama_swift_finetune_options * options,
     llama_swift_finetune_log_callback logger,
-    void * user_data);
+    void * user_data,
+    llama_swift_finetune_cancel_callback cancel_callback,
+    void * cancel_user_data);
 
 #ifdef __cplusplus
 }

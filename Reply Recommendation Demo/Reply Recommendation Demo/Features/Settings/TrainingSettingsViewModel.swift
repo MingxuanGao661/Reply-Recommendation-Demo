@@ -5,6 +5,7 @@ protocol LocalTrainingServiceProtocol {
     func runConservativeLoRATest(
         samples: [String],
         options: LLMTrainingOptions,
+        cancellationToken: LLMTrainingCancellationToken,
         onEvent: LLMTrainingService.EventHandler?
     ) async throws -> LLMTrainingReport
 }
@@ -17,6 +18,7 @@ enum TrainingRunStatus: Equatable {
     case running
     case completed
     case failed
+    case cancelled
 
     var isActive: Bool {
         self == .preparing || self == .running
@@ -29,6 +31,7 @@ enum TrainingRunStatus: Equatable {
         case .running: return "Training"
         case .completed: return "Completed"
         case .failed: return "Failed"
+        case .cancelled: return "Cancelled"
         }
     }
 }
@@ -46,6 +49,8 @@ final class TrainingSettingsViewModel: ObservableObject {
 
     private let settingsStore: AppSettingsStore
     private let trainingService: LocalTrainingServiceProtocol
+    private var cancellationToken: LLMTrainingCancellationToken?
+    private var cancellationRequested = false
 
     init(
         settingsStore: AppSettingsStore,
@@ -62,7 +67,7 @@ final class TrainingSettingsViewModel: ObservableObject {
 
     var progressPercentText: String {
         guard let progress else { return "--" }
-        return "\(Int((progress * 100).rounded()))%"
+        return String(format: "%.1f%%", progress * 100)
     }
 
     var elapsedText: String {
@@ -99,6 +104,11 @@ final class TrainingSettingsViewModel: ObservableObject {
     private static func durationText(seconds: Int) -> String {
         let minutes = seconds / 60
         let remainder = seconds % 60
+        if minutes >= 60 {
+            let hours = minutes / 60
+            let minuteRemainder = minutes % 60
+            return minuteRemainder > 0 ? "\(hours)h \(minuteRemainder)m" : "\(hours)h"
+        }
         return minutes > 0 ? "\(minutes)m \(remainder)s" : "\(remainder)s"
     }
 
@@ -116,6 +126,9 @@ final class TrainingSettingsViewModel: ObservableObject {
         report = nil
         errorMessage = nil
         startedAt = Date()
+        cancellationRequested = false
+        let cancellationToken = LLMTrainingCancellationToken()
+        self.cancellationToken = cancellationToken
         let dataset = Self.resolvedSmokeTrainingSamples()
         sampleCount = dataset.samples.count
         logs = [
@@ -126,6 +139,7 @@ final class TrainingSettingsViewModel: ObservableObject {
             let finalReport = try await trainingService.runConservativeLoRATest(
                 samples: dataset.samples,
                 options: .conservativeLlama32OneB(),
+                cancellationToken: cancellationToken,
                 onEvent: { [weak self] event in
                     Task { @MainActor [weak self] in
                         self?.handle(event)
@@ -135,18 +149,32 @@ final class TrainingSettingsViewModel: ObservableObject {
             if status != .completed {
                 applyCompletedReport(finalReport)
             }
+            self.cancellationToken = nil
+        } catch LLMTrainingError.cancelled(let cancelledReport) {
+            applyCancelledReport(cancelledReport)
         } catch LLMTrainingError.nativeTrainingFailed(_, let failedReport) {
             applyFailedReport(failedReport)
         } catch {
             status = .failed
             errorMessage = error.localizedDescription
             logs.append(error.localizedDescription)
+            self.cancellationToken = nil
         }
+    }
+
+    func cancelTraining() {
+        guard status.isActive else { return }
+        cancellationRequested = true
+        cancellationToken?.cancel()
+        status = .cancelled
+        errorMessage = "Training cancelled."
+        logs.append("Training cancellation requested.")
     }
 
     func handle(_ event: LLMTrainingEvent) {
         switch event {
         case .started(let runID, let message, _):
+            guard !cancellationRequested else { return }
             status = .running
             self.runID = runID
             if logs.first?.hasPrefix("[dataset]") == true {
@@ -159,6 +187,10 @@ final class TrainingSettingsViewModel: ObservableObject {
             errorMessage = nil
 
         case .log(let runID, let message, let latestStep):
+            guard !cancellationRequested else {
+                logs.append(message)
+                return
+            }
             status = .running
             self.runID = runID
             logs.append(message)
@@ -167,10 +199,21 @@ final class TrainingSettingsViewModel: ObservableObject {
             }
 
         case .completed(let report):
-            applyCompletedReport(report)
+            if cancellationRequested {
+                applyCancelledReport(report)
+            } else {
+                applyCompletedReport(report)
+            }
 
         case .failed(let report):
-            applyFailedReport(report)
+            if cancellationRequested {
+                applyCancelledReport(report)
+            } else {
+                applyFailedReport(report)
+            }
+
+        case .cancelled(let report):
+            applyCancelledReport(report)
         }
     }
 
@@ -180,6 +223,8 @@ final class TrainingSettingsViewModel: ObservableObject {
         runID = report.runID
         errorMessage = nil
         settingsStore.recordLocalTrainingReport(report)
+        cancellationToken = nil
+        cancellationRequested = false
     }
 
     private func applyFailedReport(_ report: LLMTrainingReport) {
@@ -188,6 +233,17 @@ final class TrainingSettingsViewModel: ObservableObject {
         runID = report.runID
         errorMessage = "Training failed with code \(report.errorCode)."
         logs = report.logs.isEmpty ? logs : report.logs
+        cancellationToken = nil
+        cancellationRequested = false
+    }
+
+    private func applyCancelledReport(_ report: LLMTrainingReport) {
+        status = .cancelled
+        self.report = report
+        runID = report.runID
+        errorMessage = "Training cancelled."
+        logs = report.logs.isEmpty ? logs : report.logs
+        cancellationToken = nil
     }
 
     private struct SmokeDatasetSelection {

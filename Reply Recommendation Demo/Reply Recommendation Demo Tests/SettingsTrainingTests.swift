@@ -101,6 +101,45 @@ final class SettingsTrainingTests: XCTestCase {
         XCTAssertEqual(viewModel.errorMessage, "Training failed with code 5.")
     }
 
+    func testTrainingViewModelCancelledPreservesReportAndError() {
+        let settings = AppSettingsStore(defaults: makeDefaults())
+        let viewModel = TrainingSettingsViewModel(
+            settingsStore: settings,
+            trainingService: MockLocalTrainingService()
+        )
+        let report = makeReport(success: false, errorCode: 7, logs: ["init", "cancelled"])
+
+        viewModel.handle(.cancelled(report))
+
+        XCTAssertEqual(viewModel.status, .cancelled)
+        XCTAssertEqual(viewModel.logs, ["init", "cancelled"])
+        XCTAssertEqual(viewModel.errorMessage, "Training cancelled.")
+    }
+
+    func testTrainingViewModelIgnoresLateLogsAfterCancel() {
+        let settings = AppSettingsStore(defaults: makeDefaults())
+        let viewModel = TrainingSettingsViewModel(
+            settingsStore: settings,
+            trainingService: MockLocalTrainingService()
+        )
+        viewModel.handle(.started(
+            runID: "run-1",
+            message: "started",
+            snapshot: makeSnapshot()
+        ))
+
+        viewModel.cancelTraining()
+        viewModel.handle(.log(
+            runID: "run-1",
+            message: "late step",
+            latestStep: makeMetric(step: 1, totalSteps: 2, loss: 0.8)
+        ))
+
+        XCTAssertEqual(viewModel.status, .cancelled)
+        XCTAssertEqual(viewModel.errorMessage, "Training cancelled.")
+        XCTAssertEqual(viewModel.logs.last, "late step")
+    }
+
     private func makeDefaults() -> UserDefaults {
         let suiteName = "SettingsTrainingTests.\(UUID().uuidString)"
         guard let defaults = UserDefaults(suiteName: suiteName) else {
@@ -172,6 +211,7 @@ private final class MockLocalTrainingService: LocalTrainingServiceProtocol {
     func runConservativeLoRATest(
         samples: [String],
         options: LLMTrainingOptions,
+        cancellationToken: LLMTrainingCancellationToken,
         onEvent: LLMTrainingService.EventHandler?
     ) async throws -> LLMTrainingReport {
         LLMTrainingReport(

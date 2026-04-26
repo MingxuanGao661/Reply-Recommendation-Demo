@@ -94,6 +94,10 @@ struct Logger {
     }
 };
 
+bool should_cancel(llama_swift_finetune_cancel_callback callback, void * user_data) {
+    return callback && callback(user_data);
+}
+
 std::optional<std::string> read_file(const char * path, std::string & error_message) {
     std::ifstream stream(path, std::ios::binary);
     if (!stream) {
@@ -275,13 +279,20 @@ extern "C" enum llama_swift_finetune_error llama_swift_run_lora_finetune(
     const char * output_adapter_path,
     const struct llama_swift_finetune_options * options,
     llama_swift_finetune_log_callback logger_callback,
-    void * user_data) {
+    void * user_data,
+    llama_swift_finetune_cancel_callback cancel_callback,
+    void * cancel_user_data) {
 
     Logger logger{logger_callback, user_data};
 
     if (!model_path || !dataset_path || !output_adapter_path) {
         logger.log("Invalid arguments supplied to finetune request\n");
         return LLAMA_SWIFT_FINETUNE_ERROR_INVALID_ARGUMENT;
+    }
+
+    if (should_cancel(cancel_callback, cancel_user_data)) {
+        logger.log("LoRA finetuning cancelled before start\n");
+        return LLAMA_SWIFT_FINETUNE_CANCELLED;
     }
 
     llama_swift_finetune_options opts{};
@@ -393,6 +404,12 @@ extern "C" enum llama_swift_finetune_error llama_swift_run_lora_finetune(
         return LLAMA_SWIFT_FINETUNE_ERROR_MODEL_LOAD;
     }
 
+    if (should_cancel(cancel_callback, cancel_user_data)) {
+        logger.log("LoRA finetuning cancelled after model load\n");
+        llama_model_free(model);
+        return LLAMA_SWIFT_FINETUNE_CANCELLED;
+    }
+
     llama_context_params ctx_params = llama_context_default_params();
     ctx_params.n_ctx = opts.n_ctx;
     ctx_params.n_batch = opts.n_batch;
@@ -413,6 +430,13 @@ extern "C" enum llama_swift_finetune_error llama_swift_run_lora_finetune(
         logger.log("Failed to create llama context for finetuning\n");
         llama_model_free(model);
         return LLAMA_SWIFT_FINETUNE_ERROR_CONTEXT_CREATE;
+    }
+
+    if (should_cancel(cancel_callback, cancel_user_data)) {
+        logger.log("LoRA finetuning cancelled after context creation\n");
+        llama_free(ctx);
+        llama_model_free(model);
+        return LLAMA_SWIFT_FINETUNE_CANCELLED;
     }
 
     std::string error_message;
@@ -467,6 +491,14 @@ extern "C" enum llama_swift_finetune_error llama_swift_run_lora_finetune(
 
     logger.logf("Prepared dataset with %lld sequences (stride=%lld)\n", static_cast<long long>(ndata), static_cast<long long>(stride));
 
+    if (should_cancel(cancel_callback, cancel_user_data)) {
+        logger.log("LoRA finetuning cancelled after dataset preparation\n");
+        ggml_opt_dataset_free(dataset);
+        llama_free(ctx);
+        llama_model_free(model);
+        return LLAMA_SWIFT_FINETUNE_CANCELLED;
+    }
+
     llama_lora_training_params lora_params{
         /*target_modules =*/ opts.target_modules,
         /*rank           =*/ opts.lora_rank,
@@ -482,6 +514,15 @@ extern "C" enum llama_swift_finetune_error llama_swift_run_lora_finetune(
         llama_free(ctx);
         llama_model_free(model);
         return LLAMA_SWIFT_FINETUNE_ERROR_TRAINING_INIT;
+    }
+
+    if (should_cancel(cancel_callback, cancel_user_data)) {
+        logger.log("LoRA finetuning cancelled after training init\n");
+        ggml_opt_dataset_free(dataset);
+        llama_adapter_lora_free(adapter);
+        llama_free(ctx);
+        llama_model_free(model);
+        return LLAMA_SWIFT_FINETUNE_CANCELLED;
     }
 
     ggml_opt_optimizer_params optimizer_params = ggml_opt_get_default_optimizer_params(nullptr);
@@ -513,6 +554,17 @@ extern "C" enum llama_swift_finetune_error llama_swift_run_lora_finetune(
     logger.logf("Starting LoRA finetuning for %d epoch(s)\n", opts.epochs);
 
     for (int32_t epoch = 0; epoch < opts.epochs; ++epoch) {
+        if (should_cancel(cancel_callback, cancel_user_data)) {
+            logger.log("LoRA finetuning cancelled before epoch\n");
+            ggml_opt_result_free(result_train);
+            ggml_opt_result_free(result_eval);
+            ggml_opt_dataset_free(dataset);
+            llama_adapter_lora_free(adapter);
+            llama_free(ctx);
+            llama_model_free(model);
+            return LLAMA_SWIFT_FINETUNE_CANCELLED;
+        }
+
         logger.logf("Epoch %d/%d\n", epoch + 1, opts.epochs);
         EpochLoggerScope epoch_scope(logger, epoch, opts.epochs);
         llama_opt_epoch(ctx,
@@ -523,6 +575,17 @@ extern "C" enum llama_swift_finetune_error llama_swift_run_lora_finetune(
                         finetune_epoch_progress_callback,
                         (idata_split < total_samples) ? finetune_epoch_progress_callback : nullptr,
                         /*resume_from_batch=*/0);
+
+        if (should_cancel(cancel_callback, cancel_user_data)) {
+            logger.log("LoRA finetuning cancelled after epoch\n");
+            ggml_opt_result_free(result_train);
+            ggml_opt_result_free(result_eval);
+            ggml_opt_dataset_free(dataset);
+            llama_adapter_lora_free(adapter);
+            llama_free(ctx);
+            llama_model_free(model);
+            return LLAMA_SWIFT_FINETUNE_CANCELLED;
+        }
 
         double train_loss = 0.0;
         double train_unc = 0.0;
@@ -538,6 +601,17 @@ extern "C" enum llama_swift_finetune_error llama_swift_run_lora_finetune(
         } else {
             logger.logf("  train loss: %.6f\n", train_loss);
         }
+    }
+
+    if (should_cancel(cancel_callback, cancel_user_data)) {
+        logger.log("LoRA finetuning cancelled before saving adapter\n");
+        ggml_opt_result_free(result_train);
+        ggml_opt_result_free(result_eval);
+        ggml_opt_dataset_free(dataset);
+        llama_adapter_lora_free(adapter);
+        llama_free(ctx);
+        llama_model_free(model);
+        return LLAMA_SWIFT_FINETUNE_CANCELLED;
     }
 
     std::filesystem::path output_path(output_adapter_path);
