@@ -4,7 +4,9 @@ import UIKit
 struct ChatScreen: View {
     @StateObject private var viewModel: ChatViewModel
     @EnvironmentObject private var settingsStore: AppSettingsStore
+    @Environment(\.scenePhase) private var scenePhase
     @State private var isShowingSettings = false
+    @State private var suggestionTask: Task<Void, Never>?
 
     init(viewModel: ChatViewModel) {
         _viewModel = StateObject(wrappedValue: viewModel)
@@ -82,7 +84,7 @@ struct ChatScreen: View {
                                 viewModel.insertSuggestion(suggestion)
                             },
                             onRegenerate: {
-                                Task<Void, Never> { await viewModel.generateSuggestions() }
+                                startSuggestionGeneration()
                             }
                         )
 
@@ -102,7 +104,7 @@ struct ChatScreen: View {
                             isGenerating: viewModel.isGenerating,
                             ghostSuffix: viewModel.inlineGhostSuffix,
                             onGenerate: {
-                                Task<Void, Never> { await viewModel.generateSuggestions() }
+                                startSuggestionGeneration()
                             },
                             onAcceptInline: {
                                 viewModel.acceptInlineSuggestion()
@@ -125,28 +127,41 @@ struct ChatScreen: View {
                     await viewModel.bootstrapIfNeeded()
                 }
                 .onDisappear {
+                    suggestionTask?.cancel()
+                    suggestionTask = nil
                     viewModel.teardown()
+                }
+                .onChange(of: scenePhase) { _, newPhase in
+                    switch newPhase {
+                    case .active:
+                        Task<Void, Never> {
+                            await viewModel.resumeAfterBackgrounding()
+                        }
+                    case .inactive, .background:
+                        suggestionTask?.cancel()
+                        suggestionTask = nil
+                        viewModel.suspendForBackgrounding()
+                    @unknown default:
+                        break
+                    }
                 }
                 .sheet(isPresented: $isShowingSettings) {
                     SettingsScreen(viewModel: viewModel)
                         .environmentObject(settingsStore)
-                }
-                .alert(
-                    "Suggestion Engine",
-                    isPresented: Binding(
-                        get: { viewModel.errorMessage != nil },
-                        set: { if !$0 { viewModel.clearError() } }
-                    )
-                ) {
-                    Button("OK", role: .cancel) { }
-                } message: {
-                    Text(viewModel.errorMessage ?? "")
                 }
             }
         }
     }
 
     private let bottomAnchorId = "reply-demo-bottom"
+
+    private func startSuggestionGeneration() {
+        suggestionTask?.cancel()
+        suggestionTask = Task<Void, Never> {
+            await viewModel.generateSuggestions()
+        }
+    }
+
     private var settingsButton: some View {
         Button {
             isShowingSettings = true

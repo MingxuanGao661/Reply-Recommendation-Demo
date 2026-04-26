@@ -256,6 +256,10 @@ final class CloudReplyEngine: ReplySuggestionEngine {
 
 final class LocalReplyEngine: ReplySuggestionEngine {
     private static let inferenceQueueSpecificKey = DispatchSpecificKey<Void>()
+    private static let sharedEngineLock = NSLock()
+    private static var sharedEngineSignature: String?
+    private static var sharedEngine: LocalReplyEngine?
+
     private let modelResourceName: String
     /// Resource name (no extension) of the bundled LoRA adapter GGUF, if any.
     private let loraResourceName: String?
@@ -277,6 +281,40 @@ final class LocalReplyEngine: ReplySuggestionEngine {
 
     private static func logRuntime(_ message: String) {
         NSLog("[runtime] %@", message)
+    }
+
+    static func shared(
+        signature: String,
+        modelResourceName: String = "Llama-3.2-3B-Instruct-Q4_K_M",
+        loraResourceName: String? = nil,
+        loraAdapterFilePath: String? = nil,
+        usePersonalLoraGeneralInference: Bool = false,
+        loraScale: Float = 1.0,
+        bundle: Bundle = .main,
+        temperature: Float = 0.70,
+        topK: Int32 = 40
+    ) -> LocalReplyEngine {
+        sharedEngineLock.lock()
+        defer { sharedEngineLock.unlock() }
+
+        if sharedEngineSignature == signature,
+           let sharedEngine {
+            return sharedEngine
+        }
+
+        let engine = LocalReplyEngine(
+            modelResourceName: modelResourceName,
+            loraResourceName: loraResourceName,
+            loraAdapterFilePath: loraAdapterFilePath,
+            usePersonalLoraGeneralInference: usePersonalLoraGeneralInference,
+            loraScale: loraScale,
+            bundle: bundle,
+            temperature: temperature,
+            topK: topK
+        )
+        sharedEngineSignature = signature
+        sharedEngine = engine
+        return engine
     }
 
     init(
