@@ -1,4 +1,4 @@
-# Social Draft
+# Social Draft - A Personal Reply Assistant and On-Device Autopilot
 
 Social Draft is a real-time communication copilot for the awkward moments when someone receives a message and does not know how to reply. It is not a chatbot. Instead of trying to become another person in the conversation, Social Draft stays beside the user, reads the recent context, understands the user's rough intent, and helps them navigate the moment with replies that feel natural, considerate, and easy to send.
 
@@ -82,17 +82,49 @@ Social Draft is designed for moments that are common in real conversations:
 
 The app does not send autonomous messages and does not impersonate the user. It proposes options, keeps the user in control, and lets the final reply remain their choice.
 
-> Screenshot placeholder: Main Social Draft workspace showing an incoming message, the composer, and suggestion cards.
->
-> Suggested asset path: `docs/screenshots/social-draft-workspace.png`
+## Screenshot Carousel
 
-> Screenshot placeholder: Reply target flow showing a selected message and contextual suggestions.
->
-> Suggested asset path: `docs/screenshots/reply-target-suggestions.png`
+<table>
+  <tr>
+    <td align="center" width="20%">
+      <a href="docs/screenshots/1.PNG">
+        <img src="docs/screenshots/1.PNG" alt="Social Draft smart replies for a project planning thread" width="180">
+      </a>
+      <br>
+      <sub>Context-aware smart replies</sub>
+    </td>
+    <td align="center" width="20%">
+      <a href="docs/screenshots/2.PNG">
+        <img src="docs/screenshots/2.PNG" alt="Social Draft inline ghost completion while replying to good news" width="180">
+      </a>
+      <br>
+      <sub>Inline ghost completion</sub>
+    </td>
+    <td align="center" width="20%">
+      <a href="docs/screenshots/3.PNG">
+        <img src="docs/screenshots/3.PNG" alt="Social Draft decision-style suggestions for an awkward invitation reply" width="180">
+      </a>
+      <br>
+      <sub>Decision-aware suggestions</sub>
+    </td>
+    <td align="center" width="20%">
+      <a href="docs/screenshots/4.PNG">
+        <img src="docs/screenshots/4.PNG" alt="Social Draft draft continuation for a camping planning conversation" width="180">
+      </a>
+      <br>
+      <sub>Draft continuation</sub>
+    </td>
+    <td align="center" width="20%">
+      <a href="docs/screenshots/5.PNG">
+        <img src="docs/screenshots/5.PNG" alt="Social Draft on-device LoRA training progress screen" width="180">
+      </a>
+      <br>
+      <sub>On-device LoRA training</sub>
+    </td>
+  </tr>
+</table>
 
-> Screenshot placeholder: Inline ghost completion in the composer while the user is typing.
->
-> Suggested asset path: `docs/screenshots/inline-completion.png`
+Click any screenshot to open the full-size image.
 
 ## iOS App
 
@@ -149,10 +181,6 @@ Supported providers:
 - OpenRouter
 
 API keys are entered in the app's Cloud settings. The code also supports provider-specific default model names in `CloudService.swift`.
-
-> Screenshot placeholder: Settings screen showing Local, Cloud, and Mock backend selection.
->
-> Suggested asset path: `docs/screenshots/backend-settings.png`
 
 ### Supabase Demo Chat
 
@@ -312,10 +340,6 @@ The app writes training samples to a plain text dataset file, calls the native l
 - logs
 
 When a user-trained adapter is enabled, it is mutually exclusive with the bundled LoRA adapter. For general reply threads, personal LoRA inference can switch to a single natural-reply prompt and normalize the result into one suggestion card.
-
-> Screenshot placeholder: Local Training settings screen showing progress, logs, or final adapter path.
->
-> Suggested asset path: `docs/screenshots/local-training.png`
 
 ## Sample Dialogue Data
 
