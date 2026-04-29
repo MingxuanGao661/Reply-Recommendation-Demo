@@ -51,6 +51,33 @@ The repository also contains the supporting research pipeline: Python benchmarki
 
 Click any screenshot to open the full-size image.
 
+## Quick start
+
+1. **Clone this repository** (application + tooling):
+
+   ```bash
+   git clone https://github.com/MingxuanGao661/Reply-Recommendation-Demo.git
+   cd Reply-Recommendation-Demo
+   ```
+
+2. **Pull published weights, LoRA, and data from Hugging Face** (base chat model + reply assets in one place):
+
+   ```bash
+   git clone https://huggingface.co/Williamgao6021/social-draft-llama-3.2-3b
+   ```
+
+   Use the files inside that clone as the source for `.gguf` (and any bundled JSONL / adapter files you ship with the app). For **Local** mode in Xcode, add the required `.gguf` names to **Copy Bundle Resources** so they match `AppSettingsStore` (see [Local Inference](#local-inference)); large binaries are intentionally omitted from git.
+
+3. **Python tooling (optional, for benchmarks / distillation / SFT notebooks)**:
+
+   ```bash
+   python3 -m venv .venv
+   source .venv/bin/activate
+   pip install -r requirements.txt
+   ```
+
+4. **Run the iOS app**: open `Reply Recommendation Demo/Reply Recommendation Demo.xcodeproj` in Xcode, select the **Reply Recommendation Demo** scheme, choose a simulator or device, then **Run** (`Cmd+R`). Mock mode works without any model files; Local mode needs the bundled GGUF paths above.
+
 ## What This Project Does
 
 At the product level, Social Draft behaves like a private reply copilot inside a messaging experience:
@@ -234,9 +261,25 @@ xcodebuild \
 
 If your simulator name differs, run `xcrun simctl list devices available` and choose an installed device.
 
+## Distillation, SFT, and benchmarking
+
+End-to-end, the research side is: **synthetic / teacher-distilled dialogue → JSONL rows → LoRA SFT (notebook or on-device smoke) → same schema benchmarks in Python or the app.**
+
+| Stage | Location in repo | Hugging Face |
+| --- | --- | --- |
+| **Distillation** | `Distillation/` — `distill_claude_social.py`, `social_distill/`, `tools/` | Teacher-generated rows and merged datasets can be versioned alongside the [HF hub repo](https://huggingface.co/Williamgao6021/social-draft-llama-3.2-3b). |
+| **SFT / LoRA** | `SFT/` — `train_lora_reply_sft.ipynb`, `prompts_for_sft.py` | Export adapters (e.g. `reply_sft_lora_v1`-style GGUF) and publish under the same hub for reproducible training. |
+| **Benchmark** | `Experiments_Benchmarks/` — `demo.py`, `engine_local.py`, `engine_cloud.py`, `evaluator.py` | Point local engines at GGUF files from `git clone https://huggingface.co/Williamgao6021/social-draft-llama-3.2-3b`; results land under `Experiments_Benchmarks/results/`. |
+
+Quick clone of all published model + data artifacts:
+
+```bash
+git clone https://huggingface.co/Williamgao6021/social-draft-llama-3.2-3b
+```
+
 ## Python Benchmarking Tools
 
-The `Experiments_Benchmarks` folder is the standalone prototype and benchmark harness. It exercises the same communication-copilot schema outside the app.
+The `Experiments_Benchmarks` folder is the standalone prototype and benchmark harness. It exercises the same communication-copilot schema outside the app. Published base weights and companion files for local runs live on [Hugging Face — `Williamgao6021/social-draft-llama-3.2-3b`](https://huggingface.co/Williamgao6021/social-draft-llama-3.2-3b) (clone with `git` as in [Quick start](#quick-start)).
 
 Create a virtual environment from the repo root:
 
@@ -272,7 +315,7 @@ OPENROUTER_API_KEY=
 
 ## Distillation Pipeline
 
-The `Distillation` folder builds social-reply training rows. The main entry point is:
+The `Distillation` folder builds social-reply training rows. Datasets and checkpoints used in paper/demo runs can be synced from [Hugging Face — `Williamgao6021/social-draft-llama-3.2-3b`](https://huggingface.co/Williamgao6021/social-draft-llama-3.2-3b). The main entry point is:
 
 ```bash
 python Distillation/distill_claude_social.py
@@ -306,7 +349,7 @@ For manual review, `Distillation/tools/pending_reply_review.html` provides a bro
 
 ## SFT and LoRA Training
 
-There are two LoRA-related training paths in this repo.
+There are two LoRA-related training paths in this repo. Base model files and exported adapters for reproduction are published on [Hugging Face — `Williamgao6021/social-draft-llama-3.2-3b`](https://huggingface.co/Williamgao6021/social-draft-llama-3.2-3b) (`git clone` as in [Quick start](#quick-start)).
 
 ### Notebook Training
 
